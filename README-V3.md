@@ -113,16 +113,21 @@ npm run watch-https
    - Click an empty class button (Green, Purple, or Orange)
    - Hold down to record examples while showing different variations
    - Add at least 30-50 examples per class for reliable results
-   - Use the "Add Class" button if you need more than three classes
+   - Use the "Add Class" button to add more classes beyond the default three
+   - You can add up to 6 different classes for more complex models
 
-2. **Training Best Practices**
+2. **Adding More Classes**
+
+- The idea is borrowed from V2's ability to add another class making V1 as dynamic
+
+3. **Training Best Practices**
 
    - Vary positions, angles, and distances for each class
    - Include different lighting conditions in your examples
    - Maintain consistent backgrounds for each class
    - Consider what distinguishing features the model should learn
 
-3. **Testing Your Model**
+4. **Testing Your Model**
    - After training, the model automatically starts classifying
    - Test with new examples not used during training
    - Monitor the confidence bars to understand prediction certainty

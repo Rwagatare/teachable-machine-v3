@@ -53,6 +53,12 @@ class LearningSection {
 		this.highestIndex = null;
 		this.currentIndex = null;
 
+		// Add Class Button
+		this.addClassButton = document.getElementById('add-class-button');
+		if (this.addClassButton) {
+			this.addClassButton.addEventListener('click', this.addNewClass.bind(this));
+		}
+
 		this.arrow = new HighlightArrow(2);
 		TweenMax.set(this.arrow.element, {
 			rotation: 90,
@@ -61,6 +67,95 @@ class LearningSection {
 			y: -175
 		});
 		this.element.appendChild(this.arrow.element);
+	}
+
+	// Method to add a new class
+	addNewClass(event) {
+		event.preventDefault();
+		
+		// Get the current number of classes
+		const currentClassCount = this.learningClasses.length;
+		
+		// Check if we've reached the max number of classes (e.g., 6)
+		if (currentClassCount >= 6) {
+			alert('Maximum number of classes reached (6).');
+			return;
+		}
+		
+		// Get the next available class name and color
+		const availableClassNames = ['red', 'blue', 'yellow', 'teal'];
+		const nextClassName = availableClassNames[currentClassCount - 3]; // -3 because we already have 3 default classes
+		
+		if (!nextClassName) {
+			alert('No more predefined classes available.');
+			return;
+		}
+		
+		// Update GLOBALS
+		if (GLOBALS.classNames.indexOf(nextClassName) === -1) {
+			GLOBALS.classNames.push(nextClassName);
+		}
+		GLOBALS.classesTrained[nextClassName] = false;
+		GLOBALS.numClasses++;
+		
+		// Create the HTML for the new class
+		const container = this.element.querySelector('.section__container');
+		const newClassElement = document.createElement('div');
+		newClassElement.id = nextClassName;
+		newClassElement.className = `learning__class learning__class--disabled learning__class--${nextClassName}`;
+		newClassElement.innerHTML = `
+			<div class="examples">
+				<div class="machine__status examples__status"><span class="examples__counter">0</span> examples</div>
+				<div class="examples__wrapper">
+					<img src="assets/close.svg" class="examples__close-icon">
+					<a href="#" class="link link--reset">Reset</a>
+					<canvas class="examples__viewer"></canvas>
+				</div>
+			</div>
+			<div class="learning__class-column">
+				<div class="confidence">
+					<div class="machine__status confidence__status">Confidence</div>
+					<div class="machine__meter">
+						<div class="machine__value machine__value--color-${nextClassName}">
+							<div class="machine__percentage machine__percentage--white">0%</div>
+						</div>
+					</div>
+				</div>
+				<a href="#" class="button button--record button--color-${nextClassName}"><span class="button__content button__content--small">Train <br>${nextClassName.charAt(0).toUpperCase() + nextClassName.slice(1)}</span></a>
+			</div>
+		`;
+		
+		container.appendChild(newClassElement);
+		
+		// Initialize the new class
+		const color = GLOBALS.colors[nextClassName];
+		const rgbaColor = GLOBALS.rgbaColors[nextClassName];
+		
+		const options = {
+			index: currentClassCount,
+			element: newClassElement,
+			section: this,
+			color: color,
+			rgbaColor: rgbaColor
+		};
+		
+		const learningClass = new LearningClass(options);
+		learningClass.index = currentClassCount;
+		this.learningClasses.push(learningClass);
+		this.learningClasses[currentClassCount] = learningClass;
+		learningClass.start();
+		
+		// Update wires
+		this.updateWires();
+	}
+	
+	// Update wires for new classes
+	updateWires() {
+		// This would need a more complete implementation to fully update the SVG wires
+		// For now, we'll just refresh the existing wires
+		const learningClassesElements = this.element.querySelectorAll('.learning__class');
+		this.wiresLeft = new WiresLeft(document.querySelector('.wires--left'), learningClassesElements);
+		this.wiresRight = new WiresRight(document.querySelector('.wires--right'), learningClassesElements);
 	}
 
     condenseSection() {
