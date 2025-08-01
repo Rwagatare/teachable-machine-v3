@@ -1,0 +1,140 @@
+/* Accessibility improvements for v3 */
+
+/* Increase text contrast */
+.machine__status,
+.examples__status,
+.confidence__status,
+.quality__status {
+  color: #404040; /* Darker color for better contrast */
+  font-weight: 600; /* Bolder for better readability */
+}
+
+/* Add focus styles for better keyboard navigation */
+a:focus,
+button:focus,
+.button:focus,
+input:focus {
+  outline: 3px solid $color__blue--primary;
+  outline-offset: 2px;
+}
+
+/* Improve button contrast */
+.button--color-blue .front-face {
+  fill: #0066cc; /* Darker blue for better contrast */
+}
+
+.button--color-green .front-face {
+  fill: #1a8741; /* Darker green for better contrast */
+}
+
+.button--color-purple .front-face {
+  fill: #a53fa5; /* Darker purple for better contrast */
+}
+
+.button--color-orange .front-face {
+  fill: #bf3025; /* Darker orange for better contrast */
+}
+
+/* Make text more readable */
+.section__title,
+.machine__status,
+.examples__status,
+.confidence__status {
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 1px rgba(255,255,255,0.5); /* Subtle text shadow for readability */
+}
+
+/* Higher contrast for section background */
+.section__container {
+  border: 1px solid $color__divider;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Improve contrast for reset link */
+.link--reset {
+  color: #0066cc !important;
+  font-weight: bold;
+  text-decoration: underline;
+  background-color: rgba(255,255,255,0.8);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+/* Improve contrast for confidence meters */
+.machine__value--color-green {
+  background: #1a8741 !important; /* Darker green */
+}
+
+.machine__value--color-purple {
+  background: #a53fa5 !important; /* Darker purple */
+}
+
+.machine__value--color-orange {
+  background: #bf3025 !important; /* Darker orange */
+}
+
+/* Make percentage text more readable */
+.machine__percentage--white {
+  color: #ffffff !important;
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(0,0,0,0.7); /* Add shadow for better contrast */
+}
+
+/* Make the train button interface cleaner, similar to v2 */
+.button--record {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+}
+
+.button--record:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+}
+
+/* Make examples counter more readable */
+.examples__counter {
+  font-weight: bold;
+  color: #404040;
+}
+
+/* Better contrast for selector options */
+.output_selector__option {
+  color: #404040;
+  font-weight: 500;
+}
+
+.output_selector__option--selected {
+  color: $color__blue--primary !important;
+  font-weight: bold;
+}
+
+/* Mobile-friendly adjustments that maintain contrast */
+@media screen and (max-width: 900px) {
+  .button__content--small {
+    font-weight: bold;
+  }
+  
+  /* Improve touch targets for mobile */
+  .button--record,
+  .link--reset,
+  .output_selector__option {
+    min-height: 44px; /* Recommended minimum touch target size */
+  }
+  
+  /* Increase text size for mobile */
+  .machine__percentage--white,
+  .examples__counter,
+  .machine__status {
+    font-size: 14px;
+  }
+}
+.link--reset {
+  padding: 3px 6px;
+  border-radius: 3px;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Improve input section visibility */
+.input__media {
+  border: 1px solid $color__divider;
+}

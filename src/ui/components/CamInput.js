@@ -17,7 +17,8 @@ class CamInput {
     this.element = document.createElement('div');
     this.element.classList.add('input__camera');
 
-    this.webcamClassifier = new WebcamClassifier();
+    // Use EnhancedWebcamClassifier instead of the original
+    this.webcamClassifier = new EnhancedWebcamClassifier();
     this.element.appendChild(this.webcamClassifier.video);
     this.webcamClassifier.video.setAttribute('muted', 'true');
     this.webcamClassifier.video.classList.add('input__camera-video');
@@ -86,5 +87,6 @@ class CamInput {
 
 import GLOBALS from './../../config.js';
 import WebcamClassifier from './../../ai/WebcamClassifier.js';
+import EnhancedWebcamClassifier from './../../ai/EnhancedWebcamClassifier.js';
 
 export default CamInput;
