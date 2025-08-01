@@ -35,15 +35,15 @@ class EnhancedWebcamClassifier {
     
     // Initialize confidence history for smoothing predictions
     this.confidenceHistory = {};
-    for (let i = 0; i < 3; i++) {
-      this.confidenceHistory[i] = [];
+    for (let index = 0; index < 3; index += 1) {
+      this.confidenceHistory[index] = [];
     }
   }
   
   /**
    * Enhanced prediction method that improves the stability and accuracy
    * of the original classifier's predictions
-   * @param {Object} prediction - The original prediction from WebcamClassifier
+   * @param {Object} image - The image to classify
    * @return {Object} - Enhanced prediction with more stable results
    */
   async predict(image) {
