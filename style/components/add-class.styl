@@ -9,12 +9,23 @@
   display: inline-flex
   align-items: center
   justify-content: center
-  padding: 10px 20px
+  border: 2px dashed #ccc
+  background: none
+  padding: 15px 25px
+  border-radius: 8px
+  cursor: pointer
+  width: 80%
+  max-width: 400px
+  transition: all 0.3s ease
+  color: #666
   
-  .icon {
-    font-size: 20px
-    margin-right: 8px
-    font-weight: bold
+  &:hover {
+    border-color: #999
+    background-color: rgba(0,0,0,0.02)
+  }
+  
+  svg {
+    margin-right: 10px
   }
 }
 

@@ -86,6 +86,14 @@ class LearningSection {
 		const availableClassNames = ['red', 'blue', 'yellow', 'teal'];
 		const nextClassName = availableClassNames[currentClassCount - 3]; // -3 because we already have 3 default classes
 		
+		// Use friendly names for display
+		const displayNames = {
+			'red': 'Red',
+			'blue': 'Blue',
+			'yellow': 'Yellow',
+			'teal': 'Teal'
+		};
+		
 		if (!nextClassName) {
 			alert('No more predefined classes available.');
 			return;
@@ -102,7 +110,7 @@ class LearningSection {
 		const container = this.element.querySelector('.section__container');
 		const newClassElement = document.createElement('div');
 		newClassElement.id = nextClassName;
-		newClassElement.className = `learning__class learning__class--disabled learning__class--${nextClassName}`;
+		newClassElement.className = `learning__class learning__class--${nextClassName}`;
 		newClassElement.innerHTML = `
 			<div class="examples">
 				<div class="machine__status examples__status"><span class="examples__counter">0</span> examples</div>
@@ -121,7 +129,7 @@ class LearningSection {
 						</div>
 					</div>
 				</div>
-				<a href="#" class="button button--record button--color-${nextClassName}"><span class="button__content button__content--small">Train <br>${nextClassName.charAt(0).toUpperCase() + nextClassName.slice(1)}</span></a>
+				<a href="#" class="button button--record button--color-${nextClassName}"><span class="button__content button__content--small">Train <br>${displayNames[nextClassName]}</span></a>
 			</div>
 		`;
 		
@@ -141,21 +149,58 @@ class LearningSection {
 		
 		const learningClass = new LearningClass(options);
 		learningClass.index = currentClassCount;
+		learningClass.id = nextClassName;
+		
+		// Set up event handlers just like the original classes
+		const recordButton = newClassElement.querySelector('.button--record');
+		recordButton.addEventListener('click', function(e) {
+			e.preventDefault();
+			if (GLOBALS.classId !== nextClassName) {
+				GLOBALS.classId = nextClassName;
+			} else {
+				GLOBALS.classId = null;
+			}
+		});
+		
+		// Add reset functionality
+		const resetButton = newClassElement.querySelector('.link--reset');
+		resetButton.addEventListener('click', function(e) {
+			e.preventDefault();
+			learningClass.reset();
+		});
+		
+		// Add to learning classes array
 		this.learningClasses.push(learningClass);
 		this.learningClasses[currentClassCount] = learningClass;
+		
+		// Initialize and start
 		learningClass.start();
 		
 		// Update wires
 		this.updateWires();
+		
+		// Hide the Add Class button if we've reached max classes
+		if (this.learningClasses.length >= 6) {
+			this.addClassButton.style.display = 'none';
+		}
 	}
 	
 	// Update wires for new classes
 	updateWires() {
-		// This would need a more complete implementation to fully update the SVG wires
-		// For now, we'll just refresh the existing wires
+		// Get all learning class elements
 		const learningClassesElements = this.element.querySelectorAll('.learning__class');
+		
+		// Reinitialize the wires
 		this.wiresLeft = new WiresLeft(document.querySelector('.wires--left'), learningClassesElements);
 		this.wiresRight = new WiresRight(document.querySelector('.wires--right'), learningClassesElements);
+		
+		// Make sure wires are visible
+		document.querySelector('.wires--left').classList.remove('wires--disabled');
+		document.querySelector('.wires--right').classList.remove('wires--disabled');
+		
+		// Re-enable input and output sections if they were disabled
+		document.getElementById('input-section').classList.remove('section--disabled');
+		document.getElementById('output-section').classList.remove('section--disabled');
 	}
 
     condenseSection() {
