@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import GLOBALS from '../config.js';
-import * as tf from '@tensorflow/tfjs';
+import *as tf from '@tensorflow/tfjs';
 import WebcamClassifier from './WebcamClassifier.js';
 
 /**
@@ -65,7 +65,7 @@ class EnhancedWebcamClassifier {
     }
     
     // Store confidence values in history for each class
-    Object.keys(prediction.confidences).forEach(classIndex => {
+    Object.keys(prediction.confidences).forEach((classIndex) => {
       // Add the new confidence value
       if (!this.confidenceHistory[classIndex]) {
         this.confidenceHistory[classIndex] = [];
@@ -83,7 +83,7 @@ class EnhancedWebcamClassifier {
     // More recent predictions have higher weight
     const smoothedConfidences = {};
     
-    Object.keys(prediction.confidences).forEach(classIndex => {
+    Object.keys(prediction.confidences).forEach((classIndex) => {
       smoothedConfidences[classIndex] = 0;
       
       if (this.confidenceHistory[classIndex] && this.confidenceHistory[classIndex].length > 0) {
@@ -92,7 +92,8 @@ class EnhancedWebcamClassifier {
         
         // Apply linear weighting - more recent predictions count more
         this.confidenceHistory[classIndex].forEach((conf, index) => {
-          const weight = index + 1; // Weight increases with recency
+          // Weight increases with recency
+          const weight = index + 1;
           weightedSum += conf * weight;
           totalClassWeight += weight;
         });
@@ -105,10 +106,10 @@ class EnhancedWebcamClassifier {
     let highestClassIndex = -1;
     let highestConfidence = 0;
     
-    Object.keys(smoothedConfidences).forEach(classIndex => {
+    Object.keys(smoothedConfidences).forEach((classIndex) => {
       if (smoothedConfidences[classIndex] > highestConfidence) {
         highestConfidence = smoothedConfidences[classIndex];
-        highestClassIndex = parseInt(classIndex);
+        highestClassIndex = parseInt(classIndex, 10);
       }
     });
     
@@ -132,10 +133,11 @@ class EnhancedWebcamClassifier {
   
   /**
    * Ensure the output section is enabled after training
+   * @returns {void}
    */
   enableOutput() {
     if (GLOBALS.outputSection) {
-      console.log("Enabling output section");
+      console.log('Enabling output section');
       GLOBALS.outputSection.element.classList.remove('section--disabled');
       
       if (GLOBALS.outputSection.arrow) {
@@ -154,8 +156,12 @@ class EnhancedWebcamClassifier {
     return this.originalClassifier.startWebcam();
   }
   
+  /**
+   * Initializes the classifier
+   * @returns {Promise<void>} Promise that resolves when initialization is complete
+   */
   async init() {
-    return this.originalClassifier.init();
+    await this.originalClassifier.init();
   }
   
   train(image, index) {
@@ -163,7 +169,7 @@ class EnhancedWebcamClassifier {
     const result = this.originalClassifier.train(image, index);
     
     // Check if we should enable output section
-    const trained = Object.values(GLOBALS.classesTrained).every(value => value === true);
+    const trained = Object.values(GLOBALS.classesTrained).every((value) => value === true);
     if (trained && !this.trainingComplete) {
       this.trainingComplete = true;
       this.enableOutput();
@@ -177,8 +183,10 @@ class EnhancedWebcamClassifier {
   }
   
   deleteClassData(index) {
-    // Reset confidence history for this class
+
+    /* Reset confidence history for this class */
     this.confidenceHistory[index] = [];
+    
     return this.originalClassifier.deleteClassData(index);
   }
   
@@ -200,11 +208,13 @@ class EnhancedWebcamClassifier {
   
   buttonDown(id, canvas, learningClass) {
     this.isTraining = true;
+    
     return this.originalClassifier.buttonDown(id, canvas, learningClass);
   }
   
   buttonUp(id) {
     this.isTraining = false;
+    
     return this.originalClassifier.buttonUp(id);
   }
   
