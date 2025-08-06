@@ -20,7 +20,7 @@
     "browserify": "browserify src/index.js -o public/bundle.js",
     "assets-copy": "cpx \"assets/**/*\" \"public/assets/\" --clean",
     "assets-watch": "npm run assets-copy -- --watch",
-    "html-copy": "cpx \"html/**/*.html\" \"public/\" --clean",
+    "html-copy": "cpx \"html/**/*.{html,xml}\" \"public/\" --clean",
     "html-watch": "npm run html-copy -- --watch",
     "style-watch": "stylus -m -w -u nib style/main.styl -o public/style.css",
     "style-build": "stylus -c -u nib style/main.styl -o public/style.css",

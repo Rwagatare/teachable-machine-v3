@@ -29,10 +29,82 @@
     <meta itemprop="image" content="/assets/static/share-image.jpg">
 
 
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1b73e8">
+    <meta name="apple-mobile-web-app-title" content="Teachable Machine">
+    <meta name="application-name" content="Teachable Machine">
+    <meta name="msapplication-TileColor" content="#1b73e8">
+    <meta name="msapplication-config" content="browserconfig.xml">
+    
     <link href="https://fonts.googleapis.com/css?family=Caveat:700|Poppins:400,500,600,700" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
     <script src="bundle.js"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        // Check if we're in development mode
+        const isDevelopment = location.hostname === 'localhost' || 
+                            location.hostname === '127.0.0.1' || 
+                            location.hostname.includes('192.168') ||
+                            location.hostname.includes('10.');
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // For development with self-signed certificates, we need to handle errors gracefully
+                const registerOptions = {
+                    scope: '/'
+                };
+                
+                navigator.serviceWorker.register('/service-worker.js', registerOptions)
+                .then(function(registration) {
+                    console.log('SW registered successfully:', registration.scope);
+                    
+                    // Listen for updates
+                    registration.addEventListener('updatefound', () => {
+                        console.log('SW update found');
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('New SW installed, ready to activate');
+                            }
+                        });
+                    });
+                })
+                .catch(function(error) {
+                    console.error('SW registration failed:', error);
+                    
+                    if (isDevelopment) {
+                        console.warn('🔧 Development mode detected - Service Worker errors are common with self-signed certificates');
+                        console.warn('💡 The app will still work, but offline features won\'t be available');
+                        console.warn('📝 For production, use proper SSL certificates');
+                        
+                        // Don't show error to user in development
+                        return;
+                    }
+                    
+                    // Provide helpful error information for production
+                    if (error.name === 'SecurityError') {
+                        console.error('Security Error - possible causes:');
+                        console.error('1. HTTPS required for service workers');
+                        console.error('2. Invalid SSL certificate');
+                        console.error('3. Service worker file not accessible');
+                    }
+                });
+            });
+        } else {
+            console.warn('Service workers are not supported in this browser');
+            if (!isDevelopment) {
+                // Only show this warning in production
+                console.warn('⚠️ PWA features will not be available');
+            }
+        }
+    </script>
+    
     <!-- Updated 1533336779 -->
 </head>
 <body class="no-scroll">
