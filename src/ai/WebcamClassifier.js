@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import GLOBALS from './../config.js';
+import *as tf from '@tensorflow/tfjs';
+import *as knnClassifier from '@tensorflow-models/knn-classifier';
+import *as mobilenet from '@tensorflow-models/mobilenet';
+
 /* eslint-disable camelcase, max-lines,  */
 const IMAGE_SIZE = 227;
 const INPUT_SIZE = 1000;
 const TOPK = 10;
-const CLASS_COUNT = 3;
+const CLASS_COUNT = GLOBALS.numClasses;
 const MEASURE_TIMING_EVERY_NUM_FRAMES = 20;
 
 function passThrough() {
@@ -44,18 +49,13 @@ export default class WebcamClassifier {
     this.thumbCanvas.height = Math.floor(this.latestCanvas.height / 3) + 1;
     this.thumbContext = this.thumbCanvas.getContext('2d');
     this.thumbVideoX = 0;
-    this.classNames = GLOBALS.classNames;
+    
+    // Use a getter to always get the current classNames from GLOBALS
+    Reflect.defineProperty(this, 'classNames', {get: () => GLOBALS.classNames});
+    
     this.images = {};
-    for (let index = 0; index < this.classNames.length; index += 1) {
-      this.images[this.classNames[index]] = {
-        index: index,
-        down: false,
-        imagesCount: 0,
-        images: [],
-        latestImages: [],
-        latestThumbs: []
-      };
-    }
+    this.initializeImages();
+    
     this.isDown = false;
     this.current = null;
     this.currentClass = null;
@@ -73,6 +73,23 @@ export default class WebcamClassifier {
       this.activateWebcamButton.addEventListener('click', () => {
         location.reload();
       });
+    }
+  }
+  
+  initializeImages() {
+    // Initialize images for all current classes
+    for (let index = 0; index < this.classNames.length; index += 1) {
+      const className = this.classNames[index];
+      if (!this.images[className]) {
+        this.images[className] = {
+          index: index,
+          down: false,
+          imagesCount: 0,
+          images: [],
+          latestImages: [],
+          latestThumbs: []
+        };
+      }
     }
   }
 
@@ -150,12 +167,15 @@ export default class WebcamClassifier {
     const response = await this.classifier.predictClass(logits);
     const newOutput = {
       classIndex: this.mappedButtonIndexes[response.classIndex],
-      confidences: {
-        0: 0,
-        1: 0,
-        2: 0
-      }
+      confidences: {}
     };
+    
+    // Initialize confidences for all classes based on current classNames length
+    for (let index = 0; index < this.classNames.length; index += 1) {
+      newOutput.confidences[index] = 0;
+    }
+    
+    // Map the actual confidences
     this.mappedButtonIndexes.forEach((index, count) => {
       newOutput.confidences[index] = response.confidences[count];
     });
@@ -225,10 +245,31 @@ export default class WebcamClassifier {
   }
 
   buttonDown(id, canvas, learningClass) {
+    console.log('WebcamClassifier.buttonDown called with id:', id);
+    console.log('Available images keys:', Object.keys(this.images));
+    console.log('Looking for image with id:', id);
+    
     this.current = this.images[id];
+    if (!this.current) {
+      console.error('ERROR: No image found for id:', id);
+      console.error('Available images:', this.images);
+      // Try to initialize images again
+      console.log('Attempting to re-initialize images...');
+      this.initializeImages();
+      this.current = this.images[id];
+      if (!this.current) {
+        console.error('FATAL: Still no image found after re-initialization');
+        
+return;
+      }
+      console.log('Successfully found image after re-initialization');
+    }
+    
+    console.log('Found current image:', this.current);
     this.current.down = true;
     this.isDown = true;
     this.training = this.current.index;
+    console.log('Set training to index:', this.training);
 
     this.videoRatio = this.video.videoWidth / this.video.videoHeight;
     this.currentClass = learningClass;
@@ -341,9 +382,3 @@ export default class WebcamClassifier {
     this.timer = requestAnimationFrame(this.animate.bind(this));
   }
 }
-/* eslint-disable keyword-spacing */
-import GLOBALS from './../config.js';
-import * as tf from '@tensorflow/tfjs';
-import * as knnClassifier from '@tensorflow-models/knn-classifier';
-import * as mobilenet from '@tensorflow-models/mobilenet';
-/* eslint-enable camelcase, max-lines, keyword-spacing */

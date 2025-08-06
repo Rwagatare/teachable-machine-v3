@@ -76,35 +76,46 @@ class LearningSection {
 		// Get the current number of classes
 		const currentClassCount = this.learningClasses.length;
 		
-		// Check if we've reached the max number of classes (e.g., 6)
-		if (currentClassCount >= 6) {
-			alert('Maximum number of classes reached (6).');
+		// Check if we've reached the max number of classes (4 total: 3 original + 1 additional)
+		if (currentClassCount >= 4) {
+			console.warn('Maximum number of classes reached (4). You can add only 1 additional class.');
+
 			return;
 		}
 		
-		// Get the next available class name and color
-		const availableClassNames = ['red', 'blue', 'yellow', 'teal'];
-		const nextClassName = availableClassNames[currentClassCount - 3]; // -3 because we already have 3 default classes
+		// Since we only allow 1 additional class, it will always be 'yellow'
+		const nextClassName = 'yellow';
+		const displayName = 'Yellow';
 		
-		// Use friendly names for display
-		const displayNames = {
-			'red': 'Red',
-			'blue': 'Blue',
-			'yellow': 'Yellow',
-			'teal': 'Teal'
-		};
-		
-		if (!nextClassName) {
-			alert('No more predefined classes available.');
+		// Check if yellow class already exists in the config
+		if (GLOBALS.classNames.indexOf(nextClassName) !== -1) {
+			console.warn('Yellow class already exists!');
+
 			return;
 		}
 		
-		// Update GLOBALS
-		if (GLOBALS.classNames.indexOf(nextClassName) === -1) {
-			GLOBALS.classNames.push(nextClassName);
-		}
+		// Add yellow to the global configuration
+		GLOBALS.classNames.push(nextClassName);
 		GLOBALS.classesTrained[nextClassName] = false;
-		GLOBALS.numClasses++;
+		GLOBALS.numClasses += 1;
+		
+		// Add to webcam classifier's images object
+		if (GLOBALS.webcamClassifier) {
+			// Use the enhanced classifier's addNewClass method if available
+			if (GLOBALS.webcamClassifier.addNewClass) {
+				GLOBALS.webcamClassifier.addNewClass(nextClassName, currentClassCount);
+			}else {
+				// Fallback for original classifier
+				GLOBALS.webcamClassifier.images[nextClassName] = {
+					index: currentClassCount,
+					down: false,
+					imagesCount: 0,
+					images: [],
+					latestImages: [],
+					latestThumbs: []
+				};
+			}
+		}
 		
 		// Create the HTML for the new class
 		const container = this.element.querySelector('.section__container');
@@ -129,7 +140,7 @@ class LearningSection {
 						</div>
 					</div>
 				</div>
-				<a href="#" class="button button--record button--color-${nextClassName}"><span class="button__content button__content--small">Train <br>${displayNames[nextClassName]}</span></a>
+				<a href="#" class="button button--record button--color-${nextClassName}"><span class="button__content button__content--small">Train <br>${displayName}</span></a>
 			</div>
 		`;
 		
@@ -151,48 +162,48 @@ class LearningSection {
 		learningClass.index = currentClassCount;
 		learningClass.id = nextClassName;
 		
-		// Set up event handlers just like the original classes
-		const recordButton = newClassElement.querySelector('.button--record');
-		recordButton.addEventListener('click', function(e) {
-			e.preventDefault();
-			if (GLOBALS.classId !== nextClassName) {
-				GLOBALS.classId = nextClassName;
-			} else {
-				GLOBALS.classId = null;
-			}
-		});
-		
-		// Add reset functionality
-		const resetButton = newClassElement.querySelector('.link--reset');
-		resetButton.addEventListener('click', function(e) {
-			e.preventDefault();
-			learningClass.reset();
-		});
-		
 		// Add to learning classes array
 		this.learningClasses.push(learningClass);
 		this.learningClasses[currentClassCount] = learningClass;
 		
-		// Initialize and start
+		// Initialize and start the new class (this sets up all the event handlers)
 		learningClass.start();
+		
+		// Update output components to handle the new class
+		if (GLOBALS.outputSection && GLOBALS.outputSection.outputs) {
+			if (GLOBALS.outputSection.outputs.GIFOutput && GLOBALS.outputSection.outputs.GIFOutput.addNewClass) {
+				GLOBALS.outputSection.outputs.GIFOutput.addNewClass(nextClassName, currentClassCount);
+			}
+			if (GLOBALS.outputSection.outputs.SoundOutput && GLOBALS.outputSection.outputs.SoundOutput.addNewClass) {
+				GLOBALS.outputSection.outputs.SoundOutput.addNewClass(nextClassName, currentClassCount);
+			}
+			if (GLOBALS.outputSection.outputs.SpeechOutput && GLOBALS.outputSection.outputs.SpeechOutput.addNewClass) {
+				GLOBALS.outputSection.outputs.SpeechOutput.addNewClass(nextClassName, currentClassCount);
+			}
+		}
 		
 		// Update wires
 		this.updateWires();
 		
-		// Hide the Add Class button if we've reached max classes
-		if (this.learningClasses.length >= 6) {
-			this.addClassButton.style.display = 'none';
+		// Update recording system to handle new class
+		if (GLOBALS.recordSection && GLOBALS.recordSection.addNewClass) {
+			GLOBALS.recordSection.addNewClass(nextClassName);
 		}
+		
+		// Hide the Add Class button since we only allow 1 additional class (4 total)
+		this.addClassButton.style.display = 'none';
 	}
 	
 	// Update wires for new classes
 	updateWires() {
-		// Get all learning class elements
-		const learningClassesElements = this.element.querySelectorAll('.learning__class');
+		// Update existing wire instances instead of creating new ones
+		if (this.wiresLeft && this.wiresLeft.updateForNewClass) {
+			this.wiresLeft.updateForNewClass();
+		}
 		
-		// Reinitialize the wires
-		this.wiresLeft = new WiresLeft(document.querySelector('.wires--left'), learningClassesElements);
-		this.wiresRight = new WiresRight(document.querySelector('.wires--right'), learningClassesElements);
+		if (this.wiresRight && this.wiresRight.updateForNewClass) {
+			this.wiresRight.updateForNewClass();
+		}
 		
 		// Make sure wires are visible
 		document.querySelector('.wires--left').classList.remove('wires--disabled');
@@ -289,8 +300,8 @@ class LearningSection {
 		});
 	}
 
-	startRecording(id) {
-		this.wiresLeft.highlight(id);
+	startRecording(index) {
+		this.wiresLeft.highlight(index);
 	}
 
 	stopRecording() {
@@ -320,6 +331,7 @@ class LearningSection {
 		const confidencesArry = Object.values(confidences);
 		let maxIndex = this.getMaxIndex(confidencesArry);
 		let maxValue = confidencesArry[maxIndex];
+		
 		// if (maxValue > 0.5 && this.currentIndex !== maxIndex) {
 		if (maxValue > 0.5) {
 			this.currentIndex = maxIndex;
@@ -328,12 +340,14 @@ class LearningSection {
 			GLOBALS.outputSection.trigger(id);
 		}
 
-		for (let index = 0; index < 3; index += 1) {
-			this.learningClasses[index].setConfidence(confidencesArry[index] * 100);
-			if (index === maxIndex) {
-				this.learningClasses[index].highlightConfidence();
-			}else { 
-				this.learningClasses[index].dehighlightConfidence();
+		for (let index = 0; index < GLOBALS.numClasses; index += 1) {
+			if (this.learningClasses[index]) {
+				this.learningClasses[index].setConfidence(confidencesArry[index] * 100);
+				if (index === maxIndex) {
+					this.learningClasses[index].highlightConfidence();
+				}else { 
+					this.learningClasses[index].dehighlightConfidence();
+				}
 			}
 		}
 	}

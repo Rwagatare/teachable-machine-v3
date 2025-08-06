@@ -30,11 +30,7 @@ let GLOBALS = {
 	classNames: [
 	'green',
 	'purple',
-	'orange',
-	'red',
-	'blue',
-	'yellow',
-	'teal'
+	'orange'
 	],
 	colors: {
 		'green': '#2baa5e',

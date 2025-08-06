@@ -26,6 +26,7 @@ class WiresLeft {
         this.wireGreen = this.element.querySelector('.wire-green');
         this.wirePurple = this.element.querySelector('.wire-purple');
         this.wireOrange = this.element.querySelector('.wire-orange');
+        this.wireYellow = this.element.querySelector('.wire-yellow');
         this.context = this.canvas.getContext('2d');
         this.vertical = true;
         window.addEventListener('resize', () => {
@@ -44,7 +45,7 @@ class WiresLeft {
         this.context.clearRect(0, 0, this.width, this.height);
         this.context.lineWidth = 3;
 
-        for (let index = 0; index < 3; index += 1) {
+        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
 
             let startY = this.startY + (this.startSpace * index);
             let endY = this.endY + (this.endSpace * index);
@@ -102,21 +103,31 @@ class WiresLeft {
 
 
     highlight(index) {
+        console.log('🎬 WiresLeft.highlight - index:', index);
+        if (!this.animator[index]) {
+            console.warn('No animator found for index:', index);
+            
+return;
+        }
+        
         this.currentAnimator = this.animator[index];
         this.currentAnimator.highlight = true;
         this.start();
 
-        switch (index) {
-            case 0:
-            this.wireGreen.classList.add('animate');
-            break;
-            case 1:
-            this.wireOrange.classList.add('animate');
-            break;
-            case 2:
-            this.wirePurple.classList.add('animate');
-            break;
-            default:
+        // Get the class name for this index
+        const className = GLOBALS.classNames[index];
+        console.log('🎬 WiresLeft.highlight - className:', className);
+        
+        const wireElement = this.element.querySelector(`.wire-${className}`);
+        console.log('🎬 WiresLeft.highlight - wireElement:', wireElement);
+        
+        if (wireElement) {
+            console.log('🎬 WiresLeft.highlight - before adding animate class:', wireElement.classList.toString());
+            wireElement.classList.add('animate');
+            console.log('🎬 WiresLeft.highlight - after adding animate class:', wireElement.classList.toString());
+            console.log('🎬 WiresLeft.highlight - wireElement computed style:', window.getComputedStyle(wireElement));
+        }else {
+            console.warn('No wire element found for class:', className);
         }
     }
 
@@ -128,9 +139,14 @@ class WiresLeft {
             this.renderOnce = true;
             this.render();
         }
-        this.wireGreen.classList.remove('animate');
-        this.wirePurple.classList.remove('animate');
-        this.wireOrange.classList.remove('animate');
+        
+        // Remove animate class from all wire elements
+        GLOBALS.classNames.forEach((className) => {
+            const wireElement = this.element.querySelector(`.wire-${className}`);
+            if (wireElement) {
+                wireElement.classList.remove('animate');
+            }
+        });
     }
 
     start() {
@@ -153,7 +169,7 @@ class WiresLeft {
         this.width = this.element.offsetWidth;
 
         let firstLearningClass = this.learningClasses[0];
-        let lastLearningClass = this.learningClasses[2];
+        let lastLearningClass = this.learningClasses[this.learningClasses.length - 1];
 
         let classesHeight = lastLearningClass.offsetTop - firstLearningClass.offsetTop;
 
@@ -161,7 +177,7 @@ class WiresLeft {
 
         // remove offset on desktop
         this.element.setAttribute('style', '');
-        this.endSpace = classesHeight / 2;
+        this.endSpace = classesHeight / Math.max(this.learningClasses.length - 1, 1);
 
         this.canvas.width = this.width;
         this.canvas.height = this.height;
@@ -175,7 +191,7 @@ class WiresLeft {
         this.endY = 80;
 
         this.animator = {};
-        for (let index = 0; index < 3; index += 1) {
+        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
             let id = GLOBALS.classNames[index];
             this.animator[index] = {
                 highlight: false,
@@ -186,6 +202,23 @@ class WiresLeft {
         }
 
         this.renderOnce = true;
+    }
+    
+    // Method to update wires when new classes are added
+    updateForNewClass() {
+        // Re-initialize the animator for all current classes
+        this.animator = {};
+        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
+            let id = GLOBALS.classNames[index];
+            this.animator[index] = {
+                highlight: false,
+                percentage: 0,
+                color: GLOBALS.colors[id],
+                numParticles: 15
+            };
+        }
+        this.renderOnce = true;
+        this.render();
     }
 
 }

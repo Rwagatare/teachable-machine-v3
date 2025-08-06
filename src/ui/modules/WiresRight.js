@@ -23,6 +23,7 @@ class WiresRight {
         this.bulbGreen = this.element.querySelector('.wire--right-bulb-green-glow');
         this.bulbPurple = this.element.querySelector('.wire--right-bulb-purple-glow');
         this.bulbOrange = this.element.querySelector('.wire--right-bulb-orange-glow');
+        this.bulbYellow = this.element.querySelector('.wire--right-bulb-yellow-glow');
 
         this.element.appendChild(this.canvas);
         this.context = this.canvas.getContext('2d');
@@ -30,7 +31,7 @@ class WiresRight {
         this.offsetY = 0;
         this.animator = {};
 
-        for (let index = 0; index < 3; index += 1) {
+        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
 
             let bulbElement = document.createElement('div');
 
@@ -83,7 +84,7 @@ class WiresRight {
         this.context.clearRect(0, 0, this.width, this.height);
         this.context.lineWidth = 3;
 
-        for (let index = 0; index < 3; index += 1) {
+        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
             let startY = this.startY + (this.startSpace * index);
 
             let start = {
@@ -130,7 +131,7 @@ class WiresRight {
         this.context.clearRect(0, 0, this.width, this.height);
         this.context.lineWidth = 3;
 
-        for (let index = 0; index < 4; index += 1) {
+        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
             let startY = this.startY + (this.startSpace * index);
 
             let start = {
@@ -165,23 +166,21 @@ class WiresRight {
 
     highlight(id) {
         let index = GLOBALS.classNames.indexOf(id);
-        // console.log(index);
-        // if (this.animator[index]) {
-        //     let animator = this.animator[index];
-        //     animator.bulb.classList.add('wires__bulb--selected');
-        //     this.highlightedLineIndex = index;
-        //     this.current = 0;
-        //     this.start();
-        // }
+        
         switch (index) {
             case 0:
             this.bulbGreen.classList.add('bulb--selected');
             break;
             case 1:
-            this.bulbOrange.classList.add('bulb--selected');
+            this.bulbPurple.classList.add('bulb--selected');
             break;
             case 2:
-            this.bulbPurple.classList.add('bulb--selected');
+            this.bulbOrange.classList.add('bulb--selected');
+            break;
+            case 3:
+            if (this.bulbYellow) {
+                this.bulbYellow.classList.add('bulb--selected');
+            }
             break;
             default:
         }
@@ -191,6 +190,9 @@ class WiresRight {
         this.bulbGreen.classList.remove('bulb--selected');
         this.bulbPurple.classList.remove('bulb--selected');
         this.bulbOrange.classList.remove('bulb--selected');
+        if (this.bulbYellow) {
+            this.bulbYellow.classList.remove('bulb--selected');
+        }
     }
 
     start() {
@@ -210,7 +212,7 @@ class WiresRight {
 
         this.width = this.element.offsetWidth;
         let bulbs = Array.from(document.getElementsByClassName('wires__bulb'));
-        this.startSpace = (this.height - 80) / 3;
+        this.startSpace = (this.height - 80) / Math.max(GLOBALS.classNames.length - 1, 1);
         // console.log(this.startSpace);
         this.startSpace = 130;
         this.endSpace = (this.height + 45) / 5;
@@ -244,6 +246,33 @@ class WiresRight {
             bulbs.forEach((bulb, index) => {
                 bulb.style.top = 'none';
             });
+        }
+    }
+
+    // Method to update wires when new classes are added
+    updateForNewClass() {
+        // Check if we need to add new bulb elements for new classes
+        const currentClassCount = Object.keys(this.animator).length;
+        const totalClassCount = GLOBALS.classNames.length;
+        
+        if (totalClassCount > currentClassCount) {
+            // Add new bulb elements for new classes
+            for (let index = currentClassCount; index < totalClassCount; index += 1) {
+                let bulbElement = document.createElement('div');
+                bulbElement.classList.add('wires__bulb');
+                bulbElement.classList.add('wires__bulb-' + GLOBALS.classNames[index]);
+                this.element.appendChild(bulbElement);
+
+                this.animator[index] = {
+                    highlight: false,
+                    bulb: bulbElement
+                };
+            }
+            
+            // Update bulb positioning and force re-render
+            this.size();
+            this.renderOnce = true;
+            this.bulbVert ? this.render() : this.renderAlt();
         }
     }
 

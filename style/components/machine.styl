@@ -144,6 +144,10 @@
 	color: $color__class-orange--primary
 }
 
+.learning__class--yellow {
+	color: $color__class-yellow--primary
+}
+
 .learning__class:last-of-type {
 	margin-bottom: 0
 }
@@ -259,6 +263,10 @@
 
 .machine__value--color-orange {
 	background: $color__class-orange--primary
+}
+
+.machine__value--color-yellow {
+	background: $color__class-yellow--primary
 }
 
 
@@ -673,7 +681,8 @@
 
 	.wire-base-green,
 	.wire-base-purple,
-	.wire-base-orange {
+	.wire-base-orange,
+	.wire-base-yellow {
 		stroke: #CED1D2
 		stroke-width: 3px
 	}
@@ -682,7 +691,8 @@
 
 	.wire-green,
 	.wire-purple,
-	.wire-orange {
+	.wire-orange,
+	.wire-yellow {
 
 		&.animate {
 			stroke: $color__text--dark
@@ -715,6 +725,14 @@
 
 		&.bulb--selected {
 			stroke: $color__class-orange--primary
+			filter: url(#blur-filter)
+		}
+	}
+
+	.wire--right-bulb-yellow-glow {
+
+		&.bulb--selected {
+			stroke: $color__class-yellow--primary
 			filter: url(#blur-filter)
 		}
 	}
