@@ -29,16 +29,45 @@ class EnhancedWebcamClassifier {
     // Access the video element from the original classifier
     this.video = this.originalClassifier.video;
     
+    // Proxy important properties to the original classifier
+    Reflect.defineProperty(this, 'images', {
+      get: () => this.originalClassifier.images,
+      set: (value) => {
+ this.originalClassifier.images = value; 
+}
+    });
+    
+    Reflect.defineProperty(this, 'classNames', {
+      get: () => this.originalClassifier.classNames,
+      set: (value) => {
+ this.originalClassifier.classNames = value; 
+}
+    });
+    
     // Initialize state variables
     this.isTraining = false;
     this.trainingComplete = false;
     
-    // Initialize confidence history for smoothing predictions
+    // Initialize confidence history - will be expanded when new classes are added
     this.confidenceHistory = {};
-    for (let index = 0; index < 3; index += 1) {
-      this.confidenceHistory[index] = [];
+    this.initializeConfidenceHistory();
+  }
+  
+  /**
+   * Initialize confidence history for all current classes
+   * @returns {void}
+   */
+  initializeConfidenceHistory() {
+    // Use the current number of classes to initialize confidence history
+    const numClasses = Math.max(GLOBALS.classNames.length, GLOBALS.numClasses);
+    for (let index = 0; index < numClasses; index += 1) {
+      if (!this.confidenceHistory[index]) {
+        this.confidenceHistory[index] = [];
+      }
     }
   }
+
+
   
   /**
    * Enhanced prediction method that improves the stability and accuracy
@@ -63,6 +92,9 @@ class EnhancedWebcamClassifier {
     if (!prediction || !prediction.confidences) {
       return prediction;
     }
+    
+    // Ensure confidence history is initialized for all classes
+    this.initializeConfidenceHistory();
     
     // Store confidence values in history for each class
     Object.keys(prediction.confidences).forEach((classIndex) => {
@@ -132,6 +164,20 @@ class EnhancedWebcamClassifier {
   }
   
   /**
+   * Update confidence history when new classes are added
+   * Call this method after adding a new class to ensure proper tracking
+   * @returns {void}
+   */
+  updateClassCount() {
+    // Ensure confidence history exists for all current classes
+    for (let index = 0; index < GLOBALS.numClasses; index += 1) {
+      if (!this.confidenceHistory[index]) {
+        this.confidenceHistory[index] = [];
+      }
+    }
+  }
+  
+  /**
    * Ensure the output section is enabled after training
    * @returns {void}
    */
@@ -149,6 +195,32 @@ class EnhancedWebcamClassifier {
         }, 3000);
       }
     }
+  }
+  
+  /**
+   * Add a new class to the classifier
+   * @param {string} className - The name of the new class
+   * @param {number} index - The index of the new class
+   * @returns {void}
+   */
+  addNewClass(className, index) {
+    console.log('EnhancedWebcamClassifier.addNewClass called with:', className, index);
+    console.log('Current GLOBALS.classNames:', GLOBALS.classNames);
+    console.log('Current originalClassifier.classNames:', this.originalClassifier.classNames);
+    console.log('Current originalClassifier.images keys:', Object.keys(this.originalClassifier.images));
+    
+    // Re-initialize the original classifier's images to include all current classes
+    this.originalClassifier.initializeImages();
+    
+    // Initialize confidence history for the new class
+    if (!this.confidenceHistory[index]) {
+      this.confidenceHistory[index] = [];
+      console.log('Initialized confidence history for index:', index);
+    }
+    
+    console.log('Updated originalClassifier.classNames:', this.originalClassifier.classNames);
+    console.log('Updated originalClassifier.images keys:', Object.keys(this.originalClassifier.images));
+    console.log('Enhanced classifier: Successfully added new class', className, 'at index', index);
   }
   
   // Proxy methods to the original classifier
@@ -207,6 +279,9 @@ class EnhancedWebcamClassifier {
   }
   
   buttonDown(id, canvas, learningClass) {
+    console.log('EnhancedWebcamClassifier.buttonDown called with id:', id);
+    console.log('Available images in original classifier:', Object.keys(this.originalClassifier.images));
+    
     this.isTraining = true;
     
     return this.originalClassifier.buttonDown(id, canvas, learningClass);

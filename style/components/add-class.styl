@@ -1,0 +1,111 @@
+.add-class-container {
+  display: flex
+  justify-content: center
+  margin-top: 20px
+  margin-bottom: 20px
+}
+
+#add-class-button {
+  display: inline-flex
+  align-items: center
+  justify-content: center
+  border: 2px dashed #ccc
+  background: none
+  padding: 15px 25px
+  border-radius: 8px
+  cursor: pointer
+  width: 80%
+  max-width: 400px
+  transition: all 0.3s ease
+  color: #666
+  
+  &:hover {
+    border-color: #999
+    background-color: rgba(0,0,0,0.02)
+  }
+  
+  svg {
+    margin-right: 10px
+  }
+}
+
+/* Classes for dynamically created classes */
+.learning__class--red {
+  .machine__value--color-red {
+    background-color: $red
+  }
+  
+  .button--record.button--color-red {
+    .button__box--front {
+      background-color: $red
+    }
+  }
+}
+
+.learning__class--blue {
+  .machine__value--color-blue {
+    background-color: $blue
+  }
+  
+  .button--record.button--color-blue {
+    .button__box--front {
+      background-color: $blue
+    }
+  }
+}
+
+.learning__class--yellow {
+  .machine__value--color-yellow {
+    background-color: $yellow
+  }
+  
+  .button--record.button--color-yellow {
+    .button__box--front {
+      background-color: $yellow
+    }
+  }
+}
+
+.learning__class--teal {
+  .machine__value--color-teal {
+    background-color: $teal
+  }
+  
+  .button--record.button--color-teal {
+    .button__box--front {
+      background-color: $teal
+    }
+  }
+}
+
+.wire--right-red {
+  stroke: $red
+}
+
+.wire--right-bulb-red {
+  fill: $red
+}
+
+.wire--right-blue {
+  stroke: $blue
+}
+
+.wire--right-bulb-blue {
+  fill: $blue
+}
+
+.wire--right-yellow {
+  stroke: $yellow
+}
+
+.wire--right-bulb-yellow {
+  fill: $yellow
+}
+
+.wire--right-teal {
+  stroke: $teal
+}
+
+.wire--right-bulb-teal {
+  fill: $teal
+}

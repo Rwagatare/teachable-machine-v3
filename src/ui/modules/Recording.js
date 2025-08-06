@@ -41,9 +41,13 @@ class Recording {
         this.canvas.width = 680;
         this.canvas.height = 340;
         this.video = document.getElementsByTagName('video')[0];
-        this.confidence1 = 0;
-        this.confidence2 = 0;
-        this.confidence3 = 0;
+        
+        // Initialize confidence values dynamically for all classes
+        this.confidences = {};
+        GLOBALS.classNames.forEach((className, index) => {
+            this.confidences[className] = 0;
+        });
+        
         this.recordedTime = 10;
         this.count = 3;
         this.showing = false;
@@ -134,23 +138,23 @@ class Recording {
         // this.context.fillRect(startX + 340, maxHeight + startY + padding / 2, videoWidth + padding, 30);
 
         let barsY = maxHeight + startY + padding;
-        let boxSize = (videoWidth - padding) / 3;
+        let numClasses = GLOBALS.classNames.length;
+        let boxSize = (videoWidth - padding) / numClasses;
         let boxStartX = startX + padding / 2;
 
-        this.context.fillStyle = '#e4e5e6';
-        this.context.fillRect(boxStartX, barsY, boxSize, 40);
-        this.context.fillStyle = '#2baa5e';
-        this.context.fillRect(boxStartX, barsY, boxSize * this.confidence1, 40);
-
-        this.context.fillStyle = '#e4e5e6';
-        this.context.fillRect(boxStartX + boxSize + padding / 2, barsY, boxSize, 40);
-        this.context.fillStyle = '#c95ac5';
-        this.context.fillRect(boxStartX + boxSize + padding / 2, barsY, boxSize * this.confidence2, 40);
-
-        this.context.fillStyle = '#e4e5e6';
-        this.context.fillRect(boxStartX + boxSize + boxSize + padding, barsY, boxSize, 40);
-        this.context.fillStyle = '#dd4d31';
-        this.context.fillRect(boxStartX + boxSize + boxSize + padding, barsY, boxSize * this.confidence3, 40);
+        // Render confidence bars dynamically for all classes
+        GLOBALS.classNames.forEach((className, index) => {
+            let xPos = boxStartX + (index * (boxSize + padding / 2));
+            
+            // Background bar
+            this.context.fillStyle = '#e4e5e6';
+            this.context.fillRect(xPos, barsY, boxSize, 40);
+            
+            // Confidence bar
+            this.context.fillStyle = GLOBALS.colors[className];
+            let confidence = this.confidences[className] || 0;
+            this.context.fillRect(xPos, barsY, boxSize * confidence, 40);
+        });
 
         // Video comes in mirrored, so let's flip it:
         this.context.save();
@@ -178,18 +182,35 @@ class Recording {
             return;
         }
         let confidencePercentage = confidence / 100;
+        
+        // Dynamically handle any class
+        if (Reflect.has(this.confidences, colorId)) {
+            this.confidences[colorId] = confidencePercentage;
+        }
+        
+        // For backward compatibility, still update the original variables
         switch (colorId) {
             case 'green':
-            this.confidence1 = confidencePercentage;
-            break;
+                this.confidence1 = confidencePercentage;
+                break;
             case 'purple':
-            this.confidence2 = confidencePercentage;
-            break;
+                this.confidence2 = confidencePercentage;
+                break;
             case 'orange':
-            this.confidence3 = confidencePercentage;
-            break;
+                this.confidence3 = confidencePercentage;
+                break;
+            case 'yellow':
+                this.confidence4 = confidencePercentage;
+                break;
             default:
-            break;
+                break;
+        }
+    }
+
+    // Method to add a new class for recording visualization
+    addNewClass(className) {
+        if (!Reflect.has(this.confidences, className)) {
+            this.confidences[className] = 0;
         }
     }
 

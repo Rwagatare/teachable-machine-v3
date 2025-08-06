@@ -46,6 +46,12 @@ class GIFOutput {
 			gif: 'https://media0.giphy.com/media/I3BLTIP5Gv6h2/200w.gif'
 		});
 
+		// Add default gif for yellow class
+		this.defaultGifs.push({
+			still: 'https://media2.giphy.com/media/26BRrSvJUa0crqw4E/giphy-downsized_s.gif',
+			gif: 'https://media2.giphy.com/media/26BRrSvJUa0crqw4E/200w.gif'
+		});
+
 		this.edit = document.createElement('div');
 		this.edit.classList.add('gif__edit');
 
@@ -54,11 +60,11 @@ class GIFOutput {
 
 		this.borders = [];
 
-		for (let index = 0; index < 3; index += 1) {
+		for (let index = 0; index < this.classNames.length; index += 1) {
 			let id = this.classNames[index];
-			let image = this.defaultGifs[index].still;
+			let image = this.defaultGifs[index] ? this.defaultGifs[index].still : this.defaultGifs[0].still;
 
-			this.gifs[index] = this.defaultGifs[index];
+			this.gifs[index] = this.defaultGifs[index] ? this.defaultGifs[index] : this.defaultGifs[0];
 
 			let button = document.createElement('div');
 			button.classList.add('gif__thumb');
@@ -84,6 +90,39 @@ class GIFOutput {
 
 			this.borders.push(border);
 		}
+
+		// Method to dynamically add a new class
+		this.addNewClass = function(className, index) {
+			// Update our local references
+			this.classNames = GLOBALS.classNames;
+			
+			let image = this.defaultGifs[index] ? this.defaultGifs[index].still : this.defaultGifs[0].still;
+			this.gifs[index] = this.defaultGifs[index] ? this.defaultGifs[index] : this.defaultGifs[0];
+
+			let button = document.createElement('div');
+			button.classList.add('gif__thumb');
+			button.id = className;
+			button.index = index;
+			button.image = this.defaultGifs[index] ? this.defaultGifs[index].gif : this.defaultGifs[0].gif;
+
+			let border = document.createElement('div');
+			border.classList.add('gif__thumb-border');
+			border.classList.add(`gif__thumb-border--${className}`);
+			button.appendChild(border);
+
+			let imageWrapper = document.createElement('div');
+			imageWrapper.classList.add('gif__thumb-image-wrapper');
+			imageWrapper.style.backgroundImage = `url(${image})`;
+			button.appendChild(imageWrapper);
+
+			this.editBar.appendChild(button);
+			button.imageWrapper = imageWrapper;
+			button.addEventListener('mouseenter', this.editThumbOver.bind(this));
+			button.addEventListener('mouseleave', this.editThumbOut.bind(this));
+			button.addEventListener('click', this.editThumbClick.bind(this));
+
+			this.borders.push(border);
+		}.bind(this);
 
 
 		this.editViewer = document.createElement('div');

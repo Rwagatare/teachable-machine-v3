@@ -100,9 +100,11 @@
                             <path class="st0 wire-base-green" d="M152.8,0c0,39.8-151.3,5.1-151.3,68.8"/>
                             <path class="st0 wire-base-purple" d="M170.2,0c0,39.8,151.3,5.1,151.3,68.8"/>
                             <line class="st0 wire-base-orange" x1="161.5" y1="0" x2="161.5" y2="68.8"/>
+                            <path class="st0 wire-base-yellow" d="M179.2,0c0,39.8-151.3,5.1-151.3,68.8"/>
                             <path class="st0 wire-green" d="M152.8,0c0,39.8-151.3,5.1-151.3,68.8"/>
                             <path class="st0 wire-purple" d="M170.2,0c0,39.8,151.3,5.1,151.3,68.8"/>
                             <line class="st0 wire-orange" x1="161.5" y1="0" x2="161.5" y2="68.8"/>
+                            <path class="st0 wire-yellow" d="M179.2,0c0,39.8-151.3,5.1-151.3,68.8"/>
                         </svg>
                     </div>
                     <div id="learning-section" class="section learning section--learning">
@@ -178,6 +180,17 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- Add Class Button -->
+                        <div class="add-class-container" style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+                            <button id="add-class-button" style="display: inline-block; border: 2px dashed #ccc; background: none; padding: 15px 25px; border-radius: 8px; cursor: pointer; width: 80%; max-width: 400px;">
+                                <span style="display: flex; align-items: center; justify-content: center; color: #666;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="margin-right: 10px;">
+                                        <path fill="#666" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                                    </svg>
+                                    Add a class
+                                </span>
+                            </button>
+                        </div>
                     </div>
                     <div class="wires wires--disabled wires--right">
                         <?xml version="1.0" encoding="utf-8"?>
@@ -193,16 +206,20 @@
                       .st1{fill:#F38759;}
                       .st2{fill:#C174AE;}
                       .st3{fill:#5EB84E;}
+                      .st4{fill:#fbbc04;}
                   </style>
                   <path class="st0 wire--right-green" d="M75.1,69.4C75.1,29.3,1.5,64.2,1.5,0"/>
                   <line class="st0 wire--right-purple" x1="161.5" y1="69.4" x2="161.5" y2="0"/>
                   <path class="st0 wire--right-orange" d="M248.5,69.4c0-40.1,73-5.2,73-69.4"/>
+                  <path class="st0 wire--right-yellow" d="M335.5,69.4c0-40.1,73-5.2,73-69.4"/>
                   <path class="st3 wire--right-bulb-green" d="M83.9,73.8v3.8H66.3v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C82,69.4,83.9,71.4,83.9,73.8z"/>
                   <path class="st2 wire--right-bulb-purple" d="M170.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C168.4,69.4,170.3,71.4,170.3,73.8z"/>
                   <path class="st1 wire--right-bulb-orange" d="M257.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C255.4,69.4,257.3,71.4,257.3,73.8z"/>
+                  <path class="st4 wire--right-bulb-yellow" d="M344.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C342.4,69.4,344.3,71.4,344.3,73.8z"/>
                   <path class="st3 wire--right-bulb-green-glow" d="M83.9,73.8v3.8H66.3v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C82,69.4,83.9,71.4,83.9,73.8z"/>
-                  <path class="st2 wire--right-bulb-orange-glow" d="M170.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C168.4,69.4,170.3,71.4,170.3,73.8z"/>
-                  <path class="st1 wire--right-bulb-purple-glow" d="M257.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C255.4,69.4,257.3,71.4,257.3,73.8z"/>
+                  <path class="st2 wire--right-bulb-purple-glow" d="M170.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C168.4,69.4,170.3,71.4,170.3,73.8z"/>
+                  <path class="st1 wire--right-bulb-orange-glow" d="M257.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C255.4,69.4,257.3,71.4,257.3,73.8z"/>
+                  <path class="st4 wire--right-bulb-yellow-glow" d="M344.3,73.8v3.8h-17.6v-3.8c0-2.4,1.9-4.3,4.3-4.3h9C342.4,69.4,344.3,71.4,344.3,73.8z"/>
               </svg>
           </div>
           <div id="output-section" class="section section--disabled output section--output">

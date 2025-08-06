@@ -51,6 +51,7 @@ class SoundOutput {
 		this.defaultAssets[0] = 'birds.mp3';
 		this.defaultAssets[1] = 'guitar_1.mp3';
 		this.defaultAssets[2] = 'trombone.mp3';
+		this.defaultAssets[3] = 'harp.mp3'; 
 
 		this.numLoaded = 0;
 		this.sounds = {};
@@ -94,7 +95,7 @@ class SoundOutput {
 		for (let index = 0; index < this.numClasses; index += 1) {
 			let id = this.classNames[index];
 			let inputClass = document.createElement('div');
-			let sound = this.defaultAssets[index];
+			let sound = this.defaultAssets[index] || this.defaultAssets[0];
 			inputClass.classList.add('output__sound-class');
 			inputClass.classList.add(`output__sound-class--${id}`);
 
@@ -144,6 +145,58 @@ class SoundOutput {
 		this.element.appendChild(this.offScreen);
 		this.speakers = [];
 		this.buildCanvas();
+	}
+
+	// Method to dynamically add a new class
+	addNewClass(className, index) {
+		// Update our local references
+		this.classNames = GLOBALS.classNames;
+		this.numClasses = GLOBALS.numClasses;
+		
+		// Create UI elements for the new class
+		let inputClass = document.createElement('div');
+		let sound = this.defaultAssets[index] || this.defaultAssets[0]; 
+		inputClass.classList.add('output__sound-class');
+		inputClass.classList.add(`output__sound-class--${className}`);
+
+		let speakerIcon = document.createElement('div');
+		speakerIcon.classList.add('output__sound-speaker');
+		speakerIcon.classList.add(`output__sound-speaker--${className}`);
+		inputClass.sound = sound;
+		inputClass.icon = speakerIcon;
+
+		let loader = ((el) => {
+			let ajax = new XMLHttpRequest();
+			ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
+			ajax.onload = (event) => {
+				el.innerHTML = ajax.responseText;
+			};
+			ajax.send();
+		})(speakerIcon);
+
+		let editIcon = document.createElement('div');
+		editIcon.classList.add('output__sound-edit');
+		editIcon.classList.add(`output__sound-edit--${className}`);
+
+		let input = document.createElement('input');
+		input.classId = className;
+		input.classList.add('output__sound-input');
+		input.classList.add(`output__sound-input--${className}`);
+		input.setAttribute('readonly', 'readonly');
+		input.value = sound;
+		inputClass.appendChild(speakerIcon);
+		inputClass.appendChild(editIcon);
+		inputClass.appendChild(input);
+
+		var deleteIcon = document.createElement('div');
+		deleteIcon.classList.add('output__sound-delete');
+		inputClass.appendChild(deleteIcon);
+
+		deleteIcon.addEventListener('click', this.clearInput.bind(this));
+		input.addEventListener('click', this.editInput.bind(this));
+		inputClass.input = input;
+		this.inputClasses[index] = inputClass;
+		this.offScreen.appendChild(inputClass);
 	}
 
     handleVisibilityChange() {
@@ -365,18 +418,28 @@ class SoundOutput {
         if (sound === 'null') {
             this.sound = ' ';
         }
-		let color = '#2baa5e';
-		switch (colorId) {
-			case 0:
-			color = '#2baa5e';
-			break;
-			case 1:
-			color = '#c95ac5';
-			break;
-			default:
-			case 2:
-			color = '#dd4d31';
-			break;
+		let color = '#2baa5e'; 
+		const className = GLOBALS.classNames[colorId];
+		if (className && GLOBALS.colors[className]) {
+			color = GLOBALS.colors[className];
+		}else {
+			switch (colorId) {
+				case 0:
+				color = '#2baa5e';
+				break;
+				case 1:
+				color = '#c95ac5';
+				break;
+				case 2:
+				color = '#dd4d31';
+				break;
+				case 3:
+				color = '#fbbc04'; 
+				break;
+				default:
+				color = '#2baa5e';
+				break;
+			}
 		}
 		if (this.canvasImage) {
 			this.context.globalCompositeOperation = 'source-over';

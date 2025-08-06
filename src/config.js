@@ -30,20 +30,25 @@ let GLOBALS = {
 	classNames: [
 	'green',
 	'purple',
-	'orange',
-	'red'
+	'orange'
 	],
 	colors: {
 		'green': '#2baa5e',
 		'purple': '#c95ac5',
 		'orange': '#dd4d31',
-		'red': '#e8453c'
+		'red': '#e8453c',
+		'blue': '#4285f4',
+		'yellow': '#fbbc04',
+		'teal': '#26c6da'
 	},
 	rgbaColors: {
 		'green': 'rgba(43, 170, 94, 0.25)',
 		'purple': 'rgba(201, 90, 197, 0.25)',
 		'orange': 'rgba(221, 77, 49, 0.25)',
-		'red': 'rgba(232, 69, 60, 0.25)'
+		'red': 'rgba(232, 69, 60, 0.25)',
+		'blue': 'rgba(66, 133, 244, 0.25)',
+		'yellow': 'rgba(251, 188, 4, 0.25)',
+		'teal': 'rgba(38, 198, 218, 0.25)'
 	},
 	classId: null,
 	predicting: false,

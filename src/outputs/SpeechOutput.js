@@ -28,7 +28,9 @@ class SpeechOutput {
         this.defaultMessages = [
         'Hello',
         'Awesome',
-        'Yes'
+        'Yes',
+        // Add default for yellow class
+        'Great'
         ];
 
         this.classNames = GLOBALS.classNames;
@@ -45,7 +47,8 @@ class SpeechOutput {
             let id = this.classNames[index];
             let inputClass = document.createElement('div');
 
-            let message = this.defaultMessages[index];
+            // Fallback to first message if index out of bounds
+            let message = this.defaultMessages[index] || this.defaultMessages[0];
             inputClass.defaultMessage = message;
             inputClass.message = message;
             inputClass.classList.add('output__speech-class');
@@ -94,6 +97,62 @@ class SpeechOutput {
             this.element.appendChild(inputClass);
         }
         this.buildCanvas();
+    }
+
+    // Method to dynamically add a new class
+    addNewClass(className, index) {
+        // Update our local references
+        this.classNames = GLOBALS.classNames;
+        this.numClasses = GLOBALS.numClasses;
+        
+        // Create UI elements for the new class
+        let inputClass = document.createElement('div');
+        let message = this.defaultMessages[index] || this.defaultMessages[0]; 
+        inputClass.defaultMessage = message;
+        inputClass.message = message;
+        inputClass.classList.add('output__speech-class');
+        inputClass.classList.add(`output__speech-class--${className}`);
+
+        let speakerIcon = document.createElement('div');
+        speakerIcon.classList.add('output__speech-speaker');
+        speakerIcon.classList.add(`output__speech-speaker--${className}`);
+
+        let loader = ((el) => {
+            let ajax = new XMLHttpRequest();
+            ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
+            ajax.onload = (event) => {
+                el.innerHTML = ajax.responseText;
+            };
+            ajax.send();
+        })(speakerIcon);
+
+        let editIcon = document.createElement('div');
+        editIcon.classList.add('output__speech-edit');
+        editIcon.classList.add(`output__speech-edit--${className}`);
+
+        let input = document.createElement('input');
+        input.classId = className;
+        input.classList.add('output__speech-input');
+        input.classList.add(`output__speech-input--${className}`);
+        input.setAttribute('maxlength', 25);
+        input.value = message;
+        inputClass.appendChild(speakerIcon);
+        inputClass.appendChild(editIcon);
+        inputClass.appendChild(input);
+
+        var deleteIcon = document.createElement('div');
+        deleteIcon.classList.add('output__speech-delete');
+        inputClass.appendChild(deleteIcon);
+
+        inputClass.input = input;
+        inputClass.icon = speakerIcon;
+
+        deleteIcon.addEventListener('click', this.clearInput.bind(this));
+        input.addEventListener('blur', this.inputBlur.bind(this));
+        input.addEventListener('keyup', this.keyUp.bind(this));
+        input.addEventListener('click', this.editInput.bind(this));
+        this.inputClasses[index] = inputClass;
+        this.element.appendChild(inputClass);
     }
 
     clearInput(event) {
@@ -261,17 +320,29 @@ class SpeechOutput {
             this.sound = ' ';
         }
         let color = '#2baa5e';
-        switch (colorId) {
-            case 0:
-                color = '#2baa5e';
-                break;
-            case 1:
-                color = '#c95ac5';
-                break;
-            default:
-            case 2:
-                color = '#dd4d31';
-                break;
+        // Use GLOBALS.classNames to get the color dynamically
+        const className = GLOBALS.classNames[colorId];
+        if (className && GLOBALS.colors[className]) {
+            color = GLOBALS.colors[className];
+        }else {
+
+            switch (colorId) {
+                case 0:
+                    color = '#2baa5e';
+                    break;
+                case 1:
+                    color = '#c95ac5';
+                    break;
+                case 2:
+                    color = '#dd4d31';
+                    break;
+                case 3:
+                    color = '#fbbc04';
+                    break;
+                default:
+                    color = '#2baa5e';
+                    break;
+            }
         }
         if (this.canvasImage) {
             this.context.globalCompositeOperation = 'source-over';
