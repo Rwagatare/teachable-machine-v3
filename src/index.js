@@ -23,6 +23,7 @@ import OutputSection from './ui/modules/OutputSection.js';
 import Wizard from './ui/modules/Wizard.js';
 import Recording from './ui/modules/Recording';
 import RecordOpener from './ui/components/RecordOpener.js';
+import PWAUtils from './ui/components/PWAUtils.js';
 import LaunchScreen from './ui/modules/wizard/LaunchScreen.js';
 import BrowserUtils from './ui/components/BrowserUtils';
 
@@ -35,6 +36,9 @@ function init() {
 
   GLOBALS.browserUtils = new BrowserUtils();
   GLOBALS.launchScreen = new LaunchScreen();
+  
+  // Initialize PWA functionality
+  GLOBALS.pwaUtils = new PWAUtils();
 
   GLOBALS.learningSection = new LearningSection(document.querySelector('#learning-section'));
 	GLOBALS.inputSection = new InputSection(document.querySelector('#input-section'));
@@ -61,21 +65,11 @@ function init() {
 	}else if (GLOBALS.browserUtils.isFirefox) {
 		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, you need to turn on your camera. To do this you need to click this icon <img class="camera-icon" src="assets/ff-camera-icon.png"> to grant access and <a href="#">refresh the page</a>.';
 	}
+	
+	// Show PWA install prompt after delay
+	GLOBALS.pwaUtils.showInstallPromptAfterDelay();
 }
 
 window.addEventListener('load', init);
-
-// Register service worker for PWA support
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').
-      then((registration) => {
-        console.log('Service Worker registered with scope:', registration.scope);
-      }).
-      catch((error) => {
-        console.error('Service Worker registration failed:', error);
-      });
-  });
-}
 
 export default GLOBALS;
