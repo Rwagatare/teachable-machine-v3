@@ -1,0 +1,4 @@
+src/optimized-bundle.js
+public/bundle.js
+public/workbox-*.js
+public/sw.js

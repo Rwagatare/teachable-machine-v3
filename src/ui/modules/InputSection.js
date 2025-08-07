@@ -57,82 +57,82 @@ class InputSection {
 
         this.gifs = [];
 
-        let gif1 = new WizardGIFExample('assets/wizard/1.gif');
+        let emoji1 = new WizardEmojiExample('📸');
         if (GLOBALS.browserUtils.isMobile) {
-            TweenMax.set(gif1.element, {
+            TweenMax.set(emoji1.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 40,
                 y: 275
             });
         }else {
-            TweenMax.set(gif1.element, {
+            TweenMax.set(emoji1.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 70,
                 y: -25
             });
         }
-        this.element.appendChild(gif1.element);
-        this.gifs.push(gif1);
+        this.element.appendChild(emoji1.element);
+        this.gifs.push(emoji1);
 
 
-        let gif2 = new WizardGIFExample('assets/wizard/2.gif');
+        let emoji2 = new WizardEmojiExample('🎯');
         if (GLOBALS.browserUtils.isMobile) {
-            TweenMax.set(gif2.element, {
+            TweenMax.set(emoji2.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 40,
                 y: 275
             });
         }else {
-            TweenMax.set(gif2.element, {
+            TweenMax.set(emoji2.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 70,
                 y: -25
             });
         }
-        this.element.appendChild(gif2.element);
-        this.gifs.push(gif2);
+        this.element.appendChild(emoji2.element);
+        this.gifs.push(emoji2);
 
-        let gif3 = new WizardGIFExample('assets/wizard/3.gif');
+        let emoji3 = new WizardEmojiExample('🤖');
         if (GLOBALS.browserUtils.isMobile) {
-            TweenMax.set(gif3.element, {
+            TweenMax.set(emoji3.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 40,
                 y: 275
             });
         }else {
-            TweenMax.set(gif3.element, {
+            TweenMax.set(emoji3.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 70,
                 y: -25
             });
         }
-        this.element.appendChild(gif3.element);
-        this.gifs.push(gif3);
+        this.element.appendChild(emoji3.element);
+        this.gifs.push(emoji3);
 
-        let gif4 = new WizardGIFExample('assets/wizard/4.gif');
+        let emoji4 = new WizardEmojiExample('🎉');
         if (GLOBALS.browserUtils.isMobile) {
-            TweenMax.set(gif4.element, {
+            TweenMax.set(emoji4.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 40,
                 y: 275
             });
         }else {
-            TweenMax.set(gif4.element, {
+            TweenMax.set(emoji4.element, {
                 rotation: -5,
                 scale: 0.65,
                 x: 70,
                 y: -25
             });
         }
-        this.element.appendChild(gif4.element);
-        this.gifs.push(gif4);
+        this.element.appendChild(emoji4.element);
+        this.gifs.push(emoji4);
 
     }
 
@@ -227,6 +227,6 @@ import GLOBALS from './../../config.js';
 import Button from './../components/Button.js';
 import CamInput from './../components/CamInput.js';
 import HighlightArrow from './../components/HighlightArrow.js';
-import WizardGIFExample from './WizardGIFExample.js';
+import WizardEmojiExample from './WizardEmojiExample.js';
 
 export default InputSection;
