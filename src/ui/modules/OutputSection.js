@@ -17,7 +17,7 @@ class OutputSection {
         this.element = element;
 
         const outputs = {
-            GIFOutput: new GIFOutput(),
+            EmojiOutput: new EmojiOutput(),
             SoundOutput: new SoundOutput(document.querySelector('#SoundOutput')),
             SpeechOutput: new SpeechOutput()
         };
@@ -138,7 +138,7 @@ import CamInput from './../components/CamInput.js';
 import HighlightArrow from './../components/HighlightArrow.js';
 
 import SpeechOutput from './../../outputs/SpeechOutput.js';
-import GIFOutput from './../../outputs/GIFOutput.js';
+import EmojiOutput from './../../outputs/EmojiOutput.js';
 import SoundOutput from './../../outputs/SoundOutput.js';
 
 export default OutputSection;

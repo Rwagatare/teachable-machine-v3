@@ -135,6 +135,34 @@
 .wizard__gif-image {
 	width: 100%
 }
+
+.wizard__emoji {
+	z-index: 100000
+	position: absolute
+	width: 180px
+	height: 194px
+	background-image: url(assets/wizard/gif-backdrop.svg)
+	background-size: contain
+	background-position: 0 0
+	background-repeat: no-repeat
+	display: none
+}
+
+.wizard__emoji-mask {
+	position: relative
+	width: 140px
+	height: 140px
+	overflow: hidden
+	margin-top: 35px
+	margin-left: 20px
+	display: flex
+	align-items: center
+	justify-content: center
+}
+
+.wizard__emoji-element {
+	font-size: 60px
+}
 	
 @media screen and (max-width: 900px) {
 
