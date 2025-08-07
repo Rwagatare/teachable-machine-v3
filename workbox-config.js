@@ -33,7 +33,7 @@ module.exports = {
         cacheName: 'pages-cache',
         expiration: {
           maxEntries: 10,
-          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+          maxAgeSeconds: 30 * 24 * 60 * 60 
         },
         networkTimeoutSeconds: 3
       }
@@ -49,7 +49,7 @@ module.exports = {
         cacheName: 'assets-cache',
         expiration: {
           maxEntries: 50,
-          maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+          maxAgeSeconds: 7 * 24 * 60 * 60 
         }
       }
     },
@@ -62,7 +62,7 @@ module.exports = {
         cacheName: 'images-cache',
         expiration: {
           maxEntries: 100,
-          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+          maxAgeSeconds: 30 * 24 * 60 * 60 
         }
       }
     },
@@ -75,7 +75,7 @@ module.exports = {
         cacheName: 'ml-models-cache',
         expiration: {
           maxEntries: 20,
-          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+          maxAgeSeconds: 30 * 24 * 60 * 60 
         }
       }
     },
@@ -96,7 +96,7 @@ module.exports = {
         cacheName: 'google-fonts-webfonts',
         expiration: {
           maxEntries: 30,
-          maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+          maxAgeSeconds: 60 * 60 * 24 * 365 
         }
       }
     }

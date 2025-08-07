@@ -174,6 +174,9 @@ class LearningSection {
 			if (GLOBALS.outputSection.outputs.GIFOutput && GLOBALS.outputSection.outputs.GIFOutput.addNewClass) {
 				GLOBALS.outputSection.outputs.GIFOutput.addNewClass(nextClassName, currentClassCount);
 			}
+			if (GLOBALS.outputSection.outputs.EmojiOutput && GLOBALS.outputSection.outputs.EmojiOutput.addNewClass) {
+				GLOBALS.outputSection.outputs.EmojiOutput.addNewClass(nextClassName, currentClassCount);
+			}
 			if (GLOBALS.outputSection.outputs.SoundOutput && GLOBALS.outputSection.outputs.SoundOutput.addNewClass) {
 				GLOBALS.outputSection.outputs.SoundOutput.addNewClass(nextClassName, currentClassCount);
 			}
