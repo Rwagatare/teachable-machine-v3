@@ -25,54 +25,6 @@ class EmojiOutput {
 		this.currentClass = null;
 
 		// Default emoji sets for each class
-		this.defaultEmojis.push([
-			'😀',
-			'😃',
-			'😄',
-			'😁',
-			'😆',
-			'😂',
-			'🤣',
-			'😊',
-			'😇',
-			'🙂'
-		]);
-		this.defaultEmojis.push([
-			'❤️',
-			'💖',
-			'💕',
-			'💘',
-			'💝',
-			'💗',
-			'💓',
-			'💞',
-			'💟',
-			'♥️'
-		]);
-		this.defaultEmojis.push([
-			'👍',
-			'👏',
-			'🙌',
-			'👌',
-			'🤘',
-			'✊',
-			'👊',
-			'🤜',
-			'🤛',
-			'👋'
-		]);
-		this.defaultEmojis.push([
-			'🔥',
-			'⭐',
-			'✨',
-			'💫',
-			'⚡',
-			'💥',
-			'🌟',
-			'🎆',
-			'🎇',
-			'🌠'
-		]);
 
 		this.edit = document.createElement('div');
 		this.edit.classList.add('emoji__edit');
@@ -80,6 +32,54 @@ class EmojiOutput {
 		this.editBar = document.createElement('div');
 		this.editBar.classList.add('emoji__edit-bar');
 
+this.defaultEmojis.push([
+  '🟢', 
+  '🥝',
+  '🥑',
+  '🥬',
+  '🥒',
+  '🫒',
+  '🍏',
+  '🍐',
+  '🌵',
+  '🌲'
+]);
+this.defaultEmojis.push([
+  '🟣', 
+  '🍇',
+  '🔮',
+  '💜',
+  '☂️',
+  '🪁',
+  '🧞',
+  '👾',
+  '🦄',
+  '🍆'
+]);
+this.defaultEmojis.push([
+  '🟠', 
+  '🧡',
+  '🦊',
+  '🍊',
+  '🥕',
+  '🏀',
+  '🔶',
+  '🟧',
+  '🦁',
+  '🍑'
+]);
+this.defaultEmojis.push([
+  '🟡', 
+  '💛',
+  '🌟',
+  '⭐',
+  '🌻',
+  '🍋',
+  '🍌',
+  '🐤',
+  '🌞',
+  '🟨'
+]);
 		this.borders = [];
 
 		for (let index = 0; index < this.classNames.length; index += 1) {
@@ -332,6 +332,94 @@ class EmojiOutput {
 				'🏜️',
 				'🏝️',
 				'🏞️'
+			],
+			green: [
+				'🥬',
+				'🥝',
+				'🥑',
+				'🥬',
+				'🥒',
+				'🫒',
+				'🍏',
+				'🍐',
+				'🌵',
+				'🌲',
+				'🌱',
+				'🌿',
+				'☘️',
+				'🍀',
+				'🦎',
+				'🐊',
+				'🐢',
+				'🧩',
+				'♻️',
+				'🧪'
+			],
+			purple: [
+				'🟣',
+				'🍇',
+				'🔮',
+				'💜',
+				'☂️',
+				'🪁',
+				'🧞',
+				'👾',
+				'🦄',
+				'🍆',
+				'🔯',
+				'✝️',
+				'☦️',
+				'☯️',
+				'♈',
+				'♉',
+				'♊',
+				'♋',
+				'♌',
+				'♍'
+			],
+			orange: [
+				'🟠',
+				'🧡',
+				'🦊',
+				'🍊',
+				'🥕',
+				'🏀',
+				'🔶',
+				'🟧',
+				'🦁',
+				'🍑',
+				'🦒',
+				'🐅',
+				'🐆',
+				'🦧',
+				'🧶',
+				'🧵',
+				'🧮',
+				'🛄',
+				'🛅',
+				'🧾'
+			],
+			yellow: [
+				'🟡',
+				'💛',
+				'🌟',
+				'⭐',
+				'🌻',
+				'🍋',
+				'🍌',
+				'🐤',
+				'🌞',
+				'🟨',
+				'📀',
+				'🌝',
+				'🌕',
+				'🌙',
+				'🌛',
+				'🌜',
+				'🧀',
+				'🌽',
+				'🧷',
+				'🔔'
 			]
 		};
 	}
@@ -444,24 +532,71 @@ class EmojiOutput {
 		}
 	}
 
-	searchKeyUp(event) {
-		let value = this.searchInput.value.toLowerCase();
-		if (value.length > 0) {
-			// Simple search - find matching category
-			let matchedCategory = 'faces';
-			if (value.includes('heart') || value.includes('love')) {
-				matchedCategory = 'hearts';
-			}else if (value.includes('hand') || value.includes('thumb') || value.includes('clap')) {
-				matchedCategory = 'hands';
-			}else if (value.includes('fire') || value.includes('star') || value.includes('object')) {
-				matchedCategory = 'objects';
-			}else if (value.includes('flower') || value.includes('nature') || value.includes('plant')) {
-				matchedCategory = 'nature';
+	// Helper method to determine category based on search term
+	getCategoryFromSearchTerm(value) {
+		const categoryMap = {
+			'heart': 'hearts',
+			'love': 'hearts',
+			'hand': 'hands',
+			'thumb': 'hands',
+			'clap': 'hands',
+			'fire': 'objects',
+			'star': 'objects',
+			'object': 'objects',
+			'flower': 'nature',
+			'nature': 'nature',
+			'plant': 'nature',
+			'green': 'green',
+			'grass': 'green',
+			'leaf': 'green',
+			'purple': 'purple',
+			'violet': 'purple',
+			'lavender': 'purple',
+			'orange': 'orange',
+			'peach': 'orange',
+			'carrot': 'orange',
+			'yellow': 'yellow',
+			'gold': 'yellow',
+			'lemon': 'yellow'
+		};
+		
+		for (const term in categoryMap) {
+			if (value.includes(term)) {
+				return categoryMap[term];
 			}
-			this.displaySearchResults(matchedCategory);
-		}else {
-			this.displaySearchResults('faces');
 		}
+		
+		return 'faces';
+	}
+	
+	// Helper method to get default category based on current class
+	getDefaultCategory() {
+		if (!this.currentClass) {
+			return 'faces';
+		}
+		
+		const className = this.currentClass.id;
+		const colorCategories = {
+			'green': 'green',
+			'purple': 'purple',
+			'orange': 'orange',
+			'yellow': 'yellow'
+		};
+		
+		return colorCategories[className] || 'faces';
+	}
+
+	searchKeyUp(event) {
+		const value = this.searchInput.value.toLowerCase();
+		let category = 'faces';
+		
+		if (value.length > 0) {
+			category = this.getCategoryFromSearchTerm(value);
+		}else {
+			category = this.getDefaultCategory();
+		}
+		
+		this.displaySearchResults(category);
 	}
 
 	showSearch(event) {
@@ -479,8 +614,16 @@ class EmojiOutput {
 		this.searchInput.focus();
 		this.searchInput.value = '';
 		
-		// Show default emojis
-		this.displaySearchResults('faces');
+		// Show appropriate color category by default
+		let defaultCategory = id;
+		if (this.emojiCategories[id]) {
+			defaultCategory = id; 
+		}else {
+			defaultCategory = 'faces'; 
+		}
+		
+		// Show default emojis based on class color
+		this.displaySearchResults(defaultCategory);
 	}
 
 	hideSearch() {
