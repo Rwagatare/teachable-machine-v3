@@ -53,10 +53,14 @@ class LearningSection {
 		this.highestIndex = null;
 		this.currentIndex = null;
 
-		// Add Class Button
+		// Add Class Button | is hidden for mobile
 		this.addClassButton = document.getElementById('add-class-button');
 		if (this.addClassButton) {
-			this.addClassButton.addEventListener('click', this.addNewClass.bind(this));
+			if (GLOBALS.browserUtils && GLOBALS.browserUtils.isMobile) {
+				this.addClassButton.style.display = 'none';
+			}else {
+				this.addClassButton.addEventListener('click', this.addNewClass.bind(this));
+			}
 		}
 
 		this.arrow = new HighlightArrow(2);

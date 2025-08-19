@@ -57,11 +57,24 @@
 	width: 300px
 }
 
+.section--input .section__container {
+	padding: 0
+	background: transparent
+	border-radius: 0
+}
+
 .input__media {
-	background: $color__background
+	display: flex
+	justify-content: center
+	align-items: center
+	background: $color__white
+	border-radius: 12px
 	overflow: hidden
 	position: relative
 	height: 270px
+	width: 100%
+	margin: 0
+	box-sizing: border-box
 }
 
 .input__media__activate {
@@ -89,22 +102,43 @@
 .input__camera {
 	width: 100%
 	height: 100%
-	position: relative
-	min-width: 227px
-    min-height: 227px
+	display: flex
+	justify-content: center
+	align-items: center
+	border-radius: 12px
+	overflow: hidden
 }
 
 .input__media__flip {
 	display: none
 }
 
-.input__camera-video {
+// Style for video, canvas, and img elements in camera container
+.input__media video,
+.input__media canvas,
+.input__media img,
+.input__camera video,
+.input__camera canvas,
+.input__camera img {
+	width: 100% !important
+	height: 100% !important
+	object-fit: contain !important
+	border-radius: 12px
 	display: block
-	position: absolute
-	left: 50%
-	top: 50%
-	min-width: 280px
-    min-height: 280px
+}
+
+.input__camera-video {
+	width: 100% !important
+	height: 100% !important
+	object-fit: contain !important
+	border-radius: 12px
+	display: block
+}
+
+// Additional high-specificity rules to ensure object-fit: contain takes precedence
+.input__media .input__camera video,
+.input__media .input__camera canvas {
+	object-fit: contain !important
 }
 
 .section--learning {
@@ -525,16 +559,17 @@
 	}
 
 	.machine__sections {
-		display: block
-		// margin-bottom: space(2)
+		display: flex
+		flex-wrap: wrap
+		justify-content: space-between
 		margin-left: 0
 		margin-right: 0
 	}
 
 	.section {
-		max-width: 510px
-		margin: 0 auto
-		width: 100%
+		flex: 0 0 48%
+		max-width: 48%
+		margin-bottom: 20px
 
 		&.learning {
 
@@ -553,11 +588,10 @@
 	}
 
 	.input {
-		max-width: 300px
-
 		.section__container {
 			display: flex
 			flex-direction: column
+			padding: space(1.5)
 		}
 
 		.input__media {
@@ -573,7 +607,6 @@
 	}
 
 	.section--output {
-		max-width: 300px
 		top: -10px
 
 		.section__container {
@@ -586,6 +619,7 @@
 
 		.section__container {
 			justify-content: center
+			width: 100%
 		}
 
 		.button__label {
@@ -776,6 +810,9 @@
 	.section__container {
 		display: flex
 		padding: 10px
+		flex-wrap: nowrap
+		justify-content: space-between
+		align-items: flex-start
 	}
 
 	.examples__wrapper {
@@ -786,10 +823,8 @@
 		display: flex
 		justify-content: flex-end
 		flex-direction: column
-		float: left
-		width: 33.333%
+		flex: 0 0 32%
 		margin-bottom: 0
-		margin-left: 3%
 	}
 
 	.button--record {
@@ -851,5 +886,13 @@
 		bottom: 20px
 		right: 20px
 		display: block
+	}
+}
+
+/* Small Mobile (≤ 600px) → one per row */
+@media screen and (max-width: 600px) {
+	.machine__sections .section {
+		flex: 0 0 100%
+		max-width: 100%
 	}
 }

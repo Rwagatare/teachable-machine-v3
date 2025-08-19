@@ -29,6 +29,17 @@
   }
 }
 
+/* Hide add class button on mobile devices */
+@media screen and (max-width: 768px) {
+  .add-class-container {
+    display: none
+  }
+  
+  #add-class-button {
+    display: none
+  }
+}
+
 /* Classes for dynamically created classes */
 .learning__class--red {
   .machine__value--color-red {

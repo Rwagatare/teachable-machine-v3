@@ -113,11 +113,13 @@ npm run watch-https
    - Click an empty class button (Green, Purple, or Orange)
    - Hold down to record examples while showing different variations
    - Add at least 30-50 examples per class for reliable results
-   - Use the "Add Class" button to add more classes beyond the default three
+   - Use the "Add Class" button to add more classes beyond the default three (desktop only)
    - You can add up to 6 different classes for more complex models
 
-2. **Adding More Classes**
+2. **Adding More Classes** (Desktop Only)
 
+- The ability to add additional classes is available on desktop devices only
+- The feature is disabled on mobile to optimize the user experience for touch interfaces
 - The idea is borrowed from V2's ability to add another class making V1 as dynamic
 
 3. **Training Best Practices**

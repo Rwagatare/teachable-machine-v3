@@ -217,19 +217,15 @@ export default class WebcamClassifier {
 
   videoLoaded() {
     let flip = (GLOBALS.isBackFacingCam) ? 1 : -1;
-    let videoRatio = this.video.videoWidth / this.video.videoHeight;
-    let parent = this.video.parentNode;
-    let parentWidth = parent.offsetWidth;
-    let parentHeight = parent.offsetHeight;
-    let videoWidth = parentHeight * videoRatio;
-    this.video.style.width = videoWidth + 'px';
-    this.video.style.height = parentHeight + 'px';
-    this.video.style.transform = 'scaleX(' + flip + ') translate(' + (50 * flip * -1) + '%, -50%)';
+    
+    // Use CSS object-fit: contain instead of manual sizing
+    // Remove explicit width/height to let CSS handle the sizing
+    this.video.style.width = '100%';
+    this.video.style.height = '100%';
+    this.video.style.objectFit = 'contain';
+    this.video.style.transform = 'scaleX(' + flip + ')';
 
-    // If video is taller:
-    if (videoRatio < 1) {
-      this.video.style.transform = 'scale(' + (flip * 2) + ', 2) translate(' + (flip * 20 * -1) + '%, -30%)';
-    }
+    // Removed the complex scaling logic as object-fit: contain handles aspect ratios
   }
 
   blur() {
