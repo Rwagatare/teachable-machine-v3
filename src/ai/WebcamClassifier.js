@@ -108,7 +108,7 @@ export default class WebcamClassifier {
       then((stream) => {
         GLOBALS.isCamGranted = true;
         if ((GLOBALS.browserUtils.isChrome && !GLOBALS.browserUtils.isMobile)) {
-          GLOBALS.audioContext.createMediaStreamSource(stream);
+          GLOBALS.getAudioContext().createMediaStreamSource(stream);
           GLOBALS.stream = stream;
         }
         this.activateWebcamButton.style.display = 'none';

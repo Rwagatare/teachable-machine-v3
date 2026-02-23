@@ -86,7 +86,6 @@ class CamInput {
 }
 
 import GLOBALS from './../../config.js';
-import WebcamClassifier from './../../ai/WebcamClassifier.js';
 import EnhancedWebcamClassifier from './../../ai/EnhancedWebcamClassifier.js';
 
 export default CamInput;
