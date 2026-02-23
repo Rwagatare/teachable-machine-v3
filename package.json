@@ -32,7 +32,8 @@
     "budo-https": "budo src/index.js:bundle.js --ssl --cert=server.cer --key=server.key --port=3000 --live -v --dir=public -o",
     "watch": "npm run style-build && concurrently \"npm run assets-watch\" \"npm run html-watch\" \"npm run budo\" \"npm run style-watch\"",
     "watch-https": "npm run style-build && concurrently \"npm run assets-watch\" \"npm run html-watch\" \"npm run budo-https\" \"npm run style-watch\"",
-    "lighthouse": "lighthouse http://localhost:3000 --output=html --output-path=./lighthouse-report.html --chrome-flags='--headless'"
+    "lighthouse": "lighthouse http://localhost:3000 --output=html --output-path=./lighthouse-report.html --chrome-flags='--headless'",
+    "deploy": "gh-pages -d public"
   },
   "pre-commit": [
     "eslint",
@@ -65,6 +66,7 @@
     "@babel/preset-env": "^7.28.0",
     "babel-loader": "^10.0.0",
     "eslint": "^4.3.0",
+    "gh-pages": "^6.3.0",
     "lighthouse": "^12.8.1",
     "pre-commit": "^1.2.2",
     "stylint": "^1.5.9",

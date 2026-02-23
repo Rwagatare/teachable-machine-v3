@@ -43,7 +43,7 @@
     
     <link href="https://fonts.googleapis.com/css?family=Caveat:700|Poppins:400,500,600,700" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
-    <script src="bundle.js"></script>
+    <script src="bundle.js" defer></script>
     
     <!-- PWA Service Worker Registration -->
     <script>
@@ -60,7 +60,7 @@
                     scope: '/'
                 };
                 
-                navigator.serviceWorker.register('/service-worker.js', registerOptions)
+                navigator.serviceWorker.register('/sw.js', registerOptions)
                 .then(function(registration) {
                     console.log('SW registered successfully:', registration.scope);
                     

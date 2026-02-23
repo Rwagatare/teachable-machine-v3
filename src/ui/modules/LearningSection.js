@@ -175,9 +175,6 @@ class LearningSection {
 		
 		// Update output components to handle the new class
 		if (GLOBALS.outputSection && GLOBALS.outputSection.outputs) {
-			if (GLOBALS.outputSection.outputs.GIFOutput && GLOBALS.outputSection.outputs.GIFOutput.addNewClass) {
-				GLOBALS.outputSection.outputs.GIFOutput.addNewClass(nextClassName, currentClassCount);
-			}
 			if (GLOBALS.outputSection.outputs.EmojiOutput && GLOBALS.outputSection.outputs.EmojiOutput.addNewClass) {
 				GLOBALS.outputSection.outputs.EmojiOutput.addNewClass(nextClassName, currentClassCount);
 			}

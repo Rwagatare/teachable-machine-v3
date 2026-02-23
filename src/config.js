@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-let AudioContext = window.AudioContext || window.webkitAudioContext;
 let GLOBALS = {
 	button: {
 		padding: 0,
@@ -59,8 +58,17 @@ let GLOBALS = {
 		'orange': false
 	},
 	numClasses: 3,
-	audioContext: new AudioContext(),
-    isBackFacingCam: false
+    isBackFacingCam: false,
+    audioContext: null
+};
+
+// Lazy-initialize AudioContext on first user gesture to comply with browser autoplay policy
+GLOBALS.getAudioContext = function() {
+    if (!GLOBALS.audioContext) {
+        let AudioContext = window.AudioContext || window.webkitAudioContext;
+        GLOBALS.audioContext = new AudioContext();
+    }
+    return GLOBALS.audioContext;
 };
 
 export default GLOBALS;

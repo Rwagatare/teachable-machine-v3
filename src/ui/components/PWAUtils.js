@@ -172,13 +172,6 @@ class PWAUtils {
     
     document.body.appendChild(this.installButton);
     
-    // Show the button immediately for testing in development
-    if (this.isDevelopment) {
-      console.log('🔧 Development: Showing install button for testing');
-      setTimeout(() => {
-        this.showInstallOption();
-      }, 1000);
-    }
   }
   
   showInstallOption() {
