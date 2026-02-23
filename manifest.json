@@ -1,0 +1,39 @@
+{
+    "name": "Teachable Machine",
+    "short_name": "Teachable",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#ffffff",
+    "theme_color": "#1b73e8",
+    "description": "Teachable Machine lets you teach a machine using your camera, live in the browser - no coding required.",
+    "scope": "/",
+    "lang": "en",
+    "categories": ["education", "utilities"],
+    "icons": [
+        {
+            "src": "assets/static/favicon/favicon-152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/static/favicon/android-chrome-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/static/favicon/favicon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "assets/static/favicon/favicon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
