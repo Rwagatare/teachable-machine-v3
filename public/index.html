@@ -56,11 +56,12 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 // For development with self-signed certificates, we need to handle errors gracefully
+                const swBase = isDevelopment ? '/' : '/teachable-machine-v3/';
                 const registerOptions = {
-                    scope: '/'
+                    scope: swBase
                 };
-                
-                navigator.serviceWorker.register('/sw.js', registerOptions)
+
+                navigator.serviceWorker.register(swBase + 'sw.js', registerOptions)
                 .then(function(registration) {
                     console.log('SW registered successfully:', registration.scope);
                     

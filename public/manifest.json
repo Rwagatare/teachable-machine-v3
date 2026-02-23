@@ -1,13 +1,13 @@
 {
     "name": "Teachable Machine",
     "short_name": "Teachable",
-    "start_url": "/",
+    "start_url": "/teachable-machine-v3/",
     "display": "standalone",
     "orientation": "portrait-primary",
     "background_color": "#ffffff",
     "theme_color": "#1b73e8",
     "description": "Teachable Machine lets you teach a machine using your camera, live in the browser - no coding required.",
-    "scope": "/",
+    "scope": "/teachable-machine-v3/",
     "lang": "en",
     "categories": ["education", "utilities"],
     "icons": [
