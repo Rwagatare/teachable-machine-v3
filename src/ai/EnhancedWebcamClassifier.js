@@ -253,6 +253,10 @@ class EnhancedWebcamClassifier {
   clear(index) {
     return this.originalClassifier.clear(index);
   }
+
+  clearPersistedData() {
+    return this.originalClassifier.clearPersistedData();
+  }
   
   deleteClassData(index) {
 

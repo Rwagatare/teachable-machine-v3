@@ -16,6 +16,7 @@ import GLOBALS from './../config.js';
 import *as tf from '@tensorflow/tfjs';
 import *as knnClassifier from '@tensorflow-models/knn-classifier';
 import *as mobilenet from '@tensorflow-models/mobilenet';
+import ClassifierStore from './ClassifierStore.js';
 
 /* eslint-disable camelcase, max-lines,  */
 const IMAGE_SIZE = 227;
@@ -143,9 +144,131 @@ export default class WebcamClassifier {
     this.useFloatTextures = !GLOBALS.browserUtils.isMobile && !GLOBALS.browserUtils.isSafari;
     tf.ENV.set('WEBGL_DOWNLOAD_FLOAT_ENABLED', false);
     this.classifier = knnClassifier.create();
+    this.classifierStore = new ClassifierStore();
+
+    await this.restorePersistedState();
 
     // Load mobilenet.
     this.mobilenetModule = await mobilenet.load();
+  }
+
+  /**
+   * Loads any previously saved training data for the current set of
+   * classes from IndexedDB and restores it into the classifier so
+   * predictions work immediately without retraining. If nothing was
+   * saved, or the saved data doesn't match the current classes, this
+   * is a no-op and the classifier simply starts empty as before.
+   */
+  async restorePersistedState() {
+    const saved = await this.classifierStore.load();
+    if (!saved || !saved.classDataset) {
+      return;
+    }
+
+    if (!this.classNamesMatchSnapshot(saved.classNames)) {
+      console.warn('WebcamClassifier: saved training data does not match the current classes, ignoring it.');
+      await this.classifierStore.clear();
+
+      return;
+    }
+
+    try {
+      const restoredDataset = {};
+      Object.keys(saved.classDataset).forEach((mappedIndex) => {
+        const entry = saved.classDataset[mappedIndex];
+        restoredDataset[mappedIndex] = tf.tensor2d(Array.from(entry.data), entry.shape);
+      });
+      this.classifier.setClassifierDataset(restoredDataset);
+      this.mappedButtonIndexes = saved.mappedButtonIndexes.slice();
+      this.applyRestoredExampleCounts();
+    } catch (error) {
+      console.warn('WebcamClassifier: failed to restore saved training data, starting fresh.', error);
+    }
+  }
+
+  classNamesMatchSnapshot(savedClassNames) {
+    if (!Array.isArray(savedClassNames) || savedClassNames.length !== this.classNames.length) {
+      return false;
+    }
+
+    return savedClassNames.every((name, index) => name === this.classNames[index]);
+  }
+
+  /**
+   * After restoring the classifier's tensor dataset, bring the training
+   * UI (per-class example counters, "trained" flags, output enablement)
+   * back in sync so it doesn't show 0 examples while predictions are
+   * actually already working.
+   */
+  applyRestoredExampleCounts() {
+    const recommendedNumSamples = (GLOBALS.inputType === 'cam') ? 30 : 10;
+    const counts = this.classifier.getClassExampleCount();
+
+    this.mappedButtonIndexes.forEach((realIndex, mappedIndex) => {
+      const count = counts[mappedIndex] || 0;
+      const className = this.classNames[realIndex];
+
+      if (this.images[className]) {
+        this.images[className].imagesCount = count;
+      }
+      if (count >= recommendedNumSamples) {
+        GLOBALS.classesTrained[className] = true;
+      }
+      if (GLOBALS.learningSection && GLOBALS.learningSection.learningClasses[realIndex]) {
+        GLOBALS.learningSection.learningClasses[realIndex].setSamples(count);
+      }
+    });
+  }
+
+  /**
+   * Serializes the classifier's current dataset and writes it to
+   * IndexedDB. Called once per recording session (on buttonUp) rather
+   * than per frame, so holding the record button doesn't spam writes.
+   */
+  async persistState() {
+    if (!this.classifierStore) {
+      return;
+    }
+
+    const classDataset = this.classifier.getClassifierDataset();
+    const mappedIndexes = Object.keys(classDataset);
+
+    if (mappedIndexes.length === 0) {
+      // Nothing trained (or everything cleared) - don't leave stale data behind.
+      await this.classifierStore.clear();
+
+      return;
+    }
+
+    try {
+      const serializedDataset = {};
+      for (const mappedIndex of mappedIndexes) {
+        const tensor = classDataset[mappedIndex];
+        /* eslint-disable no-await-in-loop */
+        const data = await tensor.data();
+        /* eslint-enable no-await-in-loop */
+        serializedDataset[mappedIndex] = {shape: tensor.shape, data: Array.from(data)};
+      }
+      await this.classifierStore.save({
+        classNames: this.classNames.slice(),
+        mappedButtonIndexes: this.mappedButtonIndexes.slice(),
+        classDataset: serializedDataset
+      });
+    } catch (error) {
+      console.warn('WebcamClassifier: failed to save training data.', error);
+    }
+  }
+
+  /**
+   * Erases any saved training data from IndexedDB. Does not touch the
+   * in-memory classifier - callers that want a full reset should reload
+   * the page after calling this.
+   */
+  async clearPersistedData() {
+    if (!this.classifierStore) {
+      return;
+    }
+    await this.classifierStore.clear();
   }
 
   /**
@@ -196,6 +319,7 @@ export default class WebcamClassifier {
   clear(index) {
     const newMappedIndex = this.mappedButtonIndexes.indexOf(index);
     this.classifier.clearClass(newMappedIndex);
+    this.persistState();
   }
 
   deleteClassData(index) {
@@ -288,6 +412,9 @@ return;
     this.current = null;
     this.currentContext = null;
     this.currentClass = null;
+
+    // Save once per recording session rather than per frame.
+    this.persistState();
   }
 
   startTimer() {

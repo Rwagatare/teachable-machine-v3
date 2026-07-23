@@ -68,6 +68,31 @@ function init() {
 	
 	// Show PWA install prompt after delay
 	GLOBALS.pwaUtils.showInstallPromptAfterDelay();
+
+	setupClearSavedDataButton();
+}
+
+function setupClearSavedDataButton() {
+	const clearDataButton = document.getElementById('clear-saved-data');
+	if (!clearDataButton) {
+		return;
+	}
+
+	clearDataButton.addEventListener('click', (event) => {
+		event.preventDefault();
+
+		if (!window.confirm('This will erase your saved training data from this device. Continue?')) {
+			return;
+		}
+
+		const clearPromise = (GLOBALS.webcamClassifier && GLOBALS.webcamClassifier.clearPersistedData) ?
+			GLOBALS.webcamClassifier.clearPersistedData() :
+			Promise.resolve();
+
+		clearPromise.then(() => {
+			location.reload();
+		});
+	});
 }
 
 window.addEventListener('load', init);
