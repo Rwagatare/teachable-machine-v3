@@ -550,8 +550,26 @@
 		margin-right: space(1)
 	}
 
+	// Below 900px, hide the decorative connector wires entirely rather
+	// than keep patching their layout. They're purely cosmetic (each
+	// class's colored train button + confidence meter, and the colored
+	// circles in OUTPUT, already show the same class-to-output mapping),
+	// and the mobile version was never actually responsive - it's a
+	// single static SVG (unlike the JS canvas version used above 900px,
+	// which computes exact positions every frame) sharing a flex-wrap row
+	// with real content. That produced three separate real bugs found
+	// via live testing: it visually overlapped the learning card in
+	// portrait, it landed in a disconnected floating position with a
+	// ~326px dead gap at 800-900px (found by sweeping widths in 20px
+	// steps - at that width "learning" and "wires-right" happen to fit
+	// side-by-side on the same flex-wrap row instead of stacking), and
+	// its "tangled wires" artwork - a reasonable flourish across a wide
+	// desktop canvas - just reads as meaningless crossing squiggles once
+	// compressed into a narrow mobile box. None of these are fixable by
+	// adding another breakpoint; the next "sweet spot" width where two
+	// flex items happen to fit together would just move somewhere else.
 	.wires {
-		margin-top: 51px
+		display: none
 	}
 
 	.wires__bulb {
@@ -714,17 +732,12 @@
 		}
 	}
 
-	.wires-svg {
-		display: block
-	}
-
-	.wires--left,
-	.wires--right {
-		height: auto
-		width: 65vw
-		max-width: 400px
-		margin: 0 auto
-	}
+	// .wires-svg display and .wires--left/.wires--right sizing rules were
+	// removed here - moot now that .wires itself is display: none above.
+	// The .wire-base-*/.wire-green etc. color+animation rules below are
+	// left in place even though currently inert (parent hidden): they're
+	// only ever referenced by WiresLeft.highlight() adding an `.animate`
+	// class, which is harmless to leave running against a hidden element.
 
 	.wire-base-green,
 	.wire-base-purple,
@@ -944,38 +957,7 @@
 	}
 }
 
-/*
- * Phone landscape (short viewport height, e.g. 844x390 on an iPhone 12
- * Pro rotated, or 667x375).
- *
- * The decorative connector wires below 900px are sized with
- * `width: 65vw; max-width: 400px` (see the 900px tier above) - tuned
- * for portrait phones, where 65vw of a ~375-600px-wide viewport is a
- * reasonable 244-390px. In landscape, the viewport is wide but short:
- * 65vw of 844px is 548px (capped to the 400px max), which is as wide
- * as or wider than the actual content sections. Since .machine__sections
- * is a wrapping flex row and the wires are flex siblings of the real
- * .section elements (not absolutely positioned), a wire that wide
- * dominates the row and scrambles where the real sections wrap to -
- * confirmed by measuring section positions at 844x390, where the
- * input section collapsed to 69x65px and sections landed in an order
- * that had no visual relationship to the actual layout.
- *
- * Making these connectors correctly reflow for arbitrary landscape
- * aspect ratios would need real (width AND height aware) positioning
- * logic, disproportionate effort for a purely decorative element that
- * was already just an approximate visual flourish below 900px (not
- * precisely connected to real element positions even in portrait -
- * see the WiresLeft/WiresRight canvas renderers, which only ever
- * compute exact pixel connections above 900px). Hiding them here is a
- * deliberate choice over attempting a fragile reflow: they add no
- * functional information (the colors/highlight state are also shown
- * directly on each class's "Confidence" meter and train button), so
- * removing them in this narrow case avoids visual breakage without
- * losing anything a user needs.
- */
-@media screen and (orientation: landscape) and (max-height: 500px) {
-	.wires {
-		display: none
-	}
-}
+// A landscape-only @media (orientation: landscape) and (max-height: 500px)
+// rule used to live here, hiding .wires only in landscape. Superseded:
+// .wires is now display: none for the whole ≤900px tier (see above),
+// which covers landscape too, so this dedicated rule is no longer needed.
