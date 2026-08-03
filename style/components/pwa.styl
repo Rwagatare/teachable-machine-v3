@@ -141,26 +141,24 @@
     padding-top: 20px;
     padding-bottom: 20px;
   }
-  
-  .machine {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  
-  .input {
-    flex: 1;
-    margin-right: 20px;
-  }
-  
-  .learning {
-    flex: 1;
-  }
-  
-  .output {
-    width: 100%;
-    margin-top: 20px;
-  }
+
+  /*
+   * This block used to also set .input/.learning/.output to
+   * flex: 1/flex: 1/width: 100% here. Removed: those bare-class
+   * selectors have the same CSS specificity as machine.styl's
+   * .section rules, and since this file is @imported after
+   * machine.styl (see style/main.styl), it silently won every tie -
+   * overriding the actual (tested, breakpoint-based) responsive layout
+   * for .section--input/.section--learning/.section--output on any
+   * landscape view under 900px wide, in ways that were never
+   * integrated with that system. Confirmed via computed-style
+   * inspection: .section--input was resolving to `flex: 1 1 0%` from
+   * this rule instead of the intended tiered .section flex-basis,
+   * which (combined with the connector wires competing for the same
+   * row) produced the reported "sections in random positions, wires
+   * floating in an empty gap" landscape bug. Width-based breakpoints
+   * in machine.styl now apply consistently regardless of orientation.
+   */
 }
 
 /* High DPI screen optimizations */

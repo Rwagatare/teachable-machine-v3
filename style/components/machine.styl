@@ -622,6 +622,13 @@
 
 	.section--learning {
 		height: auto
+		// Cancel the base rule's `top: -10px` (a cosmetic nudge that only
+		// makes sense on desktop, where the connector wires are
+		// precisely-positioned canvas drawings independent of document
+		// flow). Below 900px, .section--learning is a normal flex-wrap
+		// sibling of .wires-left's decorative SVG, so that -10px pulled it
+		// up into the wire's tail end, making the connector look clipped.
+		top: 0
 
 		.section__container {
 			justify-content: center
@@ -934,5 +941,41 @@
 
 	.examples {
 		margin-right: space(1.5)
+	}
+}
+
+/*
+ * Phone landscape (short viewport height, e.g. 844x390 on an iPhone 12
+ * Pro rotated, or 667x375).
+ *
+ * The decorative connector wires below 900px are sized with
+ * `width: 65vw; max-width: 400px` (see the 900px tier above) - tuned
+ * for portrait phones, where 65vw of a ~375-600px-wide viewport is a
+ * reasonable 244-390px. In landscape, the viewport is wide but short:
+ * 65vw of 844px is 548px (capped to the 400px max), which is as wide
+ * as or wider than the actual content sections. Since .machine__sections
+ * is a wrapping flex row and the wires are flex siblings of the real
+ * .section elements (not absolutely positioned), a wire that wide
+ * dominates the row and scrambles where the real sections wrap to -
+ * confirmed by measuring section positions at 844x390, where the
+ * input section collapsed to 69x65px and sections landed in an order
+ * that had no visual relationship to the actual layout.
+ *
+ * Making these connectors correctly reflow for arbitrary landscape
+ * aspect ratios would need real (width AND height aware) positioning
+ * logic, disproportionate effort for a purely decorative element that
+ * was already just an approximate visual flourish below 900px (not
+ * precisely connected to real element positions even in portrait -
+ * see the WiresLeft/WiresRight canvas renderers, which only ever
+ * compute exact pixel connections above 900px). Hiding them here is a
+ * deliberate choice over attempting a fragile reflow: they add no
+ * functional information (the colors/highlight state are also shown
+ * directly on each class's "Confidence" meter and train button), so
+ * removing them in this narrow case avoids visual breakage without
+ * losing anything a user needs.
+ */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+	.wires {
+		display: none
 	}
 }
