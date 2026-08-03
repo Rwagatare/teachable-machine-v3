@@ -71,26 +71,86 @@ class BrowserUtils {
         var exts;
         var support = false;
 
+        // TEMPORARY DEBUG (remove once the real-device iOS WebGL issue is
+        // diagnosed). See LEARN.md / PR notes for how to view this.
+        var debugInfo = {
+            userAgent: navigator.userAgent,
+            locationProtocol: location.protocol,
+            hasMediaDevices: !!navigator.mediaDevices,
+            webglContextOk: null,
+            experimentalWebglContextOk: null,
+            contextUsed: null,
+            extensionsCount: null,
+            unmaskedRenderer: null,
+            error: null
+        };
+
         try {
             canvas = document.createElement('canvas');
-            ctx = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+            var webglCtx = canvas.getContext('webgl');
+            debugInfo.webglContextOk = !!webglCtx;
+
+            var expCtx = webglCtx ? null : canvas.getContext('experimental-webgl');
+            debugInfo.experimentalWebglContextOk = !!expCtx;
+
+            ctx = webglCtx || expCtx;
+            debugInfo.contextUsed = webglCtx ? 'webgl' : (expCtx ? 'experimental-webgl' : 'none');
+
+            if (!ctx) {
+                throw new Error('canvas.getContext returned null for both "webgl" and "experimental-webgl"');
+            }
+
             exts = ctx.getSupportedExtensions();
+            debugInfo.extensionsCount = exts ? exts.length : null;
+
+            try {
+                var dbgExt = ctx.getExtension('WEBGL_debug_renderer_info');
+                if (dbgExt) {
+                    debugInfo.unmaskedRenderer = ctx.getParameter(dbgExt.UNMASKED_RENDERER_WEBGL);
+                }
+            } catch (extError) {
+                debugInfo.unmaskedRenderer = 'error reading: ' + extError.message;
+            }
         } catch (e) {
+            debugInfo.error = e && e.message ? e.message : String(e);
+            this.logWebglDebugInfo(debugInfo);
+
             return support;
         }
 
-        if (ctx !== undefined) {
+        if (ctx) {
             support = true;
         }
 
-        for (var i = -1, len = exts.length; ++i < len; ){
-            support = true;
-        }
-
+        this.logWebglDebugInfo(debugInfo);
         canvas = undefined;
-        console.log(support);
+
         return support;
     };
+
+    // TEMPORARY DEBUG (remove once the real-device iOS WebGL issue is
+    // diagnosed): logs to the console AND renders a small on-screen overlay,
+    // so it's visible even without a Mac hooked up to Safari's remote
+    // inspector at the moment of testing.
+    logWebglDebugInfo(debugInfo) {
+        console.log('[TM webgl debug] ' + JSON.stringify(debugInfo, null, 2));
+
+        try {
+            var box = document.createElement('div');
+            box.setAttribute('style',
+                'position:fixed;bottom:0;left:0;right:0;z-index:99999;' +
+                'max-height:40vh;overflow:auto;background:rgba(0,0,0,0.85);' +
+                'color:#0f0;font-family:monospace;font-size:11px;' +
+                'padding:8px;white-space:pre-wrap;');
+            box.textContent = '[TM webgl debug]\n' + JSON.stringify(debugInfo, null, 2);
+            if (document.body) {
+                document.body.appendChild(box);
+            }
+        } catch (overlayError) {
+            // ignore - the console.log above is the primary source of truth
+        }
+    }
 
     getAndroidVersion() {
         let ua = (navigator.userAgent).toLowerCase();
