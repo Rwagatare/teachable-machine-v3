@@ -71,17 +71,14 @@ class CamInput {
   size() {
     this.width = this.element.offsetWidth;
     this.height = this.width;
+    // These attributes only set a fallback intrinsic size; the actual
+    // rendered box size/aspect ratio is controlled by CSS
+    // (.input__media's aspect-ratio in machine.styl, plus the
+    // `width: 100% !important; height: 100% !important` rules on the
+    // video element itself), which is what responsive sizing (#12) is
+    // implemented in instead of here.
     this.webcamClassifier.video.width = 227;
-		this.webcamClassifier.video.height = 227;
-
-    /*
-    if (this.videoRatio > 1) {
-            this.webcamClassifier.video.width = this.height * this.videoRatio;
-            this.webcamClassifier.video.height = this.height;
-    }else {
-            this.webcamClassifier.video.width = this.width;
-            this.webcamClassifier.video.height = this.width / this.videoRatio;
-    }*/
+    this.webcamClassifier.video.height = 227;
   }
 }
 

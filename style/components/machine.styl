@@ -71,7 +71,13 @@
 	border-radius: 12px
 	overflow: hidden
 	position: relative
-	height: 270px
+	// Scale height to width instead of a fixed 270px, so the box stays
+	// close to the video's own aspect ratio at any viewport width. A fixed
+	// height combined with a flexible (per-breakpoint) width let this box
+	// turn into a short, wide rectangle on mobile, letterboxing the video
+	// with large white bars (visible via object-fit: contain below).
+	// 300/270 matches this box's original desktop proportions.
+	aspect-ratio: 300 / 270
 	width: 100%
 	margin: 0
 	box-sizing: border-box
@@ -595,7 +601,7 @@
 		}
 
 		.input__media {
-			height: 270px
+			// height comes from the base .input__media aspect-ratio now
 			order: 2
 			margin-bottom: 0
 		}
