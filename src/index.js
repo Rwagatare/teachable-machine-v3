@@ -57,7 +57,7 @@ function init() {
 	if (GLOBALS.browserUtils.isChrome && !GLOBALS.browserUtils.isEdge) {
 		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, <span class="input__media__activate--desktop"> you need to click up here to turn on your camera and then <a href="#">refresh the page</a>.</span><span class="input__media__activate--mobile"> you need to <a href="#">refresh the page</a> and allow camera access.</span></p>';
 
-		if (!GLOBALS.browserUtils.isCompatable) {
+		if (!GLOBALS.browserUtils.isCompatible) {
 			document.querySelector('.wizard__browser-warning').innerHTML = 'Something went wrong and we could not load the site, please try restarting your browser.';
 		}
 	}else if (GLOBALS.browserUtils.isSafari) {
