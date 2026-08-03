@@ -5,6 +5,7 @@ node_modules/
 public/*
 !public/model/
 !public/model/**
+LEARN.md
 .idea
 server.key
 server.cer
