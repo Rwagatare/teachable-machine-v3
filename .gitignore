@@ -3,6 +3,8 @@ node_modules/
 .DS_Store
 *.swp
 public/*
+!public/model/
+!public/model/**
 .idea
 server.key
 server.cer
