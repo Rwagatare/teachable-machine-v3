@@ -71,7 +71,13 @@
 	border-radius: 12px
 	overflow: hidden
 	position: relative
-	height: 270px
+	// Scale height to width instead of a fixed 270px, so the box stays
+	// close to the video's own aspect ratio at any viewport width. A fixed
+	// height combined with a flexible (per-breakpoint) width let this box
+	// turn into a short, wide rectangle on mobile, letterboxing the video
+	// with large white bars (visible via object-fit: contain below).
+	// 300/270 matches this box's original desktop proportions.
+	aspect-ratio: 300 / 270
 	width: 100%
 	margin: 0
 	box-sizing: border-box
@@ -544,8 +550,26 @@
 		margin-right: space(1)
 	}
 
+	// Below 900px, hide the decorative connector wires entirely rather
+	// than keep patching their layout. They're purely cosmetic (each
+	// class's colored train button + confidence meter, and the colored
+	// circles in OUTPUT, already show the same class-to-output mapping),
+	// and the mobile version was never actually responsive - it's a
+	// single static SVG (unlike the JS canvas version used above 900px,
+	// which computes exact positions every frame) sharing a flex-wrap row
+	// with real content. That produced three separate real bugs found
+	// via live testing: it visually overlapped the learning card in
+	// portrait, it landed in a disconnected floating position with a
+	// ~326px dead gap at 800-900px (found by sweeping widths in 20px
+	// steps - at that width "learning" and "wires-right" happen to fit
+	// side-by-side on the same flex-wrap row instead of stacking), and
+	// its "tangled wires" artwork - a reasonable flourish across a wide
+	// desktop canvas - just reads as meaningless crossing squiggles once
+	// compressed into a narrow mobile box. None of these are fixable by
+	// adding another breakpoint; the next "sweet spot" width where two
+	// flex items happen to fit together would just move somewhere else.
 	.wires {
-		margin-top: 51px
+		display: none
 	}
 
 	.wires__bulb {
@@ -595,7 +619,7 @@
 		}
 
 		.input__media {
-			height: 270px
+			// height comes from the base .input__media aspect-ratio now
 			order: 2
 			margin-bottom: 0
 		}
@@ -616,6 +640,13 @@
 
 	.section--learning {
 		height: auto
+		// Cancel the base rule's `top: -10px` (a cosmetic nudge that only
+		// makes sense on desktop, where the connector wires are
+		// precisely-positioned canvas drawings independent of document
+		// flow). Below 900px, .section--learning is a normal flex-wrap
+		// sibling of .wires-left's decorative SVG, so that -10px pulled it
+		// up into the wire's tail end, making the connector look clipped.
+		top: 0
 
 		.section__container {
 			justify-content: center
@@ -701,17 +732,12 @@
 		}
 	}
 
-	.wires-svg {
-		display: block
-	}
-
-	.wires--left,
-	.wires--right {
-		height: auto
-		width: 65vw
-		max-width: 400px
-		margin: 0 auto
-	}
+	// .wires-svg display and .wires--left/.wires--right sizing rules were
+	// removed here - moot now that .wires itself is display: none above.
+	// The .wire-base-*/.wire-green etc. color+animation rules below are
+	// left in place even though currently inert (parent hidden): they're
+	// only ever referenced by WiresLeft.highlight() adding an `.animate`
+	// class, which is harmless to leave running against a hidden element.
 
 	.wire-base-green,
 	.wire-base-purple,
@@ -896,3 +922,42 @@
 		max-width: 100%
 	}
 }
+
+/*
+ * Very small phones (≤ 480px, e.g. iPhone SE at 375px).
+ *
+ * Below this, the 900px tier's 3-across .learning__class layout (each
+ * class squeezed into ~32% width) gets too cramped: "TRAIN GREEN" /
+ * "TRAIN PURPLE" / "TRAIN ORANGE" wrap awkwardly and the examples
+ * thumbnail, confidence meter, and button are packed into ~100px-wide
+ * columns. Switch to one full-width row per class instead, reusing the
+ * same left-thumbnail / right-column layout the desktop (> 900px) tier
+ * already uses via .learning__class-column, just full-width instead of
+ * a fixed 360px section.
+ */
+@media screen and (max-width: 480px) {
+	// The 900px tier's .section__container is flex-wrap: nowrap (fine when
+	// 3 children sum to 32%*3 ~= 96% width), but with .learning__class now
+	// 100% wide each, nowrap would force all 3 into one overflowing row
+	// instead of stacking - so wrap it here too.
+	.section--learning .section__container {
+		flex-wrap: wrap
+	}
+
+	.learning__class {
+		flex: 0 0 100%
+		max-width: 100%
+		flex-direction: row
+		align-items: flex-start
+		margin-bottom: space(1.5)
+	}
+
+	.examples {
+		margin-right: space(1.5)
+	}
+}
+
+// A landscape-only @media (orientation: landscape) and (max-height: 500px)
+// rule used to live here, hiding .wires only in landscape. Superseded:
+// .wires is now display: none for the whole ≤900px tier (see above),
+// which covers landscape too, so this dedicated rule is no longer needed.
