@@ -902,3 +902,37 @@
 		max-width: 100%
 	}
 }
+
+/*
+ * Very small phones (≤ 480px, e.g. iPhone SE at 375px).
+ *
+ * Below this, the 900px tier's 3-across .learning__class layout (each
+ * class squeezed into ~32% width) gets too cramped: "TRAIN GREEN" /
+ * "TRAIN PURPLE" / "TRAIN ORANGE" wrap awkwardly and the examples
+ * thumbnail, confidence meter, and button are packed into ~100px-wide
+ * columns. Switch to one full-width row per class instead, reusing the
+ * same left-thumbnail / right-column layout the desktop (> 900px) tier
+ * already uses via .learning__class-column, just full-width instead of
+ * a fixed 360px section.
+ */
+@media screen and (max-width: 480px) {
+	// The 900px tier's .section__container is flex-wrap: nowrap (fine when
+	// 3 children sum to 32%*3 ~= 96% width), but with .learning__class now
+	// 100% wide each, nowrap would force all 3 into one overflowing row
+	// instead of stacking - so wrap it here too.
+	.section--learning .section__container {
+		flex-wrap: wrap
+	}
+
+	.learning__class {
+		flex: 0 0 100%
+		max-width: 100%
+		flex-direction: row
+		align-items: flex-start
+		margin-bottom: space(1.5)
+	}
+
+	.examples {
+		margin-right: space(1.5)
+	}
+}
