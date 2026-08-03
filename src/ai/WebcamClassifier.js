@@ -148,8 +148,19 @@ export default class WebcamClassifier {
 
     await this.restorePersistedState();
 
-    // Load mobilenet.
-    this.mobilenetModule = await mobilenet.load();
+    // Load mobilenet from the locally bundled weights (public/model/) instead
+    // of mobilenet.load(), which always fetches from
+    // https://storage.googleapis.com/tfjs-models/tfjs/. The installed
+    // @tensorflow-models/mobilenet@0.1.1 has no modelUrl option, so we build
+    // the MobileNet instance directly and point its `path` at the local
+    // model.json before loading.
+    const localMobilenet = new mobilenet.MobileNet(1, 1.0);
+    // Relative (no leading slash) so this resolves correctly when the app is
+    // served from a subpath, e.g. GitHub Pages (matches the convention used
+    // by SoundOutput.js's basePath).
+    localMobilenet.path = 'model/model.json';
+    await localMobilenet.load();
+    this.mobilenetModule = localMobilenet;
   }
 
   /**

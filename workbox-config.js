@@ -5,9 +5,12 @@ module.exports = {
   
   // Files to precache (critical assets only)
   globPatterns: [
-    '**/*.{html,js,css,png,jpg,jpeg,svg,gif,webp,woff,woff2,ttf,eot,ico,json}'
+    '**/*.{html,js,css,png,jpg,jpeg,svg,gif,webp,woff,woff2,ttf,eot,ico,json}',
+    // MobileNet weight shards (model/groupNof1) have no file extension, so
+    // the pattern above doesn't match them - needed for offline classifier use.
+    'model/**'
   ],
-  
+
   // Files to exclude from precaching
   globIgnores: [
     '**/node_modules/**/*',
@@ -15,9 +18,14 @@ module.exports = {
     '**/workbox-*.js',
     '**/sw.js'
   ],
-  
+
   // Service worker output file
   swDest: 'public/sw.js',
+
+  // Default 2MB limit is smaller than bundle.js (~2.4MB) and several
+  // MobileNet weight shards (up to 4MB), so both would silently be skipped
+  // from precaching. Raised with headroom for growth.
+  maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
   
   // Skip waiting for better UX
   skipWaiting: true,
