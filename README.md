@@ -31,7 +31,9 @@ Version 3 transforms Teachable Machine into a modern, accessible, and offline-ca
 
 - Modern web browser (Chrome, Firefox, or Edge recommended)
 - Webcam
-- Node.js version 14 or higher
+- **Node.js 16.x — required, not just recommended.** The build toolchain
+  (`stylus`, `browserify`, `budo`) hangs outright on newer Node majors (18+)
+  in practice. See `.nvmrc` / the `engines` field in `package.json`.
 - Yarn package manager (or npm)
 
 ### Installation
@@ -43,7 +45,18 @@ git clone https://github.com/Rwagatare/teachable-machine-v3.git
 cd teachable-machine-v3
 ```
 
-2. Install dependencies:
+2. Use the pinned Node version (required):
+
+```bash
+nvm use
+```
+
+If you don't have Node 16 installed yet, run `nvm install` first. If you
+change Node versions after already running `npm install` once, delete
+`node_modules` and reinstall - a `node_modules` built under one Node version
+can leave native modules (e.g. `fsevents`) mismatched with another.
+
+3. Install dependencies:
 
 ```bash
 yarn install
@@ -51,7 +64,7 @@ yarn install
 npm install
 ```
 
-3. Build the project:
+4. Build the project:
 
 ```bash
 yarn build
