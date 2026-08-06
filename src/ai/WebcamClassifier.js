@@ -161,6 +161,11 @@ export default class WebcamClassifier {
     localMobilenet.path = 'model/model.json';
     await localMobilenet.load();
     this.mobilenetModule = localMobilenet;
+
+    // TEMPORARY: logs which TensorFlow.js backend actually ended up active
+    // ('webgl' or the 'cpu' fallback), so predict() timings below can be
+    // read in context. Remove once we have a real-device latency reading.
+    console.log('[TM tfjs backend] ' + tf.getBackend());
   }
 
   /**
@@ -495,7 +500,18 @@ return;
       let start = performance.now();
       measureTimer = this.measureTimingCounter === 0;
       if (exampleCount > 0) {
+        // TEMPORARY: rough predict() latency reading (~once every
+        // MEASURE_TIMING_EVERY_NUM_FRAMES frames, reusing the existing
+        // measureTimer throttle so this doesn't spam the console on every
+        // animation frame) to compare 'webgl' vs the 'cpu' fallback backend
+        // on a real device. Remove once we have a reading.
+        if (measureTimer) {
+          console.time('[TM predict]');
+        }
         const res = await this.predict(image);
+        if (measureTimer) {
+          console.timeEnd('[TM predict]');
+        }
         const computeConfidences = () => {
           GLOBALS.learningSection.setConfidences(res.confidences);
           this.measureTimingCounter = (this.measureTimingCounter + 1) % MEASURE_TIMING_EVERY_NUM_FRAMES;

@@ -24,6 +24,13 @@ class BrowserUtils {
         this.isMobile = false;
         this.isChrome = /chrome/i.test(navigator.userAgent);
         this.isCompatible;
+        // Whether a WebGL context is available. Kept separate from
+        // isCompatible: WebGL is a soft requirement (TensorFlow.js has a
+        // registered 'cpu' fallback backend and will use it automatically),
+        // unlike camera access, which the app hard-requires. isCompatible
+        // used to be downgraded by webglSupport()'s result, which hard-blocked
+        // devices that could actually still run (slower) without WebGL.
+        this.hasWebgl = false;
 
         if (this.isChrome) {
             this.isSafari = false;
@@ -61,7 +68,7 @@ class BrowserUtils {
             }
         }
         if (this.isCompatible) {
-            this.isCompatible = this.webglSupport();
+            this.hasWebgl = this.webglSupport();
         }
     }
 

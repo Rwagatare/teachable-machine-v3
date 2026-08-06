@@ -79,11 +79,53 @@ class LaunchScreen {
             this.messageIsNotCompatible.style.display = 'block';
         }
 
+        // WebGL missing no longer hard-blocks (see BrowserUtils.js) - show a
+        // dismissible, non-blocking heads-up instead, since TensorFlow.js
+        // will fall back to its slower CPU backend automatically.
+        if (GLOBALS.browserUtils.isCompatible && !GLOBALS.browserUtils.hasWebgl) {
+            this.showWebglWarning();
+        }
+
         this.skipButton.addEventListener('click', this.skipClick.bind(this));
         this.skipButtonMobile.addEventListener('touchend', this.skipClick.bind(this));
         this.skipButtonMobile.addEventListener('click', this.skipClick.bind(this));
         this.startButton.element.addEventListener('click', this.startClick.bind(this));
         this.startButton.element.addEventListener('touchend', this.startClick.bind(this));
+    }
+
+    /**
+     * Shows a small, dismissible, non-blocking banner when WebGL isn't
+     * available. Unlike the hard "#is-not-compatible" rejection, this
+     * doesn't stop the user from continuing - TensorFlow.js will fall back
+     * to its CPU backend, just slower.
+     * @returns {void}
+     */
+    showWebglWarning() {
+        var banner = document.createElement('div');
+        banner.setAttribute('style',
+            'position:fixed;left:0;right:0;bottom:0;z-index:9999;' +
+            'background:#323232;color:#fff;padding:12px 16px;' +
+            'font-size:13px;line-height:1.4;display:flex;' +
+            'align-items:center;justify-content:space-between;gap:12px;' +
+            'box-shadow:0 -1px 4px rgba(0,0,0,0.2);');
+
+        var text = document.createElement('span');
+        text.textContent = 'Your device doesn\'t support GPU acceleration for this app. ' +
+            'It will still work, but predictions may be noticeably slower.';
+
+        var dismissButton = document.createElement('button');
+        dismissButton.textContent = 'Continue';
+        dismissButton.setAttribute('type', 'button');
+        dismissButton.setAttribute('style',
+            'flex:none;background:transparent;color:#8ab4f8;border:none;' +
+            'font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;');
+        dismissButton.addEventListener('click', () => {
+            banner.parentNode.removeChild(banner);
+        });
+
+        banner.appendChild(text);
+        banner.appendChild(dismissButton);
+        document.body.appendChild(banner);
     }
 
     openFacebookPopup(event) {
