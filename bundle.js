@@ -50859,6 +50859,162 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+// Copyright 2017 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+var DB_NAME = 'teachable-machine-db';
+var DB_VERSION = 1;
+var STORE_NAME = 'classifierState';
+var CURRENT_SESSION_ID = 'current';
+
+function openDatabase() {
+  return new Promise(function (resolve, reject) {
+    if (!window.indexedDB) {
+      reject(new Error('IndexedDB is not available in this browser.'));
+
+      return;
+    }
+
+    var request = window.indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = function () {
+      var db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = function () {
+      return resolve(request.result);
+    };
+    request.onerror = function () {
+      return reject(request.error);
+    };
+  });
+}
+
+/**
+ * Thin persistence layer over IndexedDB for the KNN classifier's dataset.
+ * Every method fails soft: on any error (IndexedDB unavailable, quota
+ * exceeded, private-browsing restrictions, etc.) it warns and resolves to
+ * a safe default instead of throwing, so callers can always fall back to
+ * in-memory-only behavior.
+ */
+
+var ClassifierStore = function () {
+  function ClassifierStore() {
+    _classCallCheck(this, ClassifierStore);
+  }
+
+  _createClass(ClassifierStore, [{
+    key: 'save',
+    value: async function save(payload) {
+      try {
+        var db = await openDatabase();
+        await new Promise(function (resolve, reject) {
+          var tx = db.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).put(Object.assign({
+            id: CURRENT_SESSION_ID,
+            savedAt: Date.now()
+          }, payload));
+          tx.oncomplete = function () {
+            return resolve();
+          };
+          tx.onerror = function () {
+            return reject(tx.error);
+          };
+          tx.onabort = function () {
+            return reject(tx.error);
+          };
+        });
+        db.close();
+
+        return true;
+      } catch (error) {
+        console.warn('ClassifierStore: could not save training data, continuing in-memory only.', error);
+
+        return false;
+      }
+    }
+  }, {
+    key: 'load',
+    value: async function load() {
+      try {
+        var db = await openDatabase();
+        var record = await new Promise(function (resolve, reject) {
+          var tx = db.transaction(STORE_NAME, 'readonly');
+          var request = tx.objectStore(STORE_NAME).get(CURRENT_SESSION_ID);
+          request.onsuccess = function () {
+            return resolve(request.result || null);
+          };
+          request.onerror = function () {
+            return reject(request.error);
+          };
+        });
+        db.close();
+
+        return record;
+      } catch (error) {
+        console.warn('ClassifierStore: could not load saved training data, starting fresh.', error);
+
+        return null;
+      }
+    }
+  }, {
+    key: 'clear',
+    value: async function clear() {
+      try {
+        var db = await openDatabase();
+        await new Promise(function (resolve, reject) {
+          var tx = db.transaction(STORE_NAME, 'readwrite');
+          tx.objectStore(STORE_NAME).delete(CURRENT_SESSION_ID);
+          tx.oncomplete = function () {
+            return resolve();
+          };
+          tx.onerror = function () {
+            return reject(tx.error);
+          };
+          tx.onabort = function () {
+            return reject(tx.error);
+          };
+        });
+        db.close();
+
+        return true;
+      } catch (error) {
+        console.warn('ClassifierStore: could not clear saved training data.', error);
+
+        return false;
+      }
+    }
+  }]);
+
+  return ClassifierStore;
+}();
+
+exports.default = ClassifierStore;
+
+},{}],238:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); // Copyright 2017 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -51164,6 +51320,11 @@ var EnhancedWebcamClassifier = function () {
       return this.originalClassifier.clear(index);
     }
   }, {
+    key: 'clearPersistedData',
+    value: function clearPersistedData() {
+      return this.originalClassifier.clearPersistedData();
+    }
+  }, {
     key: 'deleteClassData',
     value: function deleteClassData(index) {
 
@@ -51231,7 +51392,7 @@ var EnhancedWebcamClassifier = function () {
 
 exports.default = EnhancedWebcamClassifier;
 
-},{"../config.js":239,"./WebcamClassifier.js":238,"@tensorflow/tfjs":205}],238:[function(require,module,exports){
+},{"../config.js":240,"./WebcamClassifier.js":239,"@tensorflow/tfjs":205}],239:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -51267,6 +51428,10 @@ var knnClassifier = _interopRequireWildcard(_knnClassifier);
 var _mobilenet = require('@tensorflow-models/mobilenet');
 
 var mobilenet = _interopRequireWildcard(_mobilenet);
+
+var _ClassifierStore = require('./ClassifierStore.js');
+
+var _ClassifierStore2 = _interopRequireDefault(_ClassifierStore);
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
@@ -51407,9 +51572,195 @@ var WebcamClassifier = function () {
       this.useFloatTextures = !_config2.default.browserUtils.isMobile && !_config2.default.browserUtils.isSafari;
       tf.ENV.set('WEBGL_DOWNLOAD_FLOAT_ENABLED', false);
       this.classifier = knnClassifier.create();
+      this.classifierStore = new _ClassifierStore2.default();
 
-      // Load mobilenet.
-      this.mobilenetModule = await mobilenet.load();
+      await this.restorePersistedState();
+
+      // Load mobilenet from the locally bundled weights (public/model/) instead
+      // of mobilenet.load(), which always fetches from
+      // https://storage.googleapis.com/tfjs-models/tfjs/. The installed
+      // @tensorflow-models/mobilenet@0.1.1 has no modelUrl option, so we build
+      // the MobileNet instance directly and point its `path` at the local
+      // model.json before loading.
+      var localMobilenet = new mobilenet.MobileNet(1, 1.0);
+      // Relative (no leading slash) so this resolves correctly when the app is
+      // served from a subpath, e.g. GitHub Pages (matches the convention used
+      // by SoundOutput.js's basePath).
+      localMobilenet.path = 'model/model.json';
+      await localMobilenet.load();
+      this.mobilenetModule = localMobilenet;
+
+      // TEMPORARY: logs which TensorFlow.js backend actually ended up active
+      // ('webgl' or the 'cpu' fallback), so predict() timings below can be
+      // read in context. Remove once we have a real-device latency reading.
+      console.log('[TM tfjs backend] ' + tf.getBackend());
+    }
+
+    /**
+     * Loads any previously saved training data for the current set of
+     * classes from IndexedDB and restores it into the classifier so
+     * predictions work immediately without retraining. If nothing was
+     * saved, or the saved data doesn't match the current classes, this
+     * is a no-op and the classifier simply starts empty as before.
+     * @returns {Promise<void>} Resolves once any saved data is restored.
+     */
+
+  }, {
+    key: 'restorePersistedState',
+    value: async function restorePersistedState() {
+      var saved = await this.classifierStore.load();
+      if (!saved || !saved.classDataset) {
+        return;
+      }
+
+      if (!this.classNamesMatchSnapshot(saved.classNames)) {
+        console.warn('WebcamClassifier: saved training data does not match the current classes, ignoring it.');
+        await this.classifierStore.clear();
+
+        return;
+      }
+
+      try {
+        var restoredDataset = {};
+        Object.keys(saved.classDataset).forEach(function (mappedIndex) {
+          var entry = saved.classDataset[mappedIndex];
+          restoredDataset[mappedIndex] = tf.tensor2d(Array.from(entry.data), entry.shape);
+        });
+        this.classifier.setClassifierDataset(restoredDataset);
+        this.mappedButtonIndexes = saved.mappedButtonIndexes.slice();
+        this.applyRestoredExampleCounts();
+      } catch (error) {
+        console.warn('WebcamClassifier: failed to restore saved training data, starting fresh.', error);
+      }
+    }
+  }, {
+    key: 'classNamesMatchSnapshot',
+    value: function classNamesMatchSnapshot(savedClassNames) {
+      var _this2 = this;
+
+      if (!Array.isArray(savedClassNames) || savedClassNames.length !== this.classNames.length) {
+        return false;
+      }
+
+      return savedClassNames.every(function (name, index) {
+        return name === _this2.classNames[index];
+      });
+    }
+
+    /**
+     * After restoring the classifier's tensor dataset, bring the training
+     * UI (per-class example counters, "trained" flags, output enablement)
+     * back in sync so it doesn't show 0 examples while predictions are
+     * actually already working.
+     * @returns {void}
+     */
+
+  }, {
+    key: 'applyRestoredExampleCounts',
+    value: function applyRestoredExampleCounts() {
+      var _this3 = this;
+
+      var recommendedNumSamples = _config2.default.inputType === 'cam' ? 30 : 10;
+      var counts = this.classifier.getClassExampleCount();
+
+      this.mappedButtonIndexes.forEach(function (realIndex, mappedIndex) {
+        var count = counts[mappedIndex] || 0;
+        var className = _this3.classNames[realIndex];
+
+        if (_this3.images[className]) {
+          _this3.images[className].imagesCount = count;
+        }
+        if (count >= recommendedNumSamples) {
+          _config2.default.classesTrained[className] = true;
+        }
+        if (_config2.default.learningSection && _config2.default.learningSection.learningClasses[realIndex]) {
+          _config2.default.learningSection.learningClasses[realIndex].setSamples(count);
+        }
+      });
+    }
+
+    /**
+     * Serializes the classifier's current dataset and writes it to
+     * IndexedDB. Called once per recording session (on buttonUp) rather
+     * than per frame, so holding the record button doesn't spam writes.
+     * @returns {Promise<void>} Resolves once the data is written.
+     */
+
+  }, {
+    key: 'persistState',
+    value: async function persistState() {
+      if (!this.classifierStore) {
+        return;
+      }
+
+      var classDataset = this.classifier.getClassifierDataset();
+      var mappedIndexes = Object.keys(classDataset);
+
+      if (mappedIndexes.length === 0) {
+        // Nothing trained (or everything cleared) - don't leave stale data behind.
+        await this.classifierStore.clear();
+
+        return;
+      }
+
+      try {
+        var serializedDataset = {};
+        var _iteratorNormalCompletion = true;
+        var _didIteratorError = false;
+        var _iteratorError = undefined;
+
+        try {
+          for (var _iterator = mappedIndexes[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            var mappedIndex = _step.value;
+
+            var tensor = classDataset[mappedIndex];
+            /* eslint-disable no-await-in-loop */
+            var data = await tensor.data();
+            /* eslint-enable no-await-in-loop */
+            serializedDataset[mappedIndex] = {
+              shape: tensor.shape,
+              data: Array.from(data)
+            };
+          }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion && _iterator.return) {
+              _iterator.return();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
+          }
+        }
+
+        await this.classifierStore.save({
+          classNames: this.classNames.slice(),
+          mappedButtonIndexes: this.mappedButtonIndexes.slice(),
+          classDataset: serializedDataset
+        });
+      } catch (error) {
+        console.warn('WebcamClassifier: failed to save training data.', error);
+      }
+    }
+
+    /**
+     * Erases any saved training data from IndexedDB. Does not touch the
+     * in-memory classifier - callers that want a full reset should reload
+     * the page after calling this.
+     * @returns {Promise<void>} Resolves once the saved data is erased.
+     */
+
+  }, {
+    key: 'clearPersistedData',
+    value: async function clearPersistedData() {
+      if (!this.classifierStore) {
+        return;
+      }
+      await this.classifierStore.clear();
     }
 
     /**
@@ -51463,6 +51814,7 @@ var WebcamClassifier = function () {
     value: function clear(index) {
       var newMappedIndex = this.mappedButtonIndexes.indexOf(index);
       this.classifier.clearClass(newMappedIndex);
+      this.persistState();
     }
   }, {
     key: 'deleteClassData',
@@ -51562,6 +51914,9 @@ var WebcamClassifier = function () {
       this.current = null;
       this.currentContext = null;
       this.currentClass = null;
+
+      // Save once per recording session rather than per frame.
+      this.persistState();
     }
   }, {
     key: 'startTimer',
@@ -51588,7 +51943,7 @@ var WebcamClassifier = function () {
   }, {
     key: 'animate',
     value: async function animate() {
-      var _this2 = this;
+      var _this4 = this;
 
       // Get image data from video element
       var image = this.video;
@@ -51629,10 +51984,21 @@ var WebcamClassifier = function () {
         var start = performance.now();
         measureTimer = this.measureTimingCounter === 0;
         if (exampleCount > 0) {
+          // TEMPORARY: rough predict() latency reading (~once every
+          // MEASURE_TIMING_EVERY_NUM_FRAMES frames, reusing the existing
+          // measureTimer throttle so this doesn't spam the console on every
+          // animation frame) to compare 'webgl' vs the 'cpu' fallback backend
+          // on a real device. Remove once we have a reading.
+          if (measureTimer) {
+            console.time('[TM predict]');
+          }
           var res = await this.predict(image);
+          if (measureTimer) {
+            console.timeEnd('[TM predict]');
+          }
           var computeConfidences = function computeConfidences() {
             _config2.default.learningSection.setConfidences(res.confidences);
-            _this2.measureTimingCounter = (_this2.measureTimingCounter + 1) % MEASURE_TIMING_EVERY_NUM_FRAMES;
+            _this4.measureTimingCounter = (_this4.measureTimingCounter + 1) % MEASURE_TIMING_EVERY_NUM_FRAMES;
           };
 
           if (!_config2.default.browserUtils.isSafari || measureTimer || !_config2.default.browserUtils.isMobile) {
@@ -51655,7 +52021,7 @@ var WebcamClassifier = function () {
 
 exports.default = WebcamClassifier;
 
-},{"./../config.js":239,"@tensorflow-models/knn-classifier":8,"@tensorflow-models/mobilenet":11,"@tensorflow/tfjs":205}],239:[function(require,module,exports){
+},{"./../config.js":240,"./ClassifierStore.js":237,"@tensorflow-models/knn-classifier":8,"@tensorflow-models/mobilenet":11,"@tensorflow/tfjs":205}],240:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -51690,23 +52056,25 @@ var GLOBALS = {
 		}
 	},
 	classNames: ['green', 'purple', 'orange'],
+	// Light-mode fallbacks only. Read live colors through ui/components/Theme.js
+	// so they follow the CSS tokens (dark mode, increased contrast).
 	colors: {
-		'green': '#2baa5e',
-		'purple': '#c95ac5',
-		'orange': '#dd4d31',
-		'red': '#e8453c',
-		'blue': '#4285f4',
-		'yellow': '#fbbc04',
-		'teal': '#26c6da'
+		'green': '#248A3D',
+		'purple': '#8944AB',
+		'orange': '#C93400',
+		'red': '#D70015',
+		'blue': '#0040DD',
+		'yellow': '#A05A00',
+		'teal': '#0071A4'
 	},
 	rgbaColors: {
-		'green': 'rgba(43, 170, 94, 0.25)',
-		'purple': 'rgba(201, 90, 197, 0.25)',
-		'orange': 'rgba(221, 77, 49, 0.25)',
-		'red': 'rgba(232, 69, 60, 0.25)',
-		'blue': 'rgba(66, 133, 244, 0.25)',
-		'yellow': 'rgba(251, 188, 4, 0.25)',
-		'teal': 'rgba(38, 198, 218, 0.25)'
+		'green': 'rgba(36, 138, 61, 0.25)',
+		'purple': 'rgba(137, 68, 171, 0.25)',
+		'orange': 'rgba(201, 52, 0, 0.25)',
+		'red': 'rgba(215, 0, 21, 0.25)',
+		'blue': 'rgba(0, 64, 221, 0.25)',
+		'yellow': 'rgba(160, 90, 0, 0.25)',
+		'teal': 'rgba(0, 113, 164, 0.25)'
 	},
 	classId: null,
 	predicting: false,
@@ -51727,12 +52095,13 @@ GLOBALS.getAudioContext = function () {
 		var AudioContext = window.AudioContext || window.webkitAudioContext;
 		GLOBALS.audioContext = new AudioContext();
 	}
+
 	return GLOBALS.audioContext;
 };
 
 exports.default = GLOBALS;
 
-},{}],240:[function(require,module,exports){
+},{}],241:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -51791,6 +52160,14 @@ var _BrowserUtils = require('./ui/components/BrowserUtils');
 
 var _BrowserUtils2 = _interopRequireDefault(_BrowserUtils);
 
+var _AppearanceToggle = require('./ui/components/AppearanceToggle.js');
+
+var _AppearanceToggle2 = _interopRequireDefault(_AppearanceToggle);
+
+var _NowPlaying = require('./ui/components/NowPlaying.js');
+
+var _NowPlaying2 = _interopRequireDefault(_NowPlaying);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function init() {
@@ -51802,6 +52179,7 @@ function init() {
 
 	_config2.default.browserUtils = new _BrowserUtils2.default();
 	_config2.default.launchScreen = new _LaunchScreen2.default();
+	_AppearanceToggle2.default.mountAll();
 
 	// Initialize PWA functionality
 	_config2.default.pwaUtils = new _PWAUtils2.default();
@@ -51809,6 +52187,7 @@ function init() {
 	_config2.default.learningSection = new _LearningSection2.default(document.querySelector('#learning-section'));
 	_config2.default.inputSection = new _InputSection2.default(document.querySelector('#input-section'));
 	_config2.default.outputSection = new _OutputSection2.default(document.querySelector('#output-section'));
+	_config2.default.nowPlaying = new _NowPlaying2.default(document.querySelector('#now-playing'), _config2.default.outputSection.element);
 	_config2.default.recordOpener = new _RecordOpener2.default(document.querySelector('#record-open-section'));
 
 	_config2.default.inputSection.ready();
@@ -51819,22 +52198,30 @@ function init() {
 		_config2.default.isBackFacingCam = true;
 	}
 
-	// Camera status messages per browser
-	if (_config2.default.browserUtils.isChrome && !_config2.default.browserUtils.isEdge) {
-		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, <span class="input__media__activate--desktop"> you need to click up here to turn on your camera and then <a href="#">refresh the page</a>.</span><span class="input__media__activate--mobile"> you need to <a href="#">refresh the page</a> and allow camera access.</span></p>';
+	setCameraInstructions();
 
-		if (!_config2.default.browserUtils.isCompatable) {
-			document.querySelector('.wizard__browser-warning').innerHTML = 'Something went wrong and we could not load the site, please try restarting your browser.';
-		}
-	} else if (_config2.default.browserUtils.isSafari) {
-		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, you need to turn on your camera. To do this click "Safari" in the menu bar, navigate to "Settings for This Website", in the "Camera" drop down menu choose "Allow" and then <a href="#">refresh the page</a>.';
-	} else if (_config2.default.browserUtils.isFirefox) {
-		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, you need to turn on your camera. To do this you need to click this icon <img class="camera-icon" src="assets/ff-camera-icon.png"> to grant access and <a href="#">refresh the page</a>.';
+	// Browsers hide the camera API on plain http:// pages other than localhost,
+	// which otherwise looks like an unsupported browser.
+	if (window.isSecureContext === false) {
+		var insecureMessage = 'The camera only works over a secure connection. Open this page with https://, or at localhost on this computer.';
+
+		document.querySelector('.wizard__browser-warning').textContent = insecureMessage;
+		document.querySelector('#is-not-compatible .intro__message').textContent = insecureMessage;
+	} else if (_config2.default.browserUtils.isChrome && !_config2.default.browserUtils.isEdge && !_config2.default.browserUtils.isCompatible) {
+		document.querySelector('.wizard__browser-warning').textContent = 'Teachable Machine couldn’t start in this browser. Restart Chrome, then open this page again.';
 	}
 
-	// Show PWA install prompt after delay
+	// Suggest installing on iOS once the user has trained a class
 	_config2.default.pwaUtils.showInstallPromptAfterDelay();
-} // Copyright 2017 Google Inc.
+
+	setupClearSavedDataButton();
+}
+
+// Shown when camera access is blocked. The steps describe each browser's own
+// controls, which differ between desktop and mobile, so they're picked by
+// browser and platform rather than by screen width. Plain text only: the
+// whole element reloads the page when activated.
+// Copyright 2017 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51848,11 +52235,60 @@ function init() {
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+function setCameraInstructions() {
+	var utils = _config2.default.browserUtils;
+	var element = document.querySelector('.input__media__activate');
+	var intro = 'Teachable Machine needs your camera. ';
+	var steps = '';
+
+	if (utils.isChrome && !utils.isEdge) {
+		steps = utils.isMobile ? 'Tap the icon to the left of the address, allow Camera, then reload the page.' : 'Click the camera icon at the right of the address bar, allow camera access, then reload the page.';
+	} else if (utils.isSafari) {
+		steps = utils.isMobile ? 'Tap aA in the address bar, choose Website Settings, set Camera to Allow, then reload the page.' : 'In the menu bar, choose Safari > Settings for This Website, set Camera to Allow, then reload the page.';
+	} else if (utils.isFirefox && element) {
+		// The icon repeats the words next to it, so it has empty alt text.
+		element.innerHTML = intro + 'Click the camera icon <img class="camera-icon" src="assets/ff-camera-icon.png" alt=""> in the address bar, allow camera access, then reload the page.';
+
+		return;
+	}
+
+	if (element && steps) {
+		element.textContent = intro + steps;
+	}
+}
+
+function setupClearSavedDataButton() {
+	var clearDataButton = document.getElementById('clear-saved-data');
+	if (!clearDataButton) {
+		return;
+	}
+
+	clearDataButton.addEventListener('click', function (event) {
+		event.preventDefault();
+
+		// A native confirm is deliberate here: it is accessible everywhere and
+		// this action deletes data that can't be recovered.
+		// eslint-disable-next-line no-alert
+		if (!window.confirm('Delete saved training data from this device? This can’t be undone.')) {
+			return;
+		}
+
+		var clearPromise = Promise.resolve();
+		if (_config2.default.webcamClassifier && _config2.default.webcamClassifier.clearPersistedData) {
+			clearPromise = _config2.default.webcamClassifier.clearPersistedData();
+		}
+
+		clearPromise.then(function () {
+			location.reload();
+		});
+	});
+}
+
 window.addEventListener('load', init);
 
 exports.default = _config2.default;
 
-},{"./config.js":239,"./ui/components/BrowserUtils":246,"./ui/components/Button.js":247,"./ui/components/PWAUtils.js":250,"./ui/components/RecordOpener.js":251,"./ui/modules/InputSection.js":253,"./ui/modules/IntroSection.js":254,"./ui/modules/LearningSection.js":256,"./ui/modules/OutputSection.js":257,"./ui/modules/Recording":258,"./ui/modules/Wizard.js":262,"./ui/modules/wizard/LaunchScreen.js":264,"gsap":210}],241:[function(require,module,exports){
+},{"./config.js":240,"./ui/components/AppearanceToggle.js":248,"./ui/components/BrowserUtils":249,"./ui/components/Button.js":250,"./ui/components/NowPlaying.js":253,"./ui/components/PWAUtils.js":254,"./ui/components/RecordOpener.js":255,"./ui/modules/InputSection.js":257,"./ui/modules/IntroSection.js":258,"./ui/modules/LearningSection.js":260,"./ui/modules/OutputSection.js":261,"./ui/modules/Recording":262,"./ui/modules/Wizard.js":266,"./ui/modules/wizard/LaunchScreen.js":268,"gsap":210}],242:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -51864,6 +52300,10 @@ var _createClass = function () { function defineProperties(target, props) { for 
 var _config = require('./../config.js');
 
 var _config2 = _interopRequireDefault(_config);
+
+var _outputUI = require('./outputUI.js');
+
+var _outputUI2 = _interopRequireDefault(_outputUI);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -51883,6 +52323,54 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Default emoji set for each class, in class order.
+var DEFAULT_EMOJIS = [['🟢', '🥝', '🥑', '🥬', '🥒', '🫒', '🍏', '🍐', '🌵', '🌲'], ['🟣', '🍇', '🔮', '💜', '☂️', '🪁', '🧞', '👾', '🦄', '🍆'], ['🟠', '🧡', '🦊', '🍊', '🥕', '🏀', '🔶', '🟧', '🦁', '🍑'], ['🟡', '💛', '🌟', '⭐', '🌻', '🍋', '🍌', '🐤', '🌞', '🟨']];
+
+// Available emoji categories
+var EMOJI_CATEGORIES = {
+	faces: ['😀', '😃', '😄', '😁', '😆', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳'],
+	hearts: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '♥️'],
+	hands: ['👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤝', '👏', '🙌', '👐', '🤲', '🤜', '🤛', '✊', '👊'],
+	objects: ['🔥', '⭐', '✨', '💫', '⚡', '💥', '🌟', '🎆', '🎇', '🌠', '🎯', '🎨', '🎭', '🎪', '🎨', '🎯', '🎲', '🎮', '🕹️', '🎰'],
+	nature: ['🌸', '💐', '🌹', '🥀', '🌺', '🌻', '🌼', '🌷', '🌱', '🪴', '🌲', '🌳', '🌴', '🌵', '🌶️', '🍄', '🌾', '💮', '🏔️', '⛰️', '🌋', '🗻', '🏕️', '🏖️', '🏜️', '🏝️', '🏞️'],
+	green: ['🥬', '🥝', '🥑', '🥬', '🥒', '🫒', '🍏', '🍐', '🌵', '🌲', '🌱', '🌿', '☘️', '🍀', '🦎', '🐊', '🐢', '🧩', '♻️', '🧪'],
+	purple: ['🟣', '🍇', '🔮', '💜', '☂️', '🪁', '🧞', '👾', '🦄', '🍆', '🔯', '✝️', '☦️', '☯️', '♈', '♉', '♊', '♋', '♌', '♍'],
+	orange: ['🟠', '🧡', '🦊', '🍊', '🥕', '🏀', '🔶', '🟧', '🦁', '🍑', '🦒', '🐅', '🐆', '🦧', '🧶', '🧵', '🧮', '🛄', '🛅', '🧾'],
+	yellow: ['🟡', '💛', '🌟', '⭐', '🌻', '🍋', '🍌', '🐤', '🌞', '🟨', '📀', '🌝', '🌕', '🌙', '🌛', '🌜', '🧀', '🌽', '🧷', '🔔']
+};
+
+// Search terms mapped to a category. Anything else shows faces.
+var SEARCH_TERMS = {
+	'heart': 'hearts',
+	'love': 'hearts',
+	'hand': 'hands',
+	'thumb': 'hands',
+	'clap': 'hands',
+	'fire': 'objects',
+	'star': 'objects',
+	'object': 'objects',
+	'flower': 'nature',
+	'nature': 'nature',
+	'plant': 'nature',
+	'green': 'green',
+	'grass': 'green',
+	'leaf': 'green',
+	'purple': 'purple',
+	'violet': 'purple',
+	'lavender': 'purple',
+	'orange': 'orange',
+	'peach': 'orange',
+	'carrot': 'orange',
+	'yellow': 'yellow',
+	'gold': 'yellow',
+	'lemon': 'yellow'
+};
+
+var FALLBACK_EMOJI = '😀';
+var REST_LABEL = 'No class detected yet';
+
+var searchCount = 0;
+
 var EmojiOutput = function () {
 	function EmojiOutput() {
 		_classCallCheck(this, EmojiOutput);
@@ -51890,224 +52378,271 @@ var EmojiOutput = function () {
 		this.id = 'EmojiOutput';
 		this.element = document.createElement('div');
 		this.element.classList.add('output__container');
+		this.element.classList.add('output__container--emoji');
 		this.classNames = _config2.default.classNames;
 		this.colors = _config2.default.colors;
-		this.defaultEmojis = [];
+		this.defaultEmojis = DEFAULT_EMOJIS;
+		this.emojiCategories = EMOJI_CATEGORIES;
 		this.emojis = [];
+		this.thumbs = [];
 		this.currentIndex = null;
 		this.currentClass = null;
-
-		// Default emoji sets for each class
+		this.renderedKey = null;
+		this.previewing = false;
 
 		this.edit = document.createElement('div');
 		this.edit.classList.add('emoji__edit');
 
+		// Hidden, fixed-palette canvas for the video recorder. It must be the
+		// first canvas in this.element (RecordOpener picks it with
+		// querySelector('canvas')).
+		this.buildCanvas();
+
+		// Visible viewer: live DOM so it follows the CSS tokens (dark mode,
+		// increased contrast) and has a text alternative.
+		this.editViewer = document.createElement('div');
+		this.editViewer.classList.add('emoji__viewer');
+		this.editViewer.setAttribute('role', 'img');
+
+		this.viewerGlyph = document.createElement('span');
+		this.viewerGlyph.classList.add('emoji__viewer-glyph');
+		this.viewerGlyph.setAttribute('aria-hidden', 'true');
+		this.editViewer.appendChild(this.viewerGlyph);
+
+		this.viewerCaption = document.createElement('span');
+		this.viewerCaption.classList.add('emoji__viewer-caption');
+		this.viewerCaption.setAttribute('aria-hidden', 'true');
+		this.editViewer.appendChild(this.viewerCaption);
+
 		this.editBar = document.createElement('div');
 		this.editBar.classList.add('emoji__edit-bar');
+		this.editBar.setAttribute('role', 'group');
+		this.editBar.setAttribute('aria-label', 'Emoji for each class');
 
-		this.defaultEmojis.push(['🟢', '🥝', '🥑', '🥬', '🥒', '🫒', '🍏', '🍐', '🌵', '🌲']);
-		this.defaultEmojis.push(['🟣', '🍇', '🔮', '💜', '☂️', '🪁', '🧞', '👾', '🦄', '🍆']);
-		this.defaultEmojis.push(['🟠', '🧡', '🦊', '🍊', '🥕', '🏀', '🔶', '🟧', '🦁', '🍑']);
-		this.defaultEmojis.push(['🟡', '💛', '🌟', '⭐', '🌻', '🍋', '🍌', '🐤', '🌞', '🟨']);
-		this.borders = [];
-
-		for (var index = 0; index < this.classNames.length; index += 1) {
-			var className = this.classNames[index];
-			var emoji = this.defaultEmojis[index] ? this.defaultEmojis[index][0] : '😀';
-
-			this.emojis[index] = this.defaultEmojis[index] ? this.defaultEmojis[index][0] : '😀';
-
-			var button = document.createElement('div');
-			button.classList.add('emoji__thumb');
-			button.id = className;
-			button.index = index;
-			button.emoji = emoji;
-
-			var border = document.createElement('div');
-			border.classList.add('emoji__thumb-border');
-			border.classList.add('emoji__thumb-border--' + className);
-			button.appendChild(border);
-
-			var emojiWrapper = document.createElement('div');
-			emojiWrapper.classList.add('emoji__thumb-emoji-wrapper');
-			emojiWrapper.textContent = emoji;
-			button.appendChild(emojiWrapper);
-
-			this.editBar.appendChild(button);
-			button.emojiWrapper = emojiWrapper;
-			button.addEventListener('mouseenter', this.editThumbOver.bind(this));
-			button.addEventListener('mouseleave', this.editThumbOut.bind(this));
-			button.addEventListener('click', this.editThumbClick.bind(this));
-
-			this.borders.push(border);
-		}
-
-		// Method to dynamically add a new class
-		this.addNewClass = function (className, index) {
-			// Update our local references
-			this.classNames = _config2.default.classNames;
-
-			var emoji = this.defaultEmojis[index] ? this.defaultEmojis[index][0] : '😀';
-			this.emojis[index] = emoji;
-
-			var button = document.createElement('div');
-			button.classList.add('emoji__thumb');
-			button.id = className;
-			button.index = index;
-			button.emoji = emoji;
-
-			var border = document.createElement('div');
-			border.classList.add('emoji__thumb-border');
-			border.classList.add('emoji__thumb-border--' + className);
-			button.appendChild(border);
-
-			var emojiWrapper = document.createElement('div');
-			emojiWrapper.classList.add('emoji__thumb-emoji-wrapper');
-			emojiWrapper.textContent = emoji;
-			button.appendChild(emojiWrapper);
-
-			this.editBar.appendChild(button);
-			button.emojiWrapper = emojiWrapper;
-			button.addEventListener('mouseenter', this.editThumbOver.bind(this));
-			button.addEventListener('mouseleave', this.editThumbOut.bind(this));
-			button.addEventListener('click', this.editThumbClick.bind(this));
-
-			this.borders.push(border);
-		}.bind(this);
-
-		this.editViewer = document.createElement('div');
-		this.editViewer.classList.add('emoji__edit-viewer');
-
-		// Create canvas for displaying emoji with color overlay
-		this.buildCanvas();
+		var hint = document.createElement('p');
+		hint.classList.add('output__hint');
+		hint.textContent = 'Select an emoji to change it.';
 
 		this.edit.appendChild(this.editViewer);
 		this.edit.appendChild(this.editBar);
+		this.edit.appendChild(hint);
 
-		this.search = document.createElement('div');
-		this.search.classList.add('emoji__search');
-		this.search.style.display = 'none';
-		this.searchBar = document.createElement('div');
-		this.searchBar.classList.add('emoji__search-bar');
+		for (var index = 0; index < this.classNames.length; index += 1) {
+			this.addThumb(this.classNames[index], index);
+		}
 
-		this.searchInput = document.createElement('input');
-		this.searchInput.setAttribute('placeholder', 'Search emojis');
-		this.searchInput.classList.add('emoji__search-input');
-		this.searchBar.appendChild(this.searchInput);
-
-		this.searchBackButton = document.createElement('div');
-		this.searchBackButton.classList.add('emoji__search-back-button');
-		this.searchBar.appendChild(this.searchBackButton);
-		this.search.appendChild(this.searchBar);
-
-		this.searchScroll = document.createElement('div');
-		this.searchScroll.classList.add('emoji__search-scroll');
-		this.search.appendChild(this.searchScroll);
-
-		this.searchScrollContent = document.createElement('div');
-		this.searchScrollContent.classList.add('emoji__search-scroll-content');
-
-		this.searchResults = document.createElement('div');
-		this.searchResults.classList.add('emoji__search-results');
-
-		this.leftColumn = document.createElement('div');
-		this.leftColumn.classList.add('emoji__search-column');
-		this.searchResults.appendChild(this.leftColumn);
-
-		this.rightColumn = document.createElement('div');
-		this.rightColumn.classList.add('emoji__search-column');
-		this.searchResults.appendChild(this.rightColumn);
-
-		this.searchScrollContent.appendChild(this.searchResults);
-		this.searchScroll.appendChild(this.searchScrollContent);
-
-		this.edit.appendChild(this.search);
+		this.buildSearch();
 		this.element.appendChild(this.edit);
 
-		// Available emoji categories
-		this.emojiCategories = {
-			faces: ['😀', '😃', '😄', '😁', '😆', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳'],
-			hearts: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '♥️'],
-			hands: ['👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤝', '👏', '🙌', '👐', '🤲', '🤜', '🤛', '✊', '👊'],
-			objects: ['🔥', '⭐', '✨', '💫', '⚡', '💥', '🌟', '🎆', '🎇', '🌠', '🎯', '🎨', '🎭', '🎪', '🎨', '🎯', '🎲', '🎮', '🕹️', '🎰'],
-			nature: ['🌸', '💐', '🌹', '🥀', '🌺', '🌻', '🌼', '🌷', '🌱', '🪴', '🌲', '🌳', '🌴', '🌵', '🌶️', '🍄', '🌾', '💮', '🏔️', '⛰️', '🌋', '🗻', '🏕️', '🏖️', '🏜️', '🏝️', '🏞️'],
-			green: ['🥬', '🥝', '🥑', '🥬', '🥒', '🫒', '🍏', '🍐', '🌵', '🌲', '🌱', '🌿', '☘️', '🍀', '🦎', '🐊', '🐢', '🧩', '♻️', '🧪'],
-			purple: ['🟣', '🍇', '🔮', '💜', '☂️', '🪁', '🧞', '👾', '🦄', '🍆', '🔯', '✝️', '☦️', '☯️', '♈', '♉', '♊', '♋', '♌', '♍'],
-			orange: ['🟠', '🧡', '🦊', '🍊', '🥕', '🏀', '🔶', '🟧', '🦁', '🍑', '🦒', '🐅', '🐆', '🦧', '🧶', '🧵', '🧮', '🛄', '🛅', '🧾'],
-			yellow: ['🟡', '💛', '🌟', '⭐', '🌻', '🍋', '🍌', '🐤', '🌞', '🟨', '📀', '🌝', '🌕', '🌙', '🌛', '🌜', '🧀', '🌽', '🧷', '🔔']
-		};
+		this.renderRest();
 	}
 
+	// Called by LearningSection when a class is added.
+
+
 	_createClass(EmojiOutput, [{
+		key: 'addNewClass',
+		value: function addNewClass(className, index) {
+			this.classNames = _config2.default.classNames;
+			this.addThumb(className, index);
+		}
+	}, {
+		key: 'addThumb',
+		value: function addThumb(className, index) {
+			var emoji = DEFAULT_EMOJIS[index] ? DEFAULT_EMOJIS[index][0] : FALLBACK_EMOJI;
+			this.emojis[index] = emoji;
+
+			var button = document.createElement('button');
+			button.type = 'button';
+			button.classList.add('emoji__thumb');
+			button.classList.add('output-class--' + className);
+			button.setAttribute('aria-haspopup', 'dialog');
+			button.setAttribute('aria-expanded', 'false');
+			button.id = 'emoji-thumb-' + className;
+			button.classId = className;
+			button.index = index;
+			button.emoji = emoji;
+
+			var emojiWrapper = document.createElement('span');
+			emojiWrapper.classList.add('emoji__thumb-emoji');
+			emojiWrapper.setAttribute('aria-hidden', 'true');
+			emojiWrapper.textContent = emoji;
+			button.appendChild(emojiWrapper);
+
+			var tag = _outputUI2.default.classTag(className);
+			tag.setAttribute('aria-hidden', 'true');
+			button.appendChild(tag);
+
+			button.emojiWrapper = emojiWrapper;
+			this.labelThumb(button);
+
+			button.addEventListener('mouseenter', this.editThumbOver.bind(this));
+			button.addEventListener('mouseleave', this.editThumbOut.bind(this));
+			button.addEventListener('click', this.editThumbClick.bind(this));
+
+			this.editBar.appendChild(button);
+			this.thumbs[index] = button;
+		}
+	}, {
+		key: 'labelThumb',
+		value: function labelThumb(button) {
+			var name = _outputUI2.default.classLabel(button.classId);
+			button.setAttribute('aria-label', 'Edit ' + name + ' Emoji, ' + button.emoji);
+		}
+	}, {
+		key: 'buildSearch',
+		value: function buildSearch() {
+			searchCount += 1;
+			var inputId = 'emoji-search-input-' + searchCount;
+
+			this.search = document.createElement('div');
+			this.search.classList.add('emoji__search');
+			this.search.classList.add('output__sheet');
+			this.search.setAttribute('role', 'dialog');
+			this.search.hidden = true;
+
+			this.searchBar = document.createElement('div');
+			this.searchBar.classList.add('output__sheet-bar');
+
+			this.searchBackButton = _outputUI2.default.iconButton({
+				className: 'output__sheet-back',
+				label: 'Back',
+				icon: 'back'
+			});
+			this.searchBar.appendChild(this.searchBackButton);
+
+			var label = document.createElement('label');
+			label.className = 'visually-hidden';
+			label.setAttribute('for', inputId);
+			label.textContent = 'Search emoji';
+			this.searchBar.appendChild(label);
+
+			this.searchInput = document.createElement('input');
+			this.searchInput.type = 'search';
+			this.searchInput.id = inputId;
+			this.searchInput.classList.add('output__search-input');
+			this.searchInput.setAttribute('placeholder', 'Search emoji');
+			this.searchInput.setAttribute('autocomplete', 'off');
+			this.searchInput.setAttribute('enterkeyhint', 'search');
+			this.searchInput.setAttribute('aria-describedby', inputId + '-hint');
+			this.searchBar.appendChild(this.searchInput);
+			this.search.appendChild(this.searchBar);
+
+			var hint = document.createElement('p');
+			hint.id = inputId + '-hint';
+			hint.classList.add('output__sheet-hint');
+			hint.textContent = 'Try heart, hand, star, flower or a color.';
+			this.search.appendChild(hint);
+
+			this.searchScroll = document.createElement('div');
+			this.searchScroll.classList.add('output__sheet-scroll');
+			this.search.appendChild(this.searchScroll);
+
+			this.searchResults = document.createElement('div');
+			this.searchResults.classList.add('emoji__search-results');
+			this.searchScroll.appendChild(this.searchResults);
+
+			this.edit.appendChild(this.search);
+
+			// Bound once, so they can never pile up across start()/stop().
+			this.searchInput.addEventListener('input', this.searchKeyUp.bind(this));
+			this.searchBackButton.addEventListener('click', this.closeSearch.bind(this));
+			this.search.addEventListener('keydown', this.searchKeyDown.bind(this));
+			this.searchResults.addEventListener('click', this.selectEmoji.bind(this));
+		}
+	}, {
 		key: 'buildCanvas',
 		value: function buildCanvas() {
 			this.canvas = document.createElement('canvas');
+			this.canvas.classList.add('emoji__canvas');
+			this.canvas.setAttribute('aria-hidden', 'true');
+			this.canvas.style.display = 'none';
 			this.context = this.canvas.getContext('2d');
 			this.canvas.width = 340;
 			this.canvas.height = 260;
-			this.canvas.classList.add('emoji__canvas');
-			this.editViewer.appendChild(this.canvas);
+			this.element.appendChild(this.canvas);
 		}
+
+		// Paint the viewer and the recorder canvas for a class and emoji.
+
+	}, {
+		key: 'render',
+		value: function render(index, emoji) {
+			var id = this.classNames[index];
+			var key = id + ':' + emoji;
+			if (key === this.renderedKey) {
+				return;
+			}
+			this.renderedKey = key;
+
+			var name = _outputUI2.default.classLabel(id);
+			this.editViewer.className = 'emoji__viewer output-class--' + id;
+			this.editViewer.setAttribute('aria-label', name + ': ' + emoji);
+			this.viewerGlyph.textContent = emoji;
+			this.viewerCaption.innerHTML = '';
+			this.viewerCaption.appendChild(_outputUI2.default.classTag(id));
+
+			this.updateCanvas(emoji, index);
+		}
+	}, {
+		key: 'renderRest',
+		value: function renderRest() {
+			this.renderedKey = null;
+			this.editViewer.className = 'emoji__viewer emoji__viewer--rest';
+			this.editViewer.setAttribute('aria-label', REST_LABEL);
+			this.viewerGlyph.textContent = '';
+			this.viewerCaption.textContent = REST_LABEL;
+			_outputUI2.default.paintRecorderBackground(this.context, null);
+		}
+	}, {
+		key: 'restoreViewer',
+		value: function restoreViewer() {
+			if (typeof this.currentIndex === 'number' && this.currentIndex > -1) {
+				this.render(this.currentIndex, this.emojis[this.currentIndex]);
+			} else {
+				this.renderRest();
+			}
+		}
+
+		// Recorder canvas: always the light palette, since it ends up in a video.
+
 	}, {
 		key: 'updateCanvas',
 		value: function updateCanvas(emoji, colorId) {
-			// Clear canvas
-			this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+			var id = this.classNames[colorId];
+			var context = this.context;
+			_outputUI2.default.paintRecorderBackground(context, id);
 
-			// Get color for the class
-			var color = '#2baa5e';
-			var className = _config2.default.classNames[colorId];
-			if (className && _config2.default.colors[className]) {
-				color = _config2.default.colors[className];
-			} else {
-				switch (colorId) {
-					case 0:
-						color = '#2baa5e';
-						break;
-					case 1:
-						color = '#c95ac5';
-						break;
-					case 2:
-						color = '#dd4d31';
-						break;
-					case 3:
-						color = '#fbbc04';
-						break;
-					default:
-						color = '#2baa5e';
-						break;
-				}
-			}
+			context.textAlign = 'center';
+			context.textBaseline = 'middle';
+			context.fillStyle = _outputUI2.default.RECORDER_PALETTE.label;
+			context.font = '120px ' + _outputUI2.default.EMOJI_FONT;
+			context.fillText(emoji, this.canvas.width / 2, this.canvas.height / 2 - 16);
 
-			// Fill background with white
-			this.context.fillStyle = '#ffffff';
-			this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-			// Draw emoji
-			this.context.font = '120px serif';
-			this.context.textAlign = 'center';
-			this.context.textBaseline = 'middle';
-			this.context.fillStyle = '#000000';
-			this.context.fillText(emoji, this.canvas.width / 2, this.canvas.height / 2);
-
-			// Apply color overlay
-			this.context.globalCompositeOperation = 'screen';
-			this.context.fillStyle = color;
-			this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-			this.context.globalCompositeOperation = 'source-over';
+			_outputUI2.default.drawFittedText(context, _outputUI2.default.classLabel(id), {
+				size: 17,
+				weight: 400,
+				y: 228,
+				color: _outputUI2.default.RECORDER_PALETTE.secondaryLabel
+			});
 		}
+
+		// Hovering a thumbnail previews it in the viewer until the pointer leaves.
+
 	}, {
 		key: 'editThumbOver',
 		value: function editThumbOver(event) {
-			var emoji = event.target.emoji;
-			this.updateCanvas(emoji, event.target.index);
+			var thumb = event.currentTarget;
+			if (this.search.hidden) {
+				this.previewing = true;
+				this.render(thumb.index, thumb.emoji);
+			}
 		}
 	}, {
 		key: 'editThumbOut',
-		value: function editThumbOut(event) {
-			this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-			this.context.fillStyle = '#ededee';
-			this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		value: function editThumbOut() {
+			this.previewing = false;
+			this.restoreViewer();
 		}
 	}, {
 		key: 'editThumbClick',
@@ -52117,41 +52652,43 @@ var EmojiOutput = function () {
 	}, {
 		key: 'selectEmoji',
 		value: function selectEmoji(event) {
+			var item = event.target.closest('.emoji__search-item');
+			if (!item || !this.currentClass) {
+				return;
+			}
 			var index = this.currentClass.index;
-			var emoji = event.currentTarget.textContent;
+			var emoji = item.emoji;
 
 			this.emojis[index] = emoji;
 			this.currentClass.emoji = emoji;
 			this.currentClass.emojiWrapper.textContent = emoji;
-			this.hideSearch();
+			this.labelThumb(this.currentClass);
+			this.renderedKey = null;
+			this.previewing = false;
+			this.hideSearch(true);
+			this.restoreViewer();
 		}
 	}, {
 		key: 'displaySearchResults',
 		value: function displaySearchResults(category) {
-			this.leftColumn.innerHTML = '';
-			this.rightColumn.innerHTML = '';
-
 			var emojis = this.emojiCategories[category] || this.emojiCategories.faces;
-			var column = this.leftColumn;
+			var unique = emojis.filter(function (emoji, position) {
+				return emojis.indexOf(emoji) === position;
+			});
+			var fragment = document.createDocumentFragment();
 
-			for (var index = 0; index < emojis.length; index += 1) {
-				var emojiElement = document.createElement('div');
-				emojiElement.classList.add('emoji__search-item');
-				emojiElement.textContent = emojis[index];
-				emojiElement.style.fontSize = '30px';
-				emojiElement.style.padding = '10px';
-				emojiElement.style.cursor = 'pointer';
-				emojiElement.style.textAlign = 'center';
+			unique.forEach(function (emoji) {
+				var item = document.createElement('button');
+				item.type = 'button';
+				item.classList.add('emoji__search-item');
+				item.textContent = emoji;
+				item.emoji = emoji;
+				fragment.appendChild(item);
+			});
 
-				if (index % 2 === 0) {
-					column = this.leftColumn;
-				} else {
-					column = this.rightColumn;
-				}
-
-				emojiElement.addEventListener('click', this.selectEmoji.bind(this));
-				column.appendChild(emojiElement);
-			}
+			this.searchResults.innerHTML = '';
+			this.searchResults.appendChild(fragment);
+			this.searchScroll.scrollTop = 0;
 		}
 
 		// Helper method to determine category based on search term
@@ -52159,35 +52696,10 @@ var EmojiOutput = function () {
 	}, {
 		key: 'getCategoryFromSearchTerm',
 		value: function getCategoryFromSearchTerm(value) {
-			var categoryMap = {
-				'heart': 'hearts',
-				'love': 'hearts',
-				'hand': 'hands',
-				'thumb': 'hands',
-				'clap': 'hands',
-				'fire': 'objects',
-				'star': 'objects',
-				'object': 'objects',
-				'flower': 'nature',
-				'nature': 'nature',
-				'plant': 'nature',
-				'green': 'green',
-				'grass': 'green',
-				'leaf': 'green',
-				'purple': 'purple',
-				'violet': 'purple',
-				'lavender': 'purple',
-				'orange': 'orange',
-				'peach': 'orange',
-				'carrot': 'orange',
-				'yellow': 'yellow',
-				'gold': 'yellow',
-				'lemon': 'yellow'
-			};
-
-			for (var term in categoryMap) {
-				if (value.includes(term)) {
-					return categoryMap[term];
+			var terms = Object.keys(SEARCH_TERMS);
+			for (var index = 0; index < terms.length; index += 1) {
+				if (value.includes(terms[index])) {
+					return SEARCH_TERMS[terms[index]];
 				}
 			}
 
@@ -52199,104 +52711,131 @@ var EmojiOutput = function () {
 	}, {
 		key: 'getDefaultCategory',
 		value: function getDefaultCategory() {
-			if (!this.currentClass) {
-				return 'faces';
+			if (this.currentClass && this.emojiCategories[this.currentClass.classId]) {
+				return this.currentClass.classId;
 			}
 
-			var className = this.currentClass.id;
-			var colorCategories = {
-				'green': 'green',
-				'purple': 'purple',
-				'orange': 'orange',
-				'yellow': 'yellow'
-			};
-
-			return colorCategories[className] || 'faces';
+			return 'faces';
 		}
 	}, {
 		key: 'searchKeyUp',
-		value: function searchKeyUp(event) {
-			var value = this.searchInput.value.toLowerCase();
-			var category = 'faces';
+		value: function searchKeyUp() {
+			var value = this.searchInput.value.trim().toLowerCase();
+			var category = this.getDefaultCategory();
 
 			if (value.length > 0) {
 				category = this.getCategoryFromSearchTerm(value);
-			} else {
-				category = this.getDefaultCategory();
 			}
 
 			this.displaySearchResults(category);
 		}
 	}, {
+		key: 'searchKeyDown',
+		value: function searchKeyDown(event) {
+			if (event.key === 'Escape' || event.key === 'Esc') {
+				event.preventDefault();
+				event.stopPropagation();
+				this.closeSearch();
+			}
+		}
+	}, {
 		key: 'showSearch',
 		value: function showSearch(event) {
-			var id = event.currentTarget.getAttribute('id');
-			this.currentClass = event.currentTarget;
+			var thumb = event.currentTarget;
+			var id = thumb.classId;
+			this.currentClass = thumb;
 
-			this.leftColumn.innerHTML = '';
-			this.rightColumn.innerHTML = '';
-
-			this.search.style.display = 'block';
-			this.searchInput.className = 'emoji__search-input';
-			this.searchInput.classList.add('emoji__search-input--' + id);
-			this.searchBackButton.className = 'emoji__search-back-button';
-			this.searchBackButton.classList.add('emoji__search-back-button--' + id);
-			this.searchInput.focus();
+			this.search.className = 'emoji__search output__sheet output-class--' + id;
+			this.search.setAttribute('aria-label', 'Choose ' + _outputUI2.default.classLabel(id) + ' Emoji');
 			this.searchInput.value = '';
+			this.displaySearchResults(this.getDefaultCategory());
+			this.search.hidden = false;
+			this.element.classList.add('output__container--sheet-open');
+			thumb.setAttribute('aria-expanded', 'true');
 
-			// Show appropriate color category by default
-			var defaultCategory = id;
-			if (this.emojiCategories[id]) {
-				defaultCategory = id;
+			// Only jump into the text field where that won't raise an on-screen
+			// keyboard over the results.
+			if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+				this.searchInput.focus();
 			} else {
-				defaultCategory = 'faces';
+				this.searchBackButton.focus();
 			}
-
-			// Show default emojis based on class color
-			this.displaySearchResults(defaultCategory);
+		}
+	}, {
+		key: 'closeSearch',
+		value: function closeSearch() {
+			this.hideSearch(true);
 		}
 	}, {
 		key: 'hideSearch',
-		value: function hideSearch() {
-			this.search.style.display = 'none';
+		value: function hideSearch(returnFocus) {
+			if (this.search.hidden) {
+				return;
+			}
+			this.search.hidden = true;
+			this.element.classList.remove('output__container--sheet-open');
+			if (this.currentClass) {
+				this.currentClass.setAttribute('aria-expanded', 'false');
+				if (returnFocus === true) {
+					this.currentClass.focus();
+				}
+			}
+		}
+
+		// What this output shows for a class, for the now-playing bar.
+
+	}, {
+		key: 'nowPlaying',
+		value: function nowPlaying(index) {
+			var emoji = this.emojis[index] || null;
+
+			return {
+				kind: 'emoji',
+				value: emoji,
+				label: emoji || 'None'
+			};
+		}
+	}, {
+		key: 'describe',
+		value: function describe(index) {
+			var id = this.classNames[index];
+
+			return _outputUI2.default.classLabel(id) + ': ' + this.nowPlaying(index).label;
 		}
 	}, {
 		key: 'trigger',
 		value: function trigger(index) {
 			if (!_config2.default.clearing) {
-				this.currentIndex = index;
-
-				if (this.currentBorder && this.currentClassName) {
-					this.currentBorder.classList.remove('emoji__thumb-border--' + this.currentClassName + '-selected');
+				if (this.currentIndex !== index) {
+					this.setActiveThumb(index);
 				}
-
-				var border = this.borders[index];
-				var id = this.classNames[index];
-				this.currentBorder = border;
-				this.currentClassName = id;
-				this.currentBorder.classList.add('emoji__thumb-border--' + this.currentClassName + '-selected');
-
-				var emoji = this.emojis[this.currentIndex];
-				this.updateCanvas(emoji, index);
+				this.currentIndex = index;
+				if (this.search.hidden && !this.previewing) {
+					this.render(index, this.emojis[index]);
+				}
 			}
 
 			if (_config2.default.clearing) {
-				this.currentBorder.classList.remove('emoji__thumb-border--' + this.currentClassName + '-selected');
+				this.setActiveThumb(-1);
 			}
+		}
+	}, {
+		key: 'setActiveThumb',
+		value: function setActiveThumb(index) {
+			this.thumbs.forEach(function (thumb, position) {
+				thumb.classList.toggle('emoji__thumb--active', position === index);
+			});
 		}
 	}, {
 		key: 'stop',
 		value: function stop() {
+			this.hideSearch(false);
 			this.element.style.display = 'none';
-			this.searchInput.removeEventListener('keyup', this.searchKeyUp.bind(this));
-			this.searchBackButton.removeEventListener('click', this.hideSearch.bind(this));
 		}
 	}, {
 		key: 'start',
 		value: function start() {
 			this.element.style.display = 'block';
-			this.searchInput.addEventListener('keyup', this.searchKeyUp.bind(this));
-			this.searchBackButton.addEventListener('click', this.hideSearch.bind(this));
 		}
 	}]);
 
@@ -52305,7 +52844,7 @@ var EmojiOutput = function () {
 
 exports.default = EmojiOutput;
 
-},{"./../config.js":239}],242:[function(require,module,exports){
+},{"./../config.js":240,"./outputUI.js":245}],243:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -52318,6 +52857,10 @@ var _SoundSearch = require('./sound/SoundSearch.js');
 
 var _SoundSearch2 = _interopRequireDefault(_SoundSearch);
 
+var _outputUI = require('./outputUI.js');
+
+var _outputUI2 = _interopRequireDefault(_outputUI);
+
 var _config = require('./../config.js');
 
 var _config2 = _interopRequireDefault(_config);
@@ -52340,6 +52883,10 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// If some sounds never report that they can play (for example on a phone
+// that won't preload audio before a tap), show the controls anyway.
+var LOADING_TIMEOUT = 8000;
+
 var SoundOutput = function () {
 	function SoundOutput() {
 		_classCallCheck(this, SoundOutput);
@@ -52348,132 +52895,74 @@ var SoundOutput = function () {
 		this.loaded = false;
 		this.canTrigger = true;
 		this.basePath = 'assets/outputs/sound/sounds/';
-		this.assets = [];
-
-		this.assets.push('applause.mp3');
-		this.assets.push('bass.mp3');
-		this.assets.push('birds.mp3');
-		this.assets.push('cow.mp3');
-		this.assets.push('drum_joke.mp3');
-		this.assets.push('drum_roll.mp3');
-		this.assets.push('drums_1.mp3');
-		this.assets.push('drums_2.mp3');
-		this.assets.push('fanfare.mp3');
-		this.assets.push('flute_1.mp3');
-		this.assets.push('flute_2.mp3');
-		this.assets.push('flute_3.mp3');
-		this.assets.push('guitar_1.mp3');
-		this.assets.push('guitar_2.mp3');
-		this.assets.push('harp.mp3');
-		this.assets.push('jingle.mp3');
-		this.assets.push('orchestra.mp3');
-		this.assets.push('organ.mp3');
-		this.assets.push('trombone.mp3');
-		this.assets.push('trumpet_1.mp3');
-		this.assets.push('trumpet_2.mp3');
-		this.assets.push('trumpet_3.mp3');
-		this.assets.push('tuba.mp3');
+		this.assets = ['applause.mp3', 'bass.mp3', 'birds.mp3', 'cow.mp3', 'drum_joke.mp3', 'drum_roll.mp3', 'drums_1.mp3', 'drums_2.mp3', 'fanfare.mp3', 'flute_1.mp3', 'flute_2.mp3', 'flute_3.mp3', 'guitar_1.mp3', 'guitar_2.mp3', 'harp.mp3', 'jingle.mp3', 'orchestra.mp3', 'organ.mp3', 'trombone.mp3', 'trumpet_1.mp3', 'trumpet_2.mp3', 'trumpet_3.mp3', 'tuba.mp3'];
 
 		this.numAssets = this.assets.length;
 		window.addEventListener('mobileLaunch', this.touchAudio.bind(this));
+		document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this), false);
 
-		this.defaultAssets = [];
-		this.defaultAssets[0] = 'birds.mp3';
-		this.defaultAssets[1] = 'guitar_1.mp3';
-		this.defaultAssets[2] = 'trombone.mp3';
-		this.defaultAssets[3] = 'harp.mp3';
+		this.defaultAssets = ['birds.mp3', 'guitar_1.mp3', 'trombone.mp3', 'harp.mp3'];
 
 		this.numLoaded = 0;
 		this.sounds = {};
 		this.currentSound = null;
-		this.currentIcon = null;
+		this.currentIndex = null;
+		this.playingIndex = -1;
+		this.activeRow = null;
 		this.element = document.createElement('div');
 		this.element.classList.add('output__container');
 		this.element.classList.add('output__container--sound');
 		this.classNames = _config2.default.classNames;
 		this.colors = _config2.default.colors;
 		this.numClasses = _config2.default.numClasses;
+
 		this.loadingScreen = document.createElement('div');
 		this.loadingScreen.classList.add('output__loading-screen');
-		this.loadingScreen.classList.add('output__loading-screen--sound');
-		var loadingTitle = document.createElement('div');
-		loadingTitle.textContent = 'Loading';
+		this.loadingScreen.setAttribute('role', 'status');
+		var loadingTitle = document.createElement('p');
+		loadingTitle.textContent = 'Loading sounds…';
 		loadingTitle.classList.add('output__loading-title');
 		this.loadingScreen.appendChild(loadingTitle);
 		this.element.appendChild(this.loadingScreen);
+
 		this.offScreen = document.createElement('div');
 		this.offScreen.classList.add('output__sound');
-		var options = {};
-		options.playCallback = this.searchResultPlayClick.bind(this);
-		options.selectCallback = this.searchResultClick.bind(this);
-		options.assets = this.assets;
-		this.search = new _SoundSearch2.default(options);
-		this.offScreen.appendChild(this.search.element);
+		this.offScreen.hidden = true;
+
+		this.search = new _SoundSearch2.default({
+			playCallback: this.searchResultPlayClick.bind(this),
+			selectCallback: this.searchResultClick.bind(this),
+			closeCallback: this.searchClosed.bind(this),
+			assets: this.assets
+		});
+
+		this.list = document.createElement('ul');
+		this.list.classList.add('output__rows');
+		this.list.setAttribute('aria-label', 'Sound for each class');
+		this.offScreen.appendChild(this.list);
 		this.inputClasses = [];
-		this.lastSound;
 
 		for (var index = 0; index < this.assets.length; index += 1) {
 			var sound = this.assets[index];
 			var audio = new Audio();
 			audio.muted = true;
 			audio.loop = true;
-			audio.addEventListener('canplaythrough', this.assetLoaded.bind(this));
+			audio.addEventListener('canplaythrough', this.assetLoaded.bind(this), { once: true });
+			audio.addEventListener('error', this.assetLoaded.bind(this), { once: true });
+			audio.addEventListener('ended', this.soundEnded.bind(this));
 			audio.src = this.basePath + sound;
 			this.sounds[sound] = audio;
 		}
 
 		for (var _index = 0; _index < this.numClasses; _index += 1) {
-			var id = this.classNames[_index];
-			var inputClass = document.createElement('div');
-			var _sound = this.defaultAssets[_index] || this.defaultAssets[0];
-			inputClass.classList.add('output__sound-class');
-			inputClass.classList.add('output__sound-class--' + id);
-
-			var speakerIcon = document.createElement('div');
-			speakerIcon.classList.add('output__sound-speaker');
-			speakerIcon.classList.add('output__sound-speaker--' + id);
-			inputClass.sound = _sound;
-			inputClass.icon = speakerIcon;
-
-			var loader = function (el) {
-				var ajax = new XMLHttpRequest();
-				ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
-				ajax.onload = function (event) {
-					el.innerHTML = ajax.responseText;
-				};
-				ajax.send();
-			}(speakerIcon);
-
-			var editIcon = document.createElement('div');
-			editIcon.classList.add('output__sound-edit');
-			editIcon.classList.add('output__sound-edit--' + id);
-
-			var input = document.createElement('input');
-			input.classId = id;
-			input.classList.add('output__sound-input');
-			input.classList.add('output__sound-input--' + id);
-			input.setAttribute('readonly', 'readonly');
-			input.value = _sound;
-			inputClass.appendChild(speakerIcon);
-			inputClass.appendChild(editIcon);
-			inputClass.appendChild(input);
-
-			var deleteIcon = document.createElement('div');
-			deleteIcon.classList.add('output__sound-delete');
-			inputClass.appendChild(deleteIcon);
-
-			deleteIcon.addEventListener('click', this.clearInput.bind(this));
-			input.addEventListener('click', this.editInput.bind(this));
-			document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this), false);
-			// speakerIcon.addEventListener('click', this.testSound.bind(this));
-			// this.inputClasses[index] = speakerIcon;
-			inputClass.input = input;
-			this.inputClasses[_index] = inputClass;
-			this.offScreen.appendChild(inputClass);
+			this.addRow(this.classNames[_index], _index);
 		}
+
 		this.element.appendChild(this.offScreen);
-		this.speakers = [];
+		this.element.appendChild(this.search.element);
 		this.buildCanvas();
+
+		this.loadingTimer = setTimeout(this.showScreen.bind(this), LOADING_TIMEOUT);
 	}
 
 	// Method to dynamically add a new class
@@ -52482,65 +52971,102 @@ var SoundOutput = function () {
 	_createClass(SoundOutput, [{
 		key: 'addNewClass',
 		value: function addNewClass(className, index) {
-			// Update our local references
 			this.classNames = _config2.default.classNames;
 			this.numClasses = _config2.default.numClasses;
+			this.addRow(className, index);
+		}
 
-			// Create UI elements for the new class
-			var inputClass = document.createElement('div');
+		// One row per class: class tag, the chosen sound (opens the picker),
+		// a preview button and a remove button.
+
+	}, {
+		key: 'addRow',
+		value: function addRow(className, index) {
+			var _this = this;
+
+			var name = _outputUI2.default.classLabel(className);
 			var sound = this.defaultAssets[index] || this.defaultAssets[0];
-			inputClass.classList.add('output__sound-class');
-			inputClass.classList.add('output__sound-class--' + className);
 
-			var speakerIcon = document.createElement('div');
-			speakerIcon.classList.add('output__sound-speaker');
-			speakerIcon.classList.add('output__sound-speaker--' + className);
+			var inputClass = document.createElement('li');
+			inputClass.classList.add('output__row');
+			inputClass.classList.add('output-class--' + className);
+			inputClass.classId = className;
+			inputClass.index = index;
 			inputClass.sound = sound;
-			inputClass.icon = speakerIcon;
 
-			var loader = function (el) {
-				var ajax = new XMLHttpRequest();
-				ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
-				ajax.onload = function (event) {
-					el.innerHTML = ajax.responseText;
-				};
-				ajax.send();
-			}(speakerIcon);
+			var tag = _outputUI2.default.classTag(className);
+			tag.setAttribute('aria-hidden', 'true');
+			inputClass.appendChild(tag);
 
-			var editIcon = document.createElement('div');
-			editIcon.classList.add('output__sound-edit');
-			editIcon.classList.add('output__sound-edit--' + className);
+			var controls = document.createElement('div');
+			controls.classList.add('output__row-controls');
 
-			var input = document.createElement('input');
+			var input = document.createElement('button');
+			input.type = 'button';
+			input.classList.add('output__value');
+			input.setAttribute('aria-haspopup', 'dialog');
+			input.setAttribute('aria-expanded', 'false');
 			input.classId = className;
-			input.classList.add('output__sound-input');
-			input.classList.add('output__sound-input--' + className);
-			input.setAttribute('readonly', 'readonly');
-			input.value = sound;
-			inputClass.appendChild(speakerIcon);
-			inputClass.appendChild(editIcon);
-			inputClass.appendChild(input);
+			input.appendChild(_outputUI2.default.visuallyHidden('Edit ' + name + ' Sound: '));
+			var valueText = document.createElement('span');
+			valueText.classList.add('output__value-text');
+			input.appendChild(valueText);
+			input.insertAdjacentHTML('beforeend', _outputUI2.default.icon('chevron'));
+			input.addEventListener('click', function () {
+				_this.editInput(index);
+			});
 
-			var deleteIcon = document.createElement('div');
-			deleteIcon.classList.add('output__sound-delete');
-			inputClass.appendChild(deleteIcon);
+			var playButton = _outputUI2.default.iconButton({
+				className: 'output__play',
+				label: 'Play Sound for ' + name,
+				icon: 'speaker'
+			});
+			playButton.addEventListener('click', function () {
+				_this.rowPlayClick(index);
+			});
 
-			deleteIcon.addEventListener('click', this.clearInput.bind(this));
-			input.addEventListener('click', this.editInput.bind(this));
+			var deleteButton = _outputUI2.default.iconButton({
+				className: 'output__clear',
+				label: 'Remove ' + name + ' Sound',
+				icon: 'clear'
+			});
+			deleteButton.addEventListener('click', function () {
+				_this.clearInput(index);
+			});
+
+			controls.appendChild(input);
+			controls.appendChild(playButton);
+			controls.appendChild(deleteButton);
+			inputClass.appendChild(controls);
+
 			inputClass.input = input;
+			inputClass.valueText = valueText;
+			inputClass.icon = playButton;
+			inputClass.playButton = playButton;
+			inputClass.deleteButton = deleteButton;
+			inputClass.label = name;
+
 			this.inputClasses[index] = inputClass;
-			this.offScreen.appendChild(inputClass);
+			this.list.appendChild(inputClass);
+			this.renderRow(inputClass);
+		}
+	}, {
+		key: 'renderRow',
+		value: function renderRow(row) {
+			var hasSound = Boolean(row.sound);
+			row.valueText.textContent = _outputUI2.default.soundLabel(row.sound);
+			row.input.classList.toggle('output__value--none', !hasSound);
+			row.playButton.disabled = !hasSound;
+			row.deleteButton.disabled = !hasSound;
 		}
 	}, {
 		key: 'handleVisibilityChange',
 		value: function handleVisibilityChange() {
-			if (_config2.default.outputSection.currentOutput && _config2.default.outputSection.currentOutput.id === 'SoundOutput') {
-				if (this.currentSound === null) {
-					this.currentSound;
-				} else if (document.hidden) {
+			if (_config2.default.outputSection && _config2.default.outputSection.currentOutput && _config2.default.outputSection.currentOutput.id === 'SoundOutput' && this.currentSound) {
+				if (document.hidden) {
 					this.currentSound.pause();
 				} else {
-					this.currentSound.play();
+					this.playAudio(this.currentSound);
 				}
 			}
 		}
@@ -52548,7 +53074,7 @@ var SoundOutput = function () {
 		key: 'playCurrentSound',
 		value: function playCurrentSound() {
 			if (this.currentSound) {
-				this.currentSound.play();
+				this.playAudio(this.currentSound);
 			}
 		}
 	}, {
@@ -52558,99 +53084,135 @@ var SoundOutput = function () {
 				this.currentSound.pause();
 			}
 		}
+
+		// play() returns a promise that rejects if autoplay is blocked.
+
 	}, {
-		key: 'clearInput',
-		value: function clearInput(event) {
-			if (this.currentSound === this.sounds[event.target.parentNode.sound]) {
-				this.currentSound.muted = true;
-				this.currentSound = null;
-				if (this.currentIcon) {
-					this.currentIcon.classList.remove('output__sound-speaker--active');
-					this.currentIcon = null;
-				}
-			}
-			event.target.parentNode.sound = null;
-			event.target.parentNode.input.value = 'Nothing';
-
-			event.target.parentNode.input.classList.add('output__sound-input--nothing');
-
-			if (this.currentBorder && this.currentClassName) {
-				this.currentBorder.classList.remove('output__sound-input--' + this.currentClassName + '-selected');
+		key: 'playAudio',
+		value: function playAudio(audio) {
+			var promise = audio.play();
+			if (promise && typeof promise.catch === 'function') {
+				promise.catch(function () {
+					return false;
+				});
 			}
 		}
 	}, {
+		key: 'clearInput',
+		value: function clearInput(index) {
+			var row = this.inputClasses[index];
+			if (this.currentSound && this.currentSound === this.sounds[row.sound]) {
+				this.stopSound();
+			}
+			row.sound = null;
+			this.renderRow(row);
+			if (index === this.currentIndex) {
+				this.updateCanvas(index, 'None');
+			}
+		}
+
+		// Preview toggle for a result in the picker.
+
+	}, {
 		key: 'searchResultPlayClick',
-		value: function searchResultPlayClick(event) {
-			event.stopPropagation();
-			var sound = event.target.parentNode.value;
-			this.lastSound = sound;
-			this.playSound(sound);
+		value: function searchResultPlayClick(sound) {
+			if (this.search.playingSound === sound) {
+				this.stopSound();
+
+				return;
+			}
+			if (this.playSound(sound, true)) {
+				this.search.setPlaying(sound);
+			}
 		}
 	}, {
 		key: 'searchResultClick',
-		value: function searchResultClick(event) {
-			var value = event.target.value;
-			this.activeInput.value = value;
-			this.activeInput.parentNode.sound = value;
-			this.activeInput.parentNode.input.classList.remove('output__sound-input--nothing');
-			if (this.currentSound) {
-				this.currentSound.muted = true;
-				this.currentSound = null;
+		value: function searchResultClick(sound) {
+			var row = this.activeRow;
+			this.stopSound();
+			if (row) {
+				row.sound = sound;
+				this.renderRow(row);
 			}
-			this.search.hide();
+			this.search.hide(true);
+			this.searchClosed();
+		}
+	}, {
+		key: 'searchClosed',
+		value: function searchClosed() {
+			this.element.classList.remove('output__container--sheet-open');
+			this.stopSound();
+			this.activeRow = null;
+
+			// Let the next prediction start the (possibly new) sound again.
+			this.currentIndex = null;
 		}
 	}, {
 		key: 'editInput',
-		value: function editInput(event) {
-			this.activeInput = event.target;
-			var classId = this.activeInput.classId;
-			if (this.currentSound) {
-				this.currentSound.muted = true;
-				this.currentSound = null;
-				if (this.currentIcon) {
-					this.currentIcon.classList.remove('output__sound-speaker--active');
-					this.currentIcon = null;
-				}
-			}
-			this.search.show(classId);
+		value: function editInput(index) {
+			var row = this.inputClasses[index];
+			this.activeRow = row;
+			this.stopSound();
+			this.element.classList.add('output__container--sheet-open');
+			this.search.show(row.classId, row.sound, row.input);
 		}
+
+		// Preview toggle for a class row.
+
 	}, {
-		key: 'filterResults',
-		value: function filterResults() {
-			var phrase = this.searchInput.value;
+		key: 'rowPlayClick',
+		value: function rowPlayClick(index) {
+			var row = this.inputClasses[index];
+			if (this.playingIndex === index) {
+				this.stopSound();
+
+				return;
+			}
+			if (row.sound && this.playSound(row.sound, true)) {
+				this.setPlaying(index);
+			}
+		}
+
+		// Reflect which row is audible: speaker waves + Play/Stop label.
+
+	}, {
+		key: 'setPlaying',
+		value: function setPlaying(index) {
+			this.playingIndex = index;
+			this.inputClasses.forEach(function (row, position) {
+				var playing = position === index;
+				row.playButton.classList.toggle('output__icon-button--playing', playing);
+				row.playButton.setAttribute('aria-label', (playing ? 'Stop' : 'Play') + ' Sound for ' + row.label);
+			});
 		}
 	}, {
 		key: 'soundEnded',
 		value: function soundEnded(event) {
-			if (this.activeSpeaker) {
-				this.currentSound.muted = true;
-				this.activeSpeaker.classList.remove('output__sound-speaker--active');
-			}
-			this.canTrigger = true;
-			if (this.currentSound === event.target) {
-				this.currentSound.muted = true;
-				this.currentSound = null;
-				if (this.currentIcon) {
-					this.currentIcon.classList.remove('output__sound-speaker--active');
-					this.currentIcon = null;
-				}
+			// Only one-shot previews end; class sounds loop.
+			var audio = event.target;
+			audio.loop = true;
+			if (this.currentSound === audio) {
+				this.stopSound();
 			}
 		}
+
+		// isPreview: plays once, even while the picker is open.
+
 	}, {
 		key: 'playSound',
-		value: function playSound(sound) {
+		value: function playSound(sound, isPreview) {
 			this.muteSounds();
-			if (!this.search.visible) {
-				if (this.currentSound === sound) {
-					this.currentSound = null;
-				} else if (this.sounds[sound]) {
-					this.currentSound = this.sounds[sound];
-					this.currentSound.muted = false;
-					this.currentSound.currentTime = 0;
-					this.currentSound.play();
-					this.lastSound = this.currentSound;
-				}
+			var audio = this.sounds[sound];
+			if (!audio || this.search.visible && !isPreview) {
+				return false;
 			}
+			this.currentSound = audio;
+			audio.loop = !isPreview;
+			audio.muted = false;
+			audio.currentTime = 0;
+			this.playAudio(audio);
+
+			return true;
 		}
 	}, {
 		key: 'muteSounds',
@@ -52660,160 +53222,147 @@ var SoundOutput = function () {
 			}
 		}
 	}, {
+		key: 'stopSound',
+		value: function stopSound() {
+			this.muteSounds();
+			if (this.currentSound) {
+				this.currentSound.loop = true;
+			}
+			this.currentSound = null;
+			this.setPlaying(-1);
+			this.search.setPlaying(null);
+		}
+	}, {
 		key: 'assetLoaded',
-		value: function assetLoaded(event) {
+		value: function assetLoaded() {
 			this.numLoaded += 1;
 			if (this.numLoaded === this.numAssets) {
 				this.loaded = true;
-				for (var index = 0; index < this.numAssets; index += 1) {
-					var id = this.assets[index];
-				}
 				this.showScreen();
 			}
 		}
 	}, {
 		key: 'showScreen',
 		value: function showScreen() {
-			this.loadingScreen.style.display = 'none';
-			this.offScreen.style.display = 'block';
+			clearTimeout(this.loadingTimer);
+			this.loadingScreen.hidden = true;
+			this.offScreen.hidden = false;
+		}
+
+		// What this output plays for a class, for the now-playing bar.
+
+	}, {
+		key: 'nowPlaying',
+		value: function nowPlaying(index) {
+			var row = this.inputClasses[index];
+			var sound = row && row.sound ? row.sound : null;
+
+			return {
+				kind: 'sound',
+				value: sound,
+				label: _outputUI2.default.soundLabel(sound)
+			};
+		}
+	}, {
+		key: 'describe',
+		value: function describe(index) {
+			var name = _outputUI2.default.classLabel(this.classNames[index]);
+
+			return name + ': ' + this.nowPlaying(index).label;
 		}
 	}, {
 		key: 'trigger',
 		value: function trigger(index) {
-			if (!_config2.default.clearing) {
-				if (this.currentIndex !== index) {
-					this.currentIndex = index;
+			if (!_config2.default.clearing && this.currentIndex !== index) {
+				this.currentIndex = index;
+				var row = this.inputClasses[index];
+				var sound = row.sound;
 
-					var sound = this.inputClasses[this.currentIndex].sound;
-					if (sound) {
-						this.playSound(sound);
+				// While the picker is open, leave the user's preview alone.
+				if (!this.search.visible) {
+					if (sound && this.playSound(sound, false)) {
+						this.setPlaying(index);
 					} else {
-						this.muteSounds();
-					}
-
-					if (this.currentIcon) {
-						this.currentIcon.classList.remove('output__sound-speaker--active');
-					}
-
-					if (this.currentBorder && this.currentClassName) {
-						this.currentBorder.classList.remove('output__sound-input--' + this.currentClassName + '-selected');
-					}
-
-					var border = this.inputClasses[index].input;
-					var id = this.classNames[index];
-
-					this.currentClassName = id;
-					this.currentBorder = border;
-					this.currentBorder.classList.add('output__sound-input--' + this.currentClassName + '-selected');
-
-					this.currentIcon = this.inputClasses[this.currentIndex];
-					this.currentIcon.classList.add('output__sound-speaker--active');
-					if (this.canvas) {
-						sound === null ? sound = '(nothing)' : sound;
-						this.updateCanvas(this.currentIndex, sound);
+						this.stopSound();
 					}
 				}
+
+				this.inputClasses.forEach(function (other, position) {
+					other.classList.toggle('output__row--active', position === index);
+				});
+
+				this.updateCanvas(index, _outputUI2.default.soundLabel(sound));
 			}
+
 			if (_config2.default.clearing) {
-				if (this.currentIcon) {
-					this.currentIcon.classList.remove('output__sound-speaker--active');
-				}
-				if (this.currentBorder && this.currentClassName) {
-					this.currentBorder.classList.remove('output__sound-input--' + this.currentClassName + '-selected');
-				}
+				this.inputClasses.forEach(function (other) {
+					other.classList.remove('output__row--active');
+				});
+				this.setPlaying(-1);
 				for (var _index2 = 0; _index2 < this.numAssets; _index2 += 1) {
-					var _id = this.assets[_index2];
-					this.sounds[_id].pause();
+					this.sounds[this.assets[_index2]].pause();
 				}
 			}
 		}
 	}, {
 		key: 'stop',
 		value: function stop() {
+			this.search.hide(false);
+			this.element.classList.remove('output__container--sheet-open');
+			this.activeRow = null;
 			for (var index = 0; index < this.numAssets; index += 1) {
-				var id = this.assets[index];
-				this.sounds[id].pause();
+				this.sounds[this.assets[index]].pause();
 			}
+			this.setPlaying(-1);
 			this.element.style.display = 'none';
 		}
 	}, {
 		key: 'start',
 		value: function start() {
+			var _this2 = this;
+
 			this.element.style.display = 'block';
 			this.handleVisibilityChange();
+			if (this.currentSound) {
+				this.setPlaying(this.inputClasses.findIndex(function (row) {
+					return _this2.sounds[row.sound] === _this2.currentSound;
+				}));
+			}
 		}
+
+		// Hidden canvas the video recorder draws from (see RecordOpener).
+
 	}, {
 		key: 'buildCanvas',
 		value: function buildCanvas() {
-			var _this = this;
-
 			this.canvas = document.createElement('canvas');
 			this.canvas.style.display = 'none';
+			this.canvas.setAttribute('aria-hidden', 'true');
 			this.context = this.canvas.getContext('2d');
 			this.canvas.width = 340;
 			this.canvas.height = 260;
 			this.offScreen.appendChild(this.canvas);
-
-			var img = new Image();
-			img.onload = function () {
-				_this.canvasImage = img;
-			};
-			img.src = 'assets/outputs/speaker-icon.svg';
+			_outputUI2.default.paintRecorderBackground(this.context, null);
 		}
+
+		// Always the light palette: this ends up in an exported video.
+
 	}, {
 		key: 'updateCanvas',
-		value: function updateCanvas(colorId, sound) {
-			if (sound === 'null') {
-				this.sound = ' ';
-			}
-			var color = '#2baa5e';
-			var className = _config2.default.classNames[colorId];
-			if (className && _config2.default.colors[className]) {
-				color = _config2.default.colors[className];
-			} else {
-				switch (colorId) {
-					case 0:
-						color = '#2baa5e';
-						break;
-					case 1:
-						color = '#c95ac5';
-						break;
-					case 2:
-						color = '#dd4d31';
-						break;
-					case 3:
-						color = '#fbbc04';
-						break;
-					default:
-						color = '#2baa5e';
-						break;
-				}
-			}
-			if (this.canvasImage) {
-				this.context.globalCompositeOperation = 'source-over';
-				this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-				this.context.fillStyle = 'rgb(255, 255, 255)';
-				this.context.fillRect(0, 0, 300, 300);
-				this.context.drawImage(this.canvasImage, 105, 52, 95, 95);
-				this.context.font = '25px Poppins';
-				this.context.fillStyle = '#000';
-				this.context.fillText(sound, this.canvas.width / 2 - this.context.measureText(sound).width / 2 - 20, 207);
-				this.context.globalCompositeOperation = 'screen';
-				this.context.fillStyle = color;
-				this.context.fillRect(0, 0, 300, 300);
-			}
+		value: function updateCanvas(colorId, soundName) {
+			var id = this.classNames[colorId];
+			_outputUI2.default.drawRecorderCard(this.context, id, soundName || 'None');
 		}
 	}, {
 		key: 'touchAudio',
 		value: function touchAudio() {
-			for (var key in this.sounds) {
-				/* eslint-disable */
-				if (this.sounds.hasOwnProperty(key)) {
-					this.sounds[key].play();
-					this.sounds[key].pause();
-				}
-				/* eslint-enable */
-			}
+			var _this3 = this;
+
+			Object.keys(this.sounds).forEach(function (key) {
+				var audio = _this3.sounds[key];
+				_this3.playAudio(audio);
+				audio.pause();
+			});
 		}
 	}]);
 
@@ -52822,7 +53371,7 @@ var SoundOutput = function () {
 
 exports.default = SoundOutput;
 
-},{"./../config.js":239,"./sound/SoundSearch.js":244}],243:[function(require,module,exports){
+},{"./../config.js":240,"./outputUI.js":245,"./sound/SoundSearch.js":246}],244:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -52835,6 +53384,10 @@ var _TextToSpeech = require('./speech/TextToSpeech.js');
 
 var _TextToSpeech2 = _interopRequireDefault(_TextToSpeech);
 
+var _outputUI = require('./outputUI.js');
+
+var _outputUI2 = _interopRequireDefault(_outputUI);
+
 var _config = require('./../config.js');
 
 var _config2 = _interopRequireDefault(_config);
@@ -52857,6 +53410,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+var MAX_LENGTH = 25;
+
 var SpeechOutput = function () {
     function SpeechOutput() {
         _classCallCheck(this, SpeechOutput);
@@ -52864,80 +53419,29 @@ var SpeechOutput = function () {
         this.id = 'SpeechOutput';
 
         this.canTrigger = true;
-        this.currentSound = null;
         this.currentIcon = null;
         this.currentIndex = null;
+        this.currentTTS = null;
+        this.speakCount = 0;
         this.textToSpeech = new _TextToSpeech2.default();
         this.element = document.createElement('div');
         this.element.classList.add('output__container');
         this.element.classList.add('output__container--speech');
 
-        this.defaultMessages = ['Hello', 'Awesome', 'Yes',
-        // Add default for yellow class
-        'Great'];
+        this.defaultMessages = ['Hello', 'Awesome', 'Yes', 'Great'];
 
         this.classNames = _config2.default.classNames;
         this.colors = _config2.default.colors;
         this.numClasses = _config2.default.numClasses;
 
-        this.offScreen = document.createElement('div');
-        this.offScreen.classList.add('output__speech');
-
-        var options = {};
+        this.list = document.createElement('ul');
+        this.list.classList.add('output__rows');
+        this.list.setAttribute('aria-label', 'Phrase for each class');
+        this.element.appendChild(this.list);
 
         this.inputClasses = [];
         for (var index = 0; index < this.numClasses; index += 1) {
-            var id = this.classNames[index];
-            var inputClass = document.createElement('div');
-
-            // Fallback to first message if index out of bounds
-            var message = this.defaultMessages[index] || this.defaultMessages[0];
-            inputClass.defaultMessage = message;
-            inputClass.message = message;
-            inputClass.classList.add('output__speech-class');
-            inputClass.classList.add('output__speech-class--' + id);
-
-            var speakerIcon = document.createElement('div');
-            speakerIcon.classList.add('output__speech-speaker');
-            speakerIcon.classList.add('output__speech-speaker--' + id);
-
-            var loader = function (el) {
-                var ajax = new XMLHttpRequest();
-                ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
-                ajax.onload = function (event) {
-                    el.innerHTML = ajax.responseText;
-                };
-                ajax.send();
-            }(speakerIcon);
-
-            var editIcon = document.createElement('div');
-            editIcon.classList.add('output__speech-edit');
-            editIcon.classList.add('output__speech-edit--' + id);
-
-            var input = document.createElement('input');
-            input.classId = id;
-            input.classList.add('output__speech-input');
-            input.classList.add('output__speech-input--' + id);
-            input.setAttribute('maxlength', 25);
-            input.value = this.defaultMessages[index];
-            inputClass.appendChild(speakerIcon);
-            inputClass.appendChild(editIcon);
-            inputClass.appendChild(input);
-
-            var deleteIcon = document.createElement('div');
-            deleteIcon.classList.add('output__speech-delete');
-            inputClass.appendChild(deleteIcon);
-
-            inputClass.input = input;
-            inputClass.icon = speakerIcon;
-
-            deleteIcon.addEventListener('click', this.clearInput.bind(this));
-            input.addEventListener('blur', this.inputBlur.bind(this));
-            input.addEventListener('keyup', this.keyUp.bind(this));
-            input.addEventListener('click', this.editInput.bind(this));
-            // speakerIcon.addEventListener('click', this.playSound.bind(this));
-            this.inputClasses[index] = inputClass;
-            this.element.appendChild(inputClass);
+            this.addRow(this.classNames[index], index);
         }
         this.buildCanvas();
     }
@@ -52948,197 +53452,257 @@ var SpeechOutput = function () {
     _createClass(SpeechOutput, [{
         key: 'addNewClass',
         value: function addNewClass(className, index) {
-            // Update our local references
             this.classNames = _config2.default.classNames;
             this.numClasses = _config2.default.numClasses;
+            this.addRow(className, index);
+        }
 
-            // Create UI elements for the new class
-            var inputClass = document.createElement('div');
+        // One row per class: a labelled text field, a Say button and a Clear button.
+
+    }, {
+        key: 'addRow',
+        value: function addRow(className, index) {
+            var _this = this;
+
+            var name = _outputUI2.default.classLabel(className);
             var message = this.defaultMessages[index] || this.defaultMessages[0];
+            var inputId = 'speech-input-' + className;
+
+            var inputClass = document.createElement('li');
+            inputClass.classList.add('output__row');
+            inputClass.classList.add('output-class--' + className);
             inputClass.defaultMessage = message;
             inputClass.message = message;
-            inputClass.classList.add('output__speech-class');
-            inputClass.classList.add('output__speech-class--' + className);
+            inputClass.label = name;
 
-            var speakerIcon = document.createElement('div');
-            speakerIcon.classList.add('output__speech-speaker');
-            speakerIcon.classList.add('output__speech-speaker--' + className);
+            var tag = _outputUI2.default.classTag(className, 'label');
+            tag.setAttribute('for', inputId);
+            tag.appendChild(_outputUI2.default.visuallyHidden(' phrase'));
+            inputClass.appendChild(tag);
 
-            var loader = function (el) {
-                var ajax = new XMLHttpRequest();
-                ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
-                ajax.onload = function (event) {
-                    el.innerHTML = ajax.responseText;
-                };
-                ajax.send();
-            }(speakerIcon);
-
-            var editIcon = document.createElement('div');
-            editIcon.classList.add('output__speech-edit');
-            editIcon.classList.add('output__speech-edit--' + className);
+            var controls = document.createElement('div');
+            controls.classList.add('output__row-controls');
 
             var input = document.createElement('input');
+            input.type = 'text';
+            input.id = inputId;
             input.classId = className;
-            input.classList.add('output__speech-input');
-            input.classList.add('output__speech-input--' + className);
-            input.setAttribute('maxlength', 25);
+            input.classList.add('output__text-input');
+            input.setAttribute('maxlength', MAX_LENGTH);
+            input.setAttribute('placeholder', 'None');
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('enterkeyhint', 'done');
             input.value = message;
-            inputClass.appendChild(speakerIcon);
-            inputClass.appendChild(editIcon);
-            inputClass.appendChild(input);
 
-            var deleteIcon = document.createElement('div');
-            deleteIcon.classList.add('output__speech-delete');
-            inputClass.appendChild(deleteIcon);
+            var speakerIcon = _outputUI2.default.iconButton({
+                className: 'output__play',
+                label: 'Say ' + name + ' Phrase',
+                icon: 'speaker'
+            });
+
+            var deleteIcon = _outputUI2.default.iconButton({
+                className: 'output__clear',
+                label: 'Clear ' + name + ' Phrase',
+                icon: 'clear'
+            });
+
+            controls.appendChild(input);
+            controls.appendChild(speakerIcon);
+            controls.appendChild(deleteIcon);
+            inputClass.appendChild(controls);
 
             inputClass.input = input;
             inputClass.icon = speakerIcon;
+            inputClass.deleteButton = deleteIcon;
 
-            deleteIcon.addEventListener('click', this.clearInput.bind(this));
+            input.addEventListener('input', this.keyUp.bind(this));
             input.addEventListener('blur', this.inputBlur.bind(this));
-            input.addEventListener('keyup', this.keyUp.bind(this));
-            input.addEventListener('click', this.editInput.bind(this));
+            input.addEventListener('focus', this.editInput.bind(this));
+            input.addEventListener('keydown', this.inputKeyDown.bind(this));
+            speakerIcon.addEventListener('click', function () {
+                _this.sayRow(index);
+            });
+            deleteIcon.addEventListener('click', function () {
+                _this.clearInput(index);
+            });
+
             this.inputClasses[index] = inputClass;
-            this.element.appendChild(inputClass);
+            this.list.appendChild(inputClass);
+            this.renderRow(inputClass);
+        }
+    }, {
+        key: 'renderRow',
+        value: function renderRow(row) {
+            var hasMessage = Boolean(row.message);
+            row.icon.disabled = !hasMessage;
+            row.deleteButton.disabled = !hasMessage;
+        }
+    }, {
+        key: 'rowFor',
+        value: function rowFor(input) {
+            return input.closest('.output__row');
         }
     }, {
         key: 'clearInput',
-        value: function clearInput(event) {
-            event.target.parentNode.message = null;
-            event.target.parentNode.input.value = 'Nothing';
-            event.target.parentNode.input.classList.add('output__speech-input--nothing');
+        value: function clearInput(index) {
+            var row = this.inputClasses[index];
+            row.message = null;
+            row.input.value = '';
+            this.renderRow(row);
+            row.input.focus();
+            if (index === this.currentIndex) {
+                this.updateCanvas(index, null);
+            }
         }
     }, {
         key: 'keyUp',
         value: function keyUp(event) {
-            var message = event.target.value;
-            event.target.parentNode.message = message;
-            event.target.classList.remove('output__speech-input--nothing');
+            var row = this.rowFor(event.target);
+            row.message = event.target.value.trim() || null;
+            this.renderRow(row);
         }
     }, {
         key: 'inputBlur',
         value: function inputBlur(event) {
-            var message = event.target.value;
-            event.target.classList.remove('output__speech-input--nothing');
-            message = event.target.value;
-            event.target.parentNode.message = message;
+            var row = this.rowFor(event.target);
+            row.message = event.target.value.trim() || null;
+            event.target.value = row.message || '';
+            this.renderRow(row);
+            if (this.inputClasses.indexOf(row) === this.currentIndex) {
+                this.updateCanvas(this.currentIndex, row.message);
+            }
         }
+
+        // Enter finishes editing (and dismisses the on-screen keyboard).
+
+    }, {
+        key: 'inputKeyDown',
+        value: function inputKeyDown(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                event.target.blur();
+            }
+        }
+
+        // Select the phrase so typing replaces it, without throwing it away.
+
     }, {
         key: 'editInput',
         value: function editInput(event) {
-            event.target.parentNode.input.value = '';
-            this.activeInput = event.target;
-            var classId = this.activeInput.classId;
-        }
-    }, {
-        key: 'filterResults',
-        value: function filterResults() {
-            var phrase = this.searchInput.value;
-            if (phrase.length === 0) {
-                phrase = 'Hello';
-            }
-            this.ttsItem.children[1].value = '"' + phrase + '"';
-            this.ttsItem.value = '"' + phrase + '"';
-        }
-    }, {
-        key: 'soundEnded',
-        value: function soundEnded(event) {
-            if (this.activeSpeaker) {
-                this.activeSpeaker.classList.remove('output__speech-speaker--active');
-            }
-            this.canTrigger = true;
-            if (this.currentSound === event.target) {
-                this.currentSound.pause();
-                this.currentSound = null;
-                if (this.currentIcon) {
-                    this.currentIcon.classList.remove('output__speech-speaker--active');
-                    this.currentIcon = null;
+            var input = event.target;
+            this.activeInput = input;
+            setTimeout(function () {
+                if (document.activeElement === input) {
+                    input.select();
                 }
+            }, 0);
+        }
+    }, {
+        key: 'setSpeaking',
+        value: function setSpeaking(icon) {
+            if (this.currentIcon && this.currentIcon !== icon) {
+                this.currentIcon.classList.remove('output__icon-button--playing');
+            }
+            this.currentIcon = icon;
+            if (icon) {
+                icon.classList.add('output__icon-button--playing');
             }
         }
     }, {
-        key: 'ttsEnded',
-        value: function ttsEnded() {
-            if (this.activeSpeaker) {
-                this.activeSpeaker.classList.remove('output__speech-speaker--active');
-            }
-            this.canTrigger = true;
-            this.currentTTS = null;
-            this.currentIcon.classList.remove('output__speech-speaker--active');
-        }
-    }, {
-        key: 'playSound',
-        value: function playSound(event) {
-            var icon = event.target;
-            var sound = icon.parentNode.message;
+        key: 'speak',
+        value: function speak(index) {
+            var _this2 = this;
 
-            if (this.currentIcon) {
-                this.currentIcon.classList.remove('output__speech-speaker--active');
-            }
+            var row = this.inputClasses[index];
+            this.speakCount += 1;
+            var token = this.speakCount;
 
             if (this.currentTTS) {
                 this.textToSpeech.stop();
             }
-
-            icon.classList.add('output__speech-speaker--active');
-            this.textToSpeech.say(sound, this.ttsEnded.bind(this));
+            this.setSpeaking(row.icon);
             this.currentTTS = true;
-            this.currentIcon = icon;
+            this.textToSpeech.say(row.message, function () {
+                _this2.ttsEnded(token);
+            });
+        }
+    }, {
+        key: 'sayRow',
+        value: function sayRow(index) {
+            if (this.inputClasses[index].message) {
+                this.speak(index);
+            }
+        }
+
+        // Ignore end events from utterances that were cancelled by a newer one.
+
+    }, {
+        key: 'ttsEnded',
+        value: function ttsEnded(token) {
+            if (token !== this.speakCount) {
+                return;
+            }
+            this.canTrigger = true;
+            this.currentTTS = null;
+            this.setSpeaking(null);
+        }
+
+        // What this output says for a class, for the now-playing bar.
+
+    }, {
+        key: 'nowPlaying',
+        value: function nowPlaying(index) {
+            var row = this.inputClasses[index];
+            var message = row && row.message ? row.message : null;
+
+            return {
+                kind: 'speech',
+                value: message,
+                label: message || 'None'
+            };
+        }
+    }, {
+        key: 'describe',
+        value: function describe(index) {
+            var name = _outputUI2.default.classLabel(this.classNames[index]);
+
+            return name + ': ' + this.nowPlaying(index).label;
         }
     }, {
         key: 'trigger',
         value: function trigger(index) {
             var overrideAndPlay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
-            if (!_config2.default.clearing) {
-                if (this.currentIndex !== index || overrideAndPlay) {
-                    this.canTrigger = false;
-                    this.currentIndex = index;
+            if (!_config2.default.clearing && (this.currentIndex !== index || overrideAndPlay)) {
+                this.canTrigger = false;
+                this.currentIndex = index;
 
-                    if (this.currentIcon) {
-                        this.currentIcon.classList.remove('output__speech-speaker--active');
-                    }
+                this.inputClasses.forEach(function (row, position) {
+                    row.classList.toggle('output__row--active', position === index);
+                });
 
-                    if (this.currentBorder && this.currentClassName) {
-                        this.currentBorder.classList.remove('output__speech-input--' + this.currentClassName + '-selected');
-                    }
-
-                    var border = this.inputClasses[index].input;
-                    var id = this.classNames[index];
-
-                    this.currentClassName = id;
-                    this.currentBorder = border;
-                    this.currentBorder.classList.add('output__speech-input--' + this.currentClassName + '-selected');
-
+                var message = this.inputClasses[index].message;
+                if (message) {
+                    this.speak(index);
+                } else {
                     if (this.currentTTS) {
                         this.textToSpeech.stop();
+                        this.currentTTS = null;
                     }
-
-                    var icon = this.inputClasses[index].icon;
-                    var sound = this.inputClasses[index].message;
-                    if (sound) {
-                        this.currentIcon = icon;
-                        this.currentIcon.classList.add('output__speech-speaker--active');
-                        this.textToSpeech.say(sound, this.ttsEnded.bind(this));
-                        this.currentTTS = true;
-                    } else {
-                        this.canTrigger = true;
-                    }
-                    if (this.canvas) {
-                        sound === null ? sound = '(nothing)' : sound;
-                        this.updateCanvas(this.currentIndex, sound);
-                    }
+                    this.setSpeaking(null);
+                    this.canTrigger = true;
                 }
+                this.updateCanvas(index, message);
             }
+
             if (_config2.default.clearing) {
-                if (this.currentBorder && this.currentClassName) {
-                    this.currentBorder.classList.remove('output__speech-input--' + this.currentClassName + '-selected');
-                }
-                if (this.currentIcon) {
-                    this.currentIcon.classList.remove('output__speech-speaker--active');
-                }
+                this.inputClasses.forEach(function (row) {
+                    row.classList.remove('output__row--active');
+                });
+                this.setSpeaking(null);
                 if (this.currentTTS) {
                     this.textToSpeech.stop();
+                    this.currentTTS = null;
                 }
             }
         }
@@ -53147,80 +53711,43 @@ var SpeechOutput = function () {
         value: function stop() {
             if (this.currentTTS) {
                 this.textToSpeech.stop();
+                this.currentTTS = null;
             }
+            this.setSpeaking(null);
             this.element.style.display = 'none';
         }
     }, {
         key: 'start',
         value: function start() {
             this.element.style.display = 'block';
-            if (typeof this.currentIndex === 'number') {
+            if (typeof this.currentIndex === 'number' && this.currentIndex > -1) {
                 this.trigger(this.currentIndex, true);
             }
         }
+
+        // Hidden canvas the video recorder draws from (see RecordOpener).
+
     }, {
         key: 'buildCanvas',
         value: function buildCanvas() {
-            var _this = this;
-
             this.canvas = document.createElement('canvas');
             this.canvas.style.display = 'none';
+            this.canvas.setAttribute('aria-hidden', 'true');
             this.context = this.canvas.getContext('2d');
             this.canvas.width = 340;
             this.canvas.height = 260;
             this.element.appendChild(this.canvas);
-
-            var img = new Image();
-            img.onload = function () {
-                _this.canvasImage = img;
-            };
-            img.src = 'assets/outputs/speaker-icon.svg';
+            _outputUI2.default.paintRecorderBackground(this.context, null);
         }
+
+        // Always the light palette: this ends up in an exported video.
+
     }, {
         key: 'updateCanvas',
-        value: function updateCanvas(colorId, sound) {
-            if (sound === 'null') {
-                this.sound = ' ';
-            }
-            var color = '#2baa5e';
-            // Use GLOBALS.classNames to get the color dynamically
-            var className = _config2.default.classNames[colorId];
-            if (className && _config2.default.colors[className]) {
-                color = _config2.default.colors[className];
-            } else {
-
-                switch (colorId) {
-                    case 0:
-                        color = '#2baa5e';
-                        break;
-                    case 1:
-                        color = '#c95ac5';
-                        break;
-                    case 2:
-                        color = '#dd4d31';
-                        break;
-                    case 3:
-                        color = '#fbbc04';
-                        break;
-                    default:
-                        color = '#2baa5e';
-                        break;
-                }
-            }
-            if (this.canvasImage) {
-                this.context.globalCompositeOperation = 'source-over';
-                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.context.fillStyle = 'rgb(255, 255, 255)';
-                this.context.fillRect(0, 0, 300, 300);
-                this.context.drawImage(this.canvasImage, 105, 52, 95, 95);
-                this.context.font = '25px Poppins';
-                this.context.fillStyle = '#000';
-                this.context.fillText(sound, this.canvas.width / 2 - 21, 207);
-                this.context.textAlign = 'center';
-                this.context.globalCompositeOperation = 'screen';
-                this.context.fillStyle = color;
-                this.context.fillRect(0, 0, 300, 300);
-            }
+        value: function updateCanvas(colorId, message) {
+            var id = this.classNames[colorId];
+            var text = message ? '\u201C' + message + '\u201D' : 'None';
+            _outputUI2.default.drawRecorderCard(this.context, id, text);
         }
     }]);
 
@@ -53229,7 +53756,224 @@ var SpeechOutput = function () {
 
 exports.default = SpeechOutput;
 
-},{"./../config.js":239,"./speech/TextToSpeech.js":245}],244:[function(require,module,exports){
+},{"./../config.js":240,"./outputUI.js":245,"./speech/TextToSpeech.js":247}],245:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+
+var _config = require('./../config.js');
+
+var _config2 = _interopRequireDefault(_config);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Copyright 2017 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Shared building blocks for the output column (Emoji, Sound, Speech):
+// inline icons that follow currentColor, accessible icon buttons, the class
+// tag (swatch + name, so class is never conveyed by colour alone), display
+// names, and the fixed light palette used by the hidden recorder canvases.
+
+var SVG_OPEN = '<svg class="output__icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" ';
+
+var ICONS = {
+	speaker: SVG_OPEN + 'viewBox="0 0 63 61"><path d="M4,21.4v17.1h11.6L30,52.8V7.2L15.6,21.4H4z"/><g class="sound-on"><path d="M43,30c0-4.9-2.8-9.4-7.2-11.5v22.9C40.2,39.3,43,34.9,43,30z"/><path d="M35.8,5v5.9c10.6,3,16.7,14,13.7,24.6c-1.9,6.6-7.1,11.8-13.7,13.7V55c13.8-2.9,22.6-16.5,19.7-30.3C53.4,14.8,45.6,7.1,35.8,5z"/></g></svg>',
+	play: SVG_OPEN + 'viewBox="0 0 26 26"><path d="M8 4.8v16.4c0 .8.9 1.3 1.6.9l13-8.2c.6-.4.6-1.3 0-1.7l-13-8.2C8.9 3.5 8 4 8 4.8z"/></svg>',
+	stop: SVG_OPEN + 'viewBox="0 0 26 26"><rect x="6.5" y="6.5" width="13" height="13" rx="2.5"/></svg>',
+	clear: SVG_OPEN + 'viewBox="0 0 26 26"><path d="M7.5 7.5l11 11M18.5 7.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+	back: SVG_OPEN + 'viewBox="0 0 26 26"><path d="M16 4.5L7.5 13l8.5 8.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+	check: SVG_OPEN + 'viewBox="0 0 26 26"><path d="M6 13.5l4.5 4.5L20 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+	chevron: SVG_OPEN + 'viewBox="0 0 26 26"><path d="M10 5.5l7.5 7.5-7.5 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+
+// Speaker glyph as a canvas path (viewBox 63x61), for the recorder canvases.
+var SPEAKER_PATHS = ['M4,21.4v17.1h11.6L30,52.8V7.2L15.6,21.4H4z', 'M43,30c0-4.9-2.8-9.4-7.2-11.5v22.9C40.2,39.3,43,34.9,43,30z', 'M35.8,5v5.9c10.6,3,16.7,14,13.7,24.6c-1.9,6.6-7.1,11.8-13.7,13.7V55c13.8-2.9,22.6-16.5,19.7-30.3C53.4,14.8,45.6,7.1,35.8,5z'];
+
+var SYSTEM_FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+var EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif';
+
+// Recorder canvases are baked into an exported video, so they always use
+// the light palette regardless of the viewer's appearance.
+var RECORDER_PALETTE = {
+	background: '#FFFFFF',
+	label: '#1C1C1E',
+	secondaryLabel: '#6C6C70'
+};
+
+function icon(name) {
+	return ICONS[name] || '';
+}
+
+// 'green' -> 'Green'
+function classLabel(id) {
+	if (!id) {
+		return '';
+	}
+
+	return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
+// 'drum_roll.mp3' -> 'Drum Roll'. Display only; stored values keep the file name.
+function soundLabel(file) {
+	if (!file) {
+		return 'None';
+	}
+	var base = file.replace(/\.[a-z0-9]+$/i, '');
+	var words = base.split(/[_\-\s]+/).filter(function (word) {
+		return word.length > 0;
+	});
+
+	return words.map(function (word) {
+		return word.charAt(0).toUpperCase() + word.slice(1);
+	}).join(' ');
+}
+
+function iconButton(options) {
+	var button = document.createElement('button');
+	button.type = 'button';
+	button.className = 'output__icon-button';
+	if (options.className) {
+		button.classList.add(options.className);
+	}
+	button.setAttribute('aria-label', options.label);
+	button.innerHTML = icon(options.icon);
+
+	return button;
+}
+
+// Class colour swatch + class name. Pass a tag name of 'label' to make it the
+// visible label of a form field.
+function classTag(id, tagName) {
+	var tag = document.createElement(tagName || 'span');
+	tag.className = 'output__class-tag output__class-tag--' + id;
+
+	var swatch = document.createElement('span');
+	swatch.className = 'output__swatch';
+	swatch.setAttribute('aria-hidden', 'true');
+	tag.appendChild(swatch);
+
+	var name = document.createElement('span');
+	name.className = 'output__class-name';
+	name.textContent = classLabel(id);
+	tag.appendChild(name);
+
+	return tag;
+}
+
+function visuallyHidden(text) {
+	var span = document.createElement('span');
+	span.className = 'visually-hidden';
+	span.textContent = text;
+
+	return span;
+}
+
+function recorderClassColor(id) {
+	return _config2.default.colors[id] || _config2.default.colors.green;
+}
+
+function recorderClassTint(id) {
+	return _config2.default.rgbaColors[id] || _config2.default.rgbaColors.green;
+}
+
+// Fill the whole recorder canvas with the light background and class tint.
+function paintRecorderBackground(context, id) {
+	var canvas = context.canvas;
+	context.globalCompositeOperation = 'source-over';
+	context.clearRect(0, 0, canvas.width, canvas.height);
+	context.fillStyle = RECORDER_PALETTE.background;
+	context.fillRect(0, 0, canvas.width, canvas.height);
+	if (id) {
+		context.fillStyle = recorderClassTint(id);
+		context.fillRect(0, 0, canvas.width, canvas.height);
+	}
+}
+
+// Centered single-line text that shrinks to fit the canvas width.
+function drawFittedText(context, text, layout) {
+	var canvas = context.canvas;
+	var maxWidth = canvas.width - 40;
+	var size = layout.size;
+	context.textAlign = 'center';
+	context.textBaseline = 'middle';
+	context.fillStyle = layout.color;
+	context.font = layout.weight + ' ' + size + 'px ' + SYSTEM_FONT;
+	while (size > 12 && context.measureText(text).width > maxWidth) {
+		size -= 1;
+		context.font = layout.weight + ' ' + size + 'px ' + SYSTEM_FONT;
+	}
+	context.fillText(text, canvas.width / 2, layout.y);
+}
+
+// Speaker + value + class name, used by the Sound and Speech recorders.
+function drawRecorderCard(context, id, text) {
+	var canvas = context.canvas;
+	paintRecorderBackground(context, id);
+
+	var iconSize = 96;
+	var scale = iconSize / 63;
+	var left = (canvas.width - iconSize) / 2;
+	var top = 36;
+	context.save();
+	context.translate(left, top);
+	context.scale(scale, scale);
+	context.fillStyle = recorderClassColor(id);
+	if (typeof Path2D === 'function') {
+		SPEAKER_PATHS.forEach(function (path) {
+			context.fill(new Path2D(path));
+		});
+	} else {
+		context.fillRect(4, 21, 26, 18);
+	}
+	context.restore();
+
+	drawFittedText(context, text, {
+		size: 28,
+		weight: 600,
+		y: 174,
+		color: RECORDER_PALETTE.label
+	});
+	drawFittedText(context, classLabel(id), {
+		size: 17,
+		weight: 400,
+		y: 210,
+		color: RECORDER_PALETTE.secondaryLabel
+	});
+}
+
+var OutputUI = {
+	EMOJI_FONT: EMOJI_FONT,
+	SYSTEM_FONT: SYSTEM_FONT,
+	RECORDER_PALETTE: RECORDER_PALETTE,
+	icon: icon,
+	classLabel: classLabel,
+	soundLabel: soundLabel,
+	iconButton: iconButton,
+	classTag: classTag,
+	visuallyHidden: visuallyHidden,
+	recorderClassColor: recorderClassColor,
+	paintRecorderBackground: paintRecorderBackground,
+	drawFittedText: drawFittedText,
+	drawRecorderCard: drawRecorderCard
+};
+
+exports.default = OutputUI;
+
+},{"./../config.js":240}],246:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -53237,6 +53981,12 @@ Object.defineProperty(exports, "__esModule", {
 });
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _outputUI = require('./../outputUI.js');
+
+var _outputUI2 = _interopRequireDefault(_outputUI);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -53254,126 +54004,230 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Sheet for choosing a class's sound. Each result has a preview button and a
+// select button. Escape and Back close it and return focus to the opener.
+//
+// options.playCallback(sound)   preview toggle for a sound file name
+// options.selectCallback(sound) a sound was chosen
+// options.closeCallback()       the sheet closed without a choice
+
+var sheetCount = 0;
+
 var SoundSearch = function () {
 	function SoundSearch(options) {
 		_classCallCheck(this, SoundSearch);
 
 		this.playCallback = options.playCallback;
 		this.selectCallback = options.selectCallback;
+		this.closeCallback = options.closeCallback;
 		this.assets = options.assets;
+		this.visible = false;
+		this.opener = null;
+		this.playingSound = null;
+
+		sheetCount += 1;
+		var inputId = 'sound-search-input-' + sheetCount;
 
 		this.element = document.createElement('div');
 		this.element.classList.add('output__sound-search');
+		this.element.classList.add('output__sheet');
+		this.element.setAttribute('role', 'dialog');
+		this.element.hidden = true;
+
 		this.searchBar = document.createElement('div');
-		this.searchBar.classList.add('output__sound-search-bar');
+		this.searchBar.classList.add('output__sheet-bar');
 		this.element.appendChild(this.searchBar);
-		this.searchInput = document.createElement('input');
-		this.searchInput.classList.add('output__sound-search-input');
-		this.searchBar.appendChild(this.searchInput);
-		this.backButton = document.createElement('div');
-		this.backButton.addEventListener('click', this.hide.bind(this));
-		this.backButton.classList.add('output__sound-back');
 
-		var loader = function (el) {
-			var ajax = new XMLHttpRequest();
-			ajax.open('GET', 'assets/outputs/back-icon.svg', true);
-			ajax.onload = function (event) {
-				el.innerHTML = ajax.responseText;
-			};
-			ajax.send();
-		}(this.backButton);
-
+		this.backButton = _outputUI2.default.iconButton({
+			className: 'output__sheet-back',
+			label: 'Back',
+			icon: 'back'
+		});
+		this.backButton.addEventListener('click', this.close.bind(this));
 		this.searchBar.appendChild(this.backButton);
 
-		this.searchResults = document.createElement('div');
+		var label = document.createElement('label');
+		label.className = 'visually-hidden';
+		label.setAttribute('for', inputId);
+		label.textContent = 'Search sounds';
+		this.searchBar.appendChild(label);
+
+		this.searchInput = document.createElement('input');
+		this.searchInput.type = 'search';
+		this.searchInput.id = inputId;
+		this.searchInput.classList.add('output__search-input');
+		this.searchInput.setAttribute('placeholder', 'Search sounds');
+		this.searchInput.setAttribute('autocomplete', 'off');
+		this.searchInput.setAttribute('enterkeyhint', 'search');
+		this.searchBar.appendChild(this.searchInput);
+
+		this.scroll = document.createElement('div');
+		this.scroll.classList.add('output__sheet-scroll');
+		this.element.appendChild(this.scroll);
+
+		this.searchResults = document.createElement('ul');
 		this.searchResults.classList.add('output__sound-search-results');
+		this.scroll.appendChild(this.searchResults);
+
+		this.emptyMessage = document.createElement('p');
+		this.emptyMessage.classList.add('output__sheet-hint');
+		this.emptyMessage.setAttribute('role', 'status');
+		this.scroll.appendChild(this.emptyMessage);
 
 		this.allResults = [];
 		for (var index = 0; index < this.assets.length; index += 1) {
-			var item = document.createElement('div');
-			item.classList.add('output__sound-search-result');
-
-			var icon = document.createElement('div');
-			icon.classList.add('output__sound-search-result-icon');
-
-			var label = document.createElement('input');
-			label.setAttribute('readonly', 'readonly');
-			label.classList.add('output__sound-search-result-input');
-
-			// icon.classList.add('output__sound-search-result-play');
-			var _loader = function (el) {
-				var ajax = new XMLHttpRequest();
-				ajax.open('GET', 'assets/outputs/play-icon.svg', true);
-				ajax.onload = function (event) {
-					el.innerHTML = ajax.responseText;
-				};
-				ajax.send();
-			}(icon);
-
-			item.value = this.assets[index];
-			label.value = item.value;
-			icon.addEventListener('click', this.playCallback);
-			this.allResults.push(item);
-
-			item.appendChild(icon);
-			item.appendChild(label);
-
-			item.addEventListener('click', this.selectCallback);
-
-			this.searchResults.appendChild(item);
+			this.allResults.push(this.buildResult(this.assets[index]));
 		}
-		this.element.appendChild(this.searchResults);
-		this.searchInput.addEventListener('keyup', this.filterResults.bind(this));
+
+		this.searchInput.addEventListener('input', this.filterResults.bind(this));
+		this.element.addEventListener('keydown', this.keyDown.bind(this));
 	}
 
 	_createClass(SoundSearch, [{
-		key: 'hide',
-		value: function hide() {
-			this.element.style.display = 'none';
-			this.searchResults.className = 'output__sound-search-results';
-			this.searchInput.className = 'output__sound-search-input';
-			this.backButton.className = 'output__sound-back';
+		key: 'buildResult',
+		value: function buildResult(sound) {
+			var _this = this;
 
-			this.allResults.forEach(function (item) {
-				var icon = item.children[0];
-				icon.className = 'output__sound-search-result-icon';
+			var name = _outputUI2.default.soundLabel(sound);
+			var item = document.createElement('li');
+			item.classList.add('output__sound-search-result');
+			item.sound = sound;
+			item.label = name;
+
+			var play = _outputUI2.default.iconButton({
+				className: 'output__sound-search-play',
+				label: 'Play ' + name,
+				icon: 'play'
 			});
-			this.visible = false;
+			play.addEventListener('click', function () {
+				_this.playCallback(sound);
+			});
+
+			var select = document.createElement('button');
+			select.type = 'button';
+			select.classList.add('output__sound-search-select');
+			select.innerHTML = _outputUI2.default.icon('check');
+			var text = document.createElement('span');
+			text.classList.add('output__sound-search-name');
+			text.textContent = name;
+			select.appendChild(text);
+			select.addEventListener('click', function () {
+				_this.selectCallback(sound);
+			});
+
+			item.playButton = play;
+			item.selectButton = select;
+			item.appendChild(play);
+			item.appendChild(select);
+			this.searchResults.appendChild(item);
+
+			return item;
 		}
 	}, {
+		key: 'keyDown',
+		value: function keyDown(event) {
+			if (event.key === 'Escape' || event.key === 'Esc') {
+				event.preventDefault();
+				event.stopPropagation();
+				this.close();
+			}
+		}
+	}, {
+		key: 'close',
+		value: function close() {
+			this.hide(true);
+			if (this.closeCallback) {
+				this.closeCallback();
+			}
+		}
+	}, {
+		key: 'hide',
+		value: function hide(returnFocus) {
+			if (!this.visible) {
+				return;
+			}
+			this.element.hidden = true;
+			this.visible = false;
+			this.setPlaying(null);
+			if (this.opener) {
+				this.opener.setAttribute('aria-expanded', 'false');
+				if (returnFocus === true) {
+					this.opener.focus();
+				}
+			}
+		}
+
+		// classId: class being edited; current: its sound (or null); opener: the
+		// control that opened the sheet, which gets focus back on close.
+
+	}, {
 		key: 'show',
-		value: function show(classId) {
-			this.element.style.display = 'block';
-			this.searchResults.classList.add('output__sound-search-results--' + classId);
-			this.searchInput.classList.add('output__sound-search-input--' + classId);
-			this.backButton.classList.add('output__sound-back--' + classId);
+		value: function show(classId, current, opener) {
+			this.opener = opener || null;
+			this.element.className = 'output__sound-search output__sheet output-class--' + classId;
+			this.element.setAttribute('aria-label', 'Choose ' + _outputUI2.default.classLabel(classId) + ' Sound');
+			this.searchInput.value = '';
+			this.filterResults();
 
 			this.allResults.forEach(function (item) {
-				var icon = item.children[0];
-				icon.classList.add('output__sound-search-result-icon--' + classId);
+				var isCurrent = item.sound === current;
+				item.classList.toggle('output__sound-search-result--current', isCurrent);
+				if (isCurrent) {
+					item.selectButton.setAttribute('aria-current', 'true');
+				} else {
+					item.selectButton.removeAttribute('aria-current');
+				}
 			});
-			this.searchInput.focus();
+
+			this.element.hidden = false;
 			this.visible = true;
+			this.scroll.scrollTop = 0;
+			if (this.opener) {
+				this.opener.setAttribute('aria-expanded', 'true');
+			}
+
+			// Avoid raising the on-screen keyboard over the list on touch screens.
+			if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+				this.searchInput.focus();
+			} else {
+				this.backButton.focus();
+			}
+		}
+
+		// Reflect which result is being previewed (null for none).
+
+	}, {
+		key: 'setPlaying',
+		value: function setPlaying(sound) {
+			this.playingSound = sound;
+			this.allResults.forEach(function (item) {
+				var playing = item.sound === sound;
+				item.playButton.innerHTML = _outputUI2.default.icon(playing ? 'stop' : 'play');
+				item.playButton.setAttribute('aria-label', (playing ? 'Stop' : 'Play') + ' ' + item.label);
+				item.playButton.classList.toggle('output__icon-button--playing', playing);
+			});
 		}
 	}, {
 		key: 'filterResults',
 		value: function filterResults() {
-			var phrase = this.searchInput.value;
-			var showAll = false;
-
-			if (phrase.length === 0) {
-				showAll = true;
-			}
+			var phrase = this.searchInput.value.trim().toLowerCase();
+			var shown = 0;
 
 			this.allResults.forEach(function (item) {
-				if (showAll) {
-					item.style.display = 'block';
-				} else if (item.value.toLowerCase().indexOf(phrase.toLowerCase()) > -1) {
-					item.style.display = 'block';
-				} else {
-					item.style.display = 'none';
+				var matches = phrase.length === 0 || item.label.toLowerCase().indexOf(phrase) > -1 || item.sound.toLowerCase().indexOf(phrase) > -1;
+				item.hidden = !matches;
+				if (matches) {
+					shown += 1;
 				}
 			});
+
+			if (shown === 0) {
+				this.emptyMessage.textContent = 'No sounds match \u201C' + this.searchInput.value.trim() + '\u201D. Try another word.';
+				this.emptyMessage.hidden = false;
+			} else {
+				this.emptyMessage.textContent = '';
+				this.emptyMessage.hidden = true;
+			}
 		}
 	}]);
 
@@ -53382,7 +54236,7 @@ var SoundSearch = function () {
 
 exports.default = SoundSearch;
 
-},{}],245:[function(require,module,exports){
+},{"./../outputUI.js":245}],247:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -53409,6 +54263,16 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+var PREFERRED_VOICES = ['Google US English Female', 'Google US English'];
+
+function isEnglish(voice) {
+	return voice.lang.toLowerCase().indexOf('en') === 0;
+}
+
+function isUSEnglish(voice) {
+	return voice.lang.replace('_', '-').toLowerCase() === 'en-us';
+}
+
 var TextToSpeech = function () {
 	function TextToSpeech() {
 		_classCallCheck(this, TextToSpeech);
@@ -53416,33 +54280,85 @@ var TextToSpeech = function () {
 		this.voices = [];
 		this.voice = null;
 		this.message = null;
-		if ((typeof speechSynthesis === 'undefined' ? 'undefined' : _typeof(speechSynthesis)) === 'object' && typeof speechSynthesis.onvoiceschanged === 'function') {
-			speechSynthesis.onvoiceschanged = this.setVoice;
+		this.supported = _typeof(window.speechSynthesis) === 'object' && typeof window.SpeechSynthesisUtterance === 'function';
+
+		if (this.supported) {
+			var synth = window.speechSynthesis;
+			var update = this.setVoice.bind(this);
+			if (typeof synth.addEventListener === 'function') {
+				synth.addEventListener('voiceschanged', update);
+			} else {
+				synth.onvoiceschanged = update;
+			}
+			this.setVoice();
+
+			// iOS only speaks after speech has started inside a user gesture.
+			window.addEventListener('mobileLaunch', this.unlock.bind(this));
 		}
 	}
+
+	// Prefer the original Google voice; otherwise the best English voice the
+	// device has; otherwise leave it to the browser default.
+
 
 	_createClass(TextToSpeech, [{
 		key: 'setVoice',
 		value: function setVoice() {
-			this.voices = window.speechSynthesis.getVoices();
-			this.voice = this.voices.filter(function (voice) {
-				return voice.name === 'Google US English Female';
-			})[0];
+			this.voices = window.speechSynthesis.getVoices() || [];
+			var voices = this.voices;
+			var preferred = null;
+
+			PREFERRED_VOICES.forEach(function (name) {
+				if (!preferred) {
+					preferred = voices.find(function (voice) {
+						return voice.name === name;
+					}) || null;
+				}
+			});
+
+			this.voice = preferred || voices.find(function (voice) {
+				return isUSEnglish(voice) && voice.default;
+			}) || voices.find(function (voice) {
+				return isUSEnglish(voice) && voice.localService;
+			}) || voices.find(isUSEnglish) || voices.find(isEnglish) || null;
+		}
+	}, {
+		key: 'unlock',
+		value: function unlock() {
+			var silent = new window.SpeechSynthesisUtterance('');
+			silent.volume = 0;
+			window.speechSynthesis.speak(silent);
 		}
 	}, {
 		key: 'stop',
 		value: function stop() {
-			window.speechSynthesis.cancel();
+			if (this.supported) {
+				window.speechSynthesis.cancel();
+			}
 		}
 	}, {
 		key: 'say',
-		value: function say(text, callback) {
-			this.message = new SpeechSynthesisUtterance();
+		value: function say(text, onEnd) {
+			if (!this.supported || !text) {
+				if (onEnd) {
+					onEnd();
+				}
+
+				return;
+			}
+			this.message = new window.SpeechSynthesisUtterance();
 			this.message.text = text;
-			this.message.voice = this.voice;
+			if (this.voice) {
+				this.message.voice = this.voice;
+				this.message.lang = this.voice.lang;
+			} else {
+				this.message.lang = 'en-US';
+			}
 			this.message.rate = 0.9;
-			this.message.lang = 'en-US';
-			this.message.addEventListener('end', callback);
+			if (onEnd) {
+				this.message.addEventListener('end', onEnd);
+				this.message.addEventListener('error', onEnd);
+			}
 			window.speechSynthesis.speak(this.message);
 		}
 	}]);
@@ -53452,7 +54368,176 @@ var TextToSpeech = function () {
 
 exports.default = TextToSpeech;
 
-},{}],246:[function(require,module,exports){
+},{}],248:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _Theme = require('./Theme.js');
+
+var _Theme2 = _interopRequireDefault(_Theme);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+// Appearance setting: a System / Light / Dark segmented control, marked up as
+// a radio group (roving tabindex, arrow keys move and select). System comes
+// first and is the default, so anyone who never touches it follows the OS.
+//
+// Mount points in html/index.html carry data-appearance-toggle; the value
+// "compact" gives an icon-only control. AppearanceToggle.mountAll() builds one
+// control per mount point and keeps them all in sync through Theme.
+// Styles: style/components/appearance.styl.
+
+var SVG_OPEN = '<svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">';
+
+var OPTIONS = [{
+	value: 'system',
+	label: 'System',
+	icon: SVG_OPEN + '<circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 0 0 14z" fill="currentColor" stroke="none"/></svg>'
+}, {
+	value: 'light',
+	label: 'Light',
+	icon: SVG_OPEN + '<circle cx="10" cy="10" r="3.3"/><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"/></svg>'
+}, {
+	value: 'dark',
+	label: 'Dark',
+	icon: SVG_OPEN + '<path d="M16.8 12.4A7.2 7.2 0 1 1 7.6 3.2a7.6 7.6 0 0 0 9.2 9.2z"/></svg>'
+}];
+
+var STORAGE_KEY = 'appearance';
+
+var AppearanceToggle = function () {
+	function AppearanceToggle(element) {
+		_classCallCheck(this, AppearanceToggle);
+
+		this.element = element;
+		this.compact = element.getAttribute('data-appearance-toggle') === 'compact';
+		this.options = [];
+
+		this.render();
+		this.update();
+		_Theme2.default.onAppearanceChange(this.update.bind(this));
+	}
+
+	_createClass(AppearanceToggle, [{
+		key: 'render',
+		value: function render() {
+			var _this = this;
+
+			var element = this.element;
+			element.classList.add('appearance-toggle');
+			if (this.compact) {
+				element.classList.add('appearance-toggle--compact');
+			}
+			element.setAttribute('role', 'radiogroup');
+			element.setAttribute('aria-label', 'Appearance');
+			element.innerHTML = '';
+
+			OPTIONS.forEach(function (option) {
+				var button = document.createElement('button');
+				button.type = 'button';
+				button.className = 'appearance-toggle__option';
+				button.setAttribute('role', 'radio');
+				button.setAttribute('data-value', option.value);
+				if (_this.compact) {
+					button.title = option.label;
+				}
+				button.innerHTML = option.icon + '<span class="appearance-toggle__label" data-label="' + option.label + '">' + option.label + '</span>';
+
+				button.addEventListener('click', function () {
+					_Theme2.default.setAppearance(option.value);
+				});
+				button.addEventListener('keydown', _this.keyDown.bind(_this));
+
+				element.appendChild(button);
+				_this.options.push(button);
+			});
+		}
+
+		// Reflects the current choice: aria-checked and the roving tabindex.
+
+	}, {
+		key: 'update',
+		value: function update() {
+			var current = _Theme2.default.getAppearance();
+			this.options.forEach(function (button) {
+				var checked = button.getAttribute('data-value') === current;
+				button.setAttribute('aria-checked', checked ? 'true' : 'false');
+				button.setAttribute('tabindex', checked ? '0' : '-1');
+			});
+		}
+
+		// Arrow keys move to the previous/next option and select it (wrapping), as
+		// in a native radio group; Home/End go to the first/last.
+
+	}, {
+		key: 'keyDown',
+		value: function keyDown(event) {
+			var index = this.options.indexOf(event.currentTarget);
+			var last = this.options.length - 1;
+			var next = -1;
+
+			switch (event.key) {
+				case 'ArrowRight':
+				case 'ArrowDown':
+				case 'Right':
+				case 'Down':
+					next = index === last ? 0 : index + 1;
+					break;
+				case 'ArrowLeft':
+				case 'ArrowUp':
+				case 'Left':
+				case 'Up':
+					next = index === 0 ? last : index - 1;
+					break;
+				case 'Home':
+					next = 0;
+					break;
+				case 'End':
+					next = last;
+					break;
+				default:
+					break;
+			}
+
+			if (next > -1) {
+				event.preventDefault();
+				_Theme2.default.setAppearance(this.options[next].getAttribute('data-value'));
+				this.options[next].focus();
+			}
+		}
+	}], [{
+		key: 'mountAll',
+		value: function mountAll() {
+			var mounts = document.querySelectorAll('[data-appearance-toggle]');
+			var toggles = [];
+			for (var index = 0; index < mounts.length; index += 1) {
+				toggles.push(new AppearanceToggle(mounts[index]));
+			}
+
+			// Follow a choice made in another tab or window.
+			window.addEventListener('storage', function (event) {
+				if (event.key === STORAGE_KEY || event.key === null) {
+					_Theme2.default.setAppearance(event.newValue || 'system');
+				}
+			});
+
+			return toggles;
+		}
+	}]);
+
+	return AppearanceToggle;
+}();
+
+exports.default = AppearanceToggle;
+
+},{"./Theme.js":256}],249:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -53490,6 +54575,13 @@ var BrowserUtils = function () {
         this.isMobile = false;
         this.isChrome = /chrome/i.test(navigator.userAgent);
         this.isCompatible;
+        // Whether a WebGL context is available. Kept separate from
+        // isCompatible: WebGL is a soft requirement (TensorFlow.js has a
+        // registered 'cpu' fallback backend and will use it automatically),
+        // unlike camera access, which the app hard-requires. isCompatible
+        // used to be downgraded by webglSupport()'s result, which hard-blocked
+        // devices that could actually still run (slower) without WebGL.
+        this.hasWebgl = false;
 
         if (this.isChrome) {
             this.isSafari = false;
@@ -53517,7 +54609,7 @@ var BrowserUtils = function () {
             }
         }
         if (this.isCompatible) {
-            this.isCompatible = this.webglSupport();
+            this.hasWebgl = this.webglSupport();
         }
     }
 
@@ -53546,7 +54638,6 @@ var BrowserUtils = function () {
             }
 
             canvas = undefined;
-            console.log(support);
             return support;
         }
     }, {
@@ -53565,14 +54656,18 @@ var BrowserUtils = function () {
 
 exports.default = BrowserUtils;
 
-},{}],247:[function(require,module,exports){
+},{}],250:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-  value: true
+	value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); // Copyright 2017 Google Inc.
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+// Copyright 2017 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53586,249 +54681,190 @@ var _createClass = function () { function defineProperties(target, props) { for 
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var _gsap = require('gsap');
+// Flat, CSS-drawn button. The markup is wrapped once in a .button__label span
+// (callers query `.button__label` for their icons/text) and is never rebuilt,
+// so nothing is lost on resize. Visual press state is the .button--pressed
+// class; everything else (colour, size, radius) lives in style/buttons.styl.
+//
+// Public API kept from the old 3D button: element, label, content, selected,
+// select(), deselect(), down(), up(), mousedown(), mouseup(), click(),
+// setText(), size(), html().
 
-var _gsap2 = _interopRequireDefault(_gsap);
-
-var _config = require('./../../config.js');
-
-var _config2 = _interopRequireDefault(_config);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+var PRESSED_CLASS = 'button--pressed';
+var SELECTED_CLASS = 'button__toggle--selected';
+var DISABLED_CLASSES = ['button--disabled', 'disabled', 'recording-start__button--disabled'];
 
 var Button = function () {
-  function Button(element) {
-    var _this = this;
+	function Button(element) {
+		_classCallCheck(this, Button);
 
-    _classCallCheck(this, Button);
+		this.element = element;
+		this.selected = false;
+		this.isToggle = element.classList.contains('button__toggle');
+		this.isNativeButton = element.tagName === 'BUTTON';
 
-    this.initialElement = element.innerHTML;
+		this.wrapLabel();
 
-    this.element = element;
+		if (!this.isNativeButton && !element.hasAttribute('role')) {
+			element.setAttribute('role', 'button');
+		}
 
-    element.addEventListener('mousedown', this.mousedown.bind(this));
-    element.addEventListener('mouseup', this.mouseup.bind(this));
-    element.addEventListener('touchstart', this.mousedown.bind(this));
-    element.addEventListener('touchend', this.mouseup.bind(this));
-    element.addEventListener('click', this.click.bind(this));
+		element.addEventListener('mousedown', this.mousedown.bind(this));
+		element.addEventListener('mouseup', this.mouseup.bind(this));
+		element.addEventListener('mouseleave', this.mouseup.bind(this));
+		// Touch: keep the old contract (no synthetic click after a touch;
+		// callers that care listen to touchend as well as click).
+		element.addEventListener('touchstart', this.mousedown.bind(this), { passive: false });
+		element.addEventListener('touchend', this.mouseup.bind(this));
+		element.addEventListener('touchcancel', this.mouseup.bind(this));
+		element.addEventListener('click', this.click.bind(this));
+		element.addEventListener('keydown', this.keydown.bind(this));
+		element.addEventListener('keyup', this.keyup.bind(this));
+		element.addEventListener('blur', this.up.bind(this));
 
-    window.addEventListener('resize', function () {
-      clearTimeout(_this.sizeTimeout);
-      _this.sizeTimeout = setTimeout(function () {
-        _this.size();
-      }, 300);
-    });
-    this.size();
-    this.selected = false;
-  }
+		this.syncDisabled();
+		if (window.MutationObserver) {
+			this.observer = new MutationObserver(this.syncDisabled.bind(this));
+			this.observer.observe(element, {
+				attributes: true,
+				attributeFilter: ['class']
+			});
+		}
+	}
 
-  _createClass(Button, [{
-    key: 'click',
-    value: function click(event) {
-      event.preventDefault();
-    }
-  }, {
-    key: 'select',
-    value: function select() {
-      this.element.classList.add('button__toggle--selected');
-      this.selected = true;
-      this.down();
-    }
-  }, {
-    key: 'deselect',
-    value: function deselect() {
-      this.element.classList.remove('button__toggle--selected');
-      this.selected = false;
-      this.up();
-    }
-  }, {
-    key: 'mousedown',
-    value: function mousedown(event) {
-      event.preventDefault();
-      this.down();
-    }
-  }, {
-    key: 'mouseup',
-    value: function mouseup(event) {
-      if (this.selected) {
-        return;
-      }
-      event.preventDefault();
-      this.up();
-    }
-  }, {
-    key: 'down',
-    value: function down() {
-      _gsap2.default.to(this.content, 0.12, {
-        x: -(this.depthX - this.depthXPressed),
-        y: this.depthY - this.depthYPressed
-      });
-    }
-  }, {
-    key: 'up',
-    value: function up() {
-      _gsap2.default.to(this.content, 0.12, {
-        x: 0,
-        y: 0
-      });
-    }
-  }, {
-    key: 'html',
-    value: function html() {
-      return this.el;
-    }
-  }, {
-    key: 'setText',
-    value: function setText(text) {
-      this.label.children[0].innerHTML = text;
-    }
-  }, {
-    key: 'size',
-    value: function size() {
-      var element = this.element;
-      element.innerHTML = this.initialElement;
-      element.style.height = 'auto';
-      element.style.width = 'auto';
-      var textWidth = element.offsetWidth;
-      var textHeight = element.offsetHeight;
-      var depthX = _config2.default.button.states.normal.x;
-      var depthY = _config2.default.button.states.normal.y;
+	_createClass(Button, [{
+		key: 'wrapLabel',
+		value: function wrapLabel() {
+			var label = this.element.querySelector('.button__label');
 
-      var depthXPressed = _config2.default.button.states.pressed.x;
-      var depthYPressed = _config2.default.button.states.pressed.y;
+			if (!label) {
+				label = document.createElement('span');
+				label.classList.add('button__label');
+				while (this.element.firstChild) {
+					label.appendChild(this.element.firstChild);
+				}
+				this.element.appendChild(label);
+			}
 
-      if (element.classList.contains('button__toggle')) {
-        textWidth += 3.5;
-        this.isToggle = true;
-      }
+			this.label = label;
+			this.content = label;
+		}
+	}, {
+		key: 'syncDisabled',
+		value: function syncDisabled() {
+			var _this = this;
 
-      if (element.classList.contains('button--large')) {
-        textHeight += 20;
-        textWidth += 20;
-      }
+			var isDisabled = DISABLED_CLASSES.some(function (className) {
+				return _this.element.classList.contains(className);
+			});
 
-      var frontWidth = textWidth + _config2.default.button.padding;
-      var frontHeight = textHeight < _config2.default.button.frontHeight ? _config2.default.button.frontHeight : textHeight;
+			if (isDisabled) {
+				this.element.setAttribute('aria-disabled', 'true');
+			} else {
+				this.element.removeAttribute('aria-disabled');
+			}
+		}
+	}, {
+		key: 'click',
+		value: function click(event) {
+			event.preventDefault();
+		}
+	}, {
+		key: 'keydown',
+		value: function keydown(event) {
+			if (event.key === ' ' || event.key === 'Spacebar' || event.key === 'Enter') {
+				this.down();
+			}
+			// Space on an <a role="button"> doesn't activate it natively.
+			if (!this.isNativeButton && (event.key === ' ' || event.key === 'Spacebar')) {
+				event.preventDefault();
+			}
+		}
+	}, {
+		key: 'keyup',
+		value: function keyup(event) {
+			var isSpace = event.key === ' ' || event.key === 'Spacebar';
 
-      if (element.classList.contains('button--small')) {
-        textWidth = 36;
-        textHeight = 30;
+			if (isSpace || event.key === 'Enter') {
+				this.up();
+			}
+			if (!this.isNativeButton && isSpace) {
+				event.preventDefault();
+				this.element.click();
+			}
+		}
+	}, {
+		key: 'select',
+		value: function select() {
+			this.element.classList.add(SELECTED_CLASS);
+			this.element.setAttribute('aria-pressed', 'true');
+			this.selected = true;
+			this.down();
+		}
+	}, {
+		key: 'deselect',
+		value: function deselect() {
+			this.element.classList.remove(SELECTED_CLASS);
+			this.element.setAttribute('aria-pressed', 'false');
+			this.selected = false;
+			this.up();
+		}
+	}, {
+		key: 'mousedown',
+		value: function mousedown(event) {
+			if (event && event.type === 'touchstart') {
+				event.preventDefault();
+			}
+			this.down();
+		}
+	}, {
+		key: 'mouseup',
+		value: function mouseup() {
+			if (this.selected) {
+				return;
+			}
+			this.up();
+		}
+	}, {
+		key: 'down',
+		value: function down() {
+			this.element.classList.add(PRESSED_CLASS);
+		}
+	}, {
+		key: 'up',
+		value: function up() {
+			if (this.selected) {
+				return;
+			}
+			this.element.classList.remove(PRESSED_CLASS);
+		}
+	}, {
+		key: 'html',
+		value: function html() {
+			return this.element;
+		}
+	}, {
+		key: 'setText',
+		value: function setText(text) {
+			var target = this.label.children[0] || this.label;
+			target.innerHTML = text;
+		}
 
-        frontWidth = textWidth;
-        frontHeight = textHeight;
-      }
+		// Layout is pure CSS now; kept so existing callers don't break.
 
-      frontWidth = textWidth - _config2.default.button.states.normal.x;
+	}, {
+		key: 'size',
+		value: function size() {
+			return this;
+		}
+	}]);
 
-      var buttonWidth = frontWidth + _config2.default.button.states.normal.x;
-      var buttonHeight = frontHeight + _config2.default.button.states.normal.y;
-
-      var colorClass = 'grey';
-      element.classList.forEach(function (className) {
-        if (className.indexOf('button--color-') > -1) {
-          var index = className.indexOf('button--color-') + 'button--color-'.length;
-          colorClass = className.slice(index);
-        }
-      });
-
-      var buttonContent = element.children[0];
-      buttonContent.classList.remove('button__content');
-      var htmlContent = element.innerHTML;
-      element.innerHTML = '';
-
-      element.style.width = buttonWidth + 'px';
-      element.style.height = buttonHeight + 'px';
-
-      var mask = document.createElement('div');
-      mask.classList.add('button__mask');
-
-      var content = document.createElement('div');
-      content.classList.add('button__inner');
-
-      var label = document.createElement('div');
-      label.classList.add('button__label');
-      label.innerHTML = htmlContent;
-      label.style.width = frontWidth + 'px';
-      label.style.height = frontHeight + 'px';
-      // label.style.lineHeight = frontHeight + 'px';
-      label.style.left = depthX + 'px';
-      content.appendChild(label);
-      label.style.top = '10px';
-
-      this.label = label;
-
-      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('width', buttonWidth);
-      svg.setAttribute('height', buttonHeight);
-      this.svg = svg;
-
-      var frontFace = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      frontFace.classList.add('front-face');
-      frontFace.classList.add('front-face--' + colorClass);
-      frontFace.setAttribute('d', 'M' + depthX + ' 0 ' + (frontWidth + depthX) + ' 0 ' + (frontWidth + depthX) + ' ' + frontHeight + ' ' + depthX + ' ' + frontHeight + 'z');
-      svg.appendChild(frontFace);
-      this.frontFace = frontFace;
-
-      var bottomFace = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      bottomFace.classList.add('bottom-face');
-      bottomFace.classList.add('bottom-face--' + colorClass);
-      bottomFace.setAttribute('d', 'M' + depthX + ' ' + frontHeight + ' ' + (frontWidth + depthX) + ' ' + frontHeight + ' ' + frontWidth + ' ' + (frontHeight + depthY) + ' 0 ' + (frontHeight + depthY) + 'z');
-      svg.appendChild(bottomFace);
-      this.bottomFace = bottomFace;
-
-      var leftFace = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      leftFace.classList.add('left-face');
-      leftFace.classList.add('left-face--' + colorClass);
-      leftFace.setAttribute('d', 'M0 ' + depthY + ' ' + depthX + ' 0 ' + depthX + ' ' + frontHeight + ' 0 ' + (frontHeight + depthY) + 'z');
-      svg.appendChild(leftFace);
-      this.leftFace = leftFace;
-
-      content.appendChild(svg);
-      mask.appendChild(content);
-      element.appendChild(mask);
-
-      // Editable for reszing
-      this.label = label;
-      this.svg = svg;
-      this.frontFace = frontFace;
-      this.bottomFace = bottomFace;
-      this.leftFace = leftFace;
-
-      this.parentWidth = element.parentNode.offsetWidth;
-      this.buttonWidth = buttonWidth;
-      this.buttonHeight = buttonHeight;
-      this.textWidth = textWidth;
-      this.textHeight = textHeight;
-      this.frontWidth = frontWidth;
-      this.frontHeight = frontHeight;
-      this.depthX = depthX;
-      this.depthY = depthY;
-      this.depthXPressed = depthXPressed;
-      this.depthYPressed = depthYPressed;
-
-      this.buttonWidth = buttonWidth;
-      this.buttonHeight = buttonHeight;
-
-      this.content = content;
-      this.depthX = depthX;
-      this.depthY = depthY;
-      this.depthXPressed = depthXPressed;
-      this.depthYPressed = depthYPressed;
-
-      this.element = element;
-
-      this.selected = false;
-    }
-  }]);
-
-  return Button;
+	return Button;
 }();
 
 exports.default = Button;
 
-},{"./../../config.js":239,"gsap":210}],248:[function(require,module,exports){
+},{}],251:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -53875,6 +54911,7 @@ var CamInput = function () {
     this.element.appendChild(this.webcamClassifier.video);
     this.webcamClassifier.video.setAttribute('muted', 'true');
     this.webcamClassifier.video.classList.add('input__camera-video');
+    this.webcamClassifier.video.setAttribute('aria-label', 'Camera preview');
     this.webcamClassifier.video.addEventListener('loadeddata', this.videoLoaded.bind(this));
     window.addEventListener('resize', this.size.bind(this));
     _config2.default.webcamClassifier = this.webcamClassifier;
@@ -53951,7 +54988,7 @@ var CamInput = function () {
 
 exports.default = CamInput;
 
-},{"./../../ai/EnhancedWebcamClassifier.js":237,"./../../config.js":239}],249:[function(require,module,exports){
+},{"./../../ai/EnhancedWebcamClassifier.js":238,"./../../config.js":240}],252:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -53982,6 +55019,9 @@ var HighlightArrow = function () {
 
 		this.element = new Image();
 		this.element.classList.add('wizard__arrow');
+		// Decorative pointer: the tutorial captions say what to look at.
+		this.element.alt = '';
+		this.element.setAttribute('aria-hidden', 'true');
 		this.element.width = 200;
 		this.element.src = 'assets/arrows/arrow-' + type + '.svg';
 	}
@@ -54003,366 +55043,11 @@ var HighlightArrow = function () {
 
 exports.default = HighlightArrow;
 
-},{}],250:[function(require,module,exports){
+},{}],253:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-// PWA utilities for install prompts and app-like functionality
-
-var PWAUtils = function () {
-  function PWAUtils() {
-    _classCallCheck(this, PWAUtils);
-
-    this.deferredPrompt = null;
-    this.installButton = null;
-    this.isInstalled = false;
-    this.offlineIndicator = null;
-    this.isDevelopment = this.checkDevelopmentMode();
-
-    this.init();
-    this.setupOfflineDetection();
-  }
-
-  _createClass(PWAUtils, [{
-    key: 'checkDevelopmentMode',
-    value: function checkDevelopmentMode() {
-      return location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('192.168') || location.hostname.includes('10.');
-    }
-  }, {
-    key: 'init',
-    value: function init() {
-      var _this = this;
-
-      // In development mode with SSL issues, we might not get PWA events
-      if (this.isDevelopment) {
-        console.log('🔧 PWA Utils: Development mode detected');
-      }
-
-      // Listen for the beforeinstallprompt event
-      window.addEventListener('beforeinstallprompt', function (event) {
-        console.log('PWA install prompt available');
-        // Prevent the mini-infobar from appearing
-        event.preventDefault();
-        // Save the event for later use
-        _this.deferredPrompt = event;
-        // Show install button/banner
-        _this.showInstallOption();
-      });
-
-      // Listen for app installed event
-      window.addEventListener('appinstalled', function () {
-        console.log('PWA was installed');
-        _this.isInstalled = true;
-        _this.hideInstallOption();
-        // Clear the deferredPrompt
-        _this.deferredPrompt = null;
-      });
-
-      // Check if already installed
-      this.checkIfInstalled();
-
-      // Add install button to the page (but maybe hide it in development)
-      this.createInstallButton();
-
-      // In development, show a helpful message about PWA features
-      if (this.isDevelopment) {
-        setTimeout(function () {
-          console.log('💡 PWA Features in Development:');
-          console.log('   - Install prompts may not work with self-signed certificates');
-          console.log('   - Service worker may fail due to SSL issues');
-          console.log('   - This is normal for development - features will work in production');
-        }, 2000);
-      }
-    }
-  }, {
-    key: 'checkIfInstalled',
-    value: function checkIfInstalled() {
-      // Check if app is installed (standalone mode)
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-        this.isInstalled = true;
-        console.log('App is running in standalone mode');
-      }
-
-      // Check for iOS Safari installed
-      if (window.navigator.standalone === true) {
-        this.isInstalled = true;
-        console.log('App is installed on iOS');
-      }
-    }
-  }, {
-    key: 'createInstallButton',
-    value: function createInstallButton() {
-      var _this2 = this;
-
-      // Only create install button if not already installed
-      if (this.isInstalled) {
-        return;
-      }
-
-      // Create install button
-      this.installButton = document.createElement('button');
-      this.installButton.className = 'pwa-install-button';
-      this.installButton.innerHTML = '\n      <span class="install-icon">\uD83D\uDCF1</span>\n      <span class="install-text">Install App</span>\n    ';
-      this.installButton.style.cssText = '\n      position: fixed;\n      top: 10px;\n      right: 10px;\n      background: #1b73e8;\n      color: white;\n      border: none;\n      border-radius: 25px;\n      padding: 12px 20px;\n      font-family: \'Poppins\', sans-serif;\n      font-weight: 600;\n      font-size: 14px;\n      cursor: pointer;\n      z-index: 999999;\n      box-shadow: 0 4px 12px rgba(27, 115, 232, 0.3);\n      transition: all 0.3s ease;\n      transform: translateX(200px);\n      opacity: 0;\n      display: block;\n      max-width: 120px;\n      text-align: center;\n    ';
-
-      // Add responsive positioning for mobile
-      var updateButtonPosition = function updateButtonPosition() {
-        var isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-          // On mobile, position at bottom to avoid camera area
-          _this2.installButton.style.top = 'auto';
-          _this2.installButton.style.bottom = '80px';
-          _this2.installButton.style.right = '10px';
-          _this2.installButton.style.left = 'auto';
-          _this2.installButton.style.transform = _this2.installButton.style.opacity === '1' ? 'translateY(0)' : 'translateY(100px)';
-          _this2.installButton.style.maxWidth = '100px';
-          _this2.installButton.style.padding = '10px 16px';
-          _this2.installButton.style.fontSize = '12px';
-        } else {
-          // On desktop, position at top-right
-          _this2.installButton.style.top = '10px';
-          _this2.installButton.style.bottom = 'auto';
-          _this2.installButton.style.right = '10px';
-          _this2.installButton.style.left = 'auto';
-          _this2.installButton.style.transform = _this2.installButton.style.opacity === '1' ? 'translateX(0)' : 'translateX(200px)';
-          _this2.installButton.style.maxWidth = '120px';
-          _this2.installButton.style.padding = '12px 20px';
-          _this2.installButton.style.fontSize = '14px';
-        }
-      };
-
-      // Set initial position
-      updateButtonPosition();
-
-      // Update position on window resize
-      window.addEventListener('resize', updateButtonPosition);
-
-      // Add hover effects
-      this.installButton.addEventListener('mouseenter', function () {
-        var isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-          _this2.installButton.style.transform = 'translateY(0) scale(1.05)';
-        } else {
-          _this2.installButton.style.transform = 'translateX(0) scale(1.05)';
-        }
-        _this2.installButton.style.boxShadow = '0 6px 16px rgba(27, 115, 232, 0.4)';
-      });
-
-      this.installButton.addEventListener('mouseleave', function () {
-        var isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-          _this2.installButton.style.transform = 'translateY(0) scale(1)';
-        } else {
-          _this2.installButton.style.transform = 'translateX(0) scale(1)';
-        }
-        _this2.installButton.style.boxShadow = '0 4px 12px rgba(27, 115, 232, 0.3)';
-      });
-
-      // Add click handler
-      this.installButton.addEventListener('click', function () {
-        _this2.promptInstall();
-      });
-
-      document.body.appendChild(this.installButton);
-    }
-  }, {
-    key: 'showInstallOption',
-    value: function showInstallOption() {
-      var _this3 = this;
-
-      if (this.installButton && !this.isInstalled) {
-        this.installButton.style.display = 'block';
-        // Animate in based on screen size
-        setTimeout(function () {
-          var isMobile = window.innerWidth <= 768;
-          if (isMobile) {
-            _this3.installButton.style.transform = 'translateY(0)';
-          } else {
-            _this3.installButton.style.transform = 'translateX(0)';
-          }
-          _this3.installButton.style.opacity = '1';
-        }, 100);
-      }
-    }
-  }, {
-    key: 'hideInstallOption',
-    value: function hideInstallOption() {
-      var _this4 = this;
-
-      if (this.installButton) {
-        var isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-          this.installButton.style.transform = 'translateY(100px)';
-        } else {
-          this.installButton.style.transform = 'translateX(200px)';
-        }
-        this.installButton.style.opacity = '0';
-        setTimeout(function () {
-          _this4.installButton.style.display = 'none';
-        }, 300);
-      }
-    }
-  }, {
-    key: 'promptInstall',
-    value: async function promptInstall() {
-      if (!this.deferredPrompt) {
-        console.log('No install prompt available');
-
-        if (this.isDevelopment) {
-          // Show a helpful message in development
-          console.warn('🔧 Development Mode: Install prompts don\'t work with self-signed SSL certificates.');
-          console.info('To test installation:');
-          console.info('1. Deploy to production with proper SSL');
-          console.info('2. Use ngrok for local testing');
-          console.info('3. Or test on Android Chrome with "chrome://flags/#unsafely-treat-insecure-origin-as-secure"');
-        }
-
-        return;
-      }
-
-      // Show the install prompt
-      this.deferredPrompt.prompt();
-
-      // Wait for the user's response
-
-      var _ref = await this.deferredPrompt.userChoice,
-          outcome = _ref.outcome;
-
-      console.log('User response to install prompt: ' + outcome);
-
-      if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-      } else {
-        console.log('User dismissed the install prompt');
-      }
-
-      // Clear the deferredPrompt
-      this.deferredPrompt = null;
-      this.hideInstallOption();
-    }
-
-    // Add iOS Safari install instructions
-
-  }, {
-    key: 'showIOSInstructions',
-    value: function showIOSInstructions() {
-      if (this.isIOS() && !this.isInstalled) {
-        // Create iOS install banner
-        var iosBanner = document.createElement('div');
-        iosBanner.className = 'ios-install-banner';
-        iosBanner.innerHTML = '\n        <div class="ios-banner-content">\n          <span class="ios-banner-icon">\uD83D\uDCF1</span>\n          <div class="ios-banner-text">\n            <strong>Install Teachable Machine</strong>\n            <p>Tap <strong>Share</strong> and then <strong>Add to Home Screen</strong></p>\n          </div>\n          <button class="ios-banner-close">\xD7</button>\n        </div>\n      ';
-        iosBanner.style.cssText = '\n        position: fixed;\n        bottom: 0;\n        left: 0;\n        right: 0;\n        background: #1b73e8;\n        color: white;\n        padding: 16px;\n        z-index: 10000;\n        transform: translateY(100%);\n        transition: transform 0.3s ease;\n      ';
-
-        // Add banner styles
-        var style = document.createElement('style');
-        style.textContent = '\n        .ios-banner-content {\n          display: flex;\n          align-items: center;\n          max-width: 600px;\n          margin: 0 auto;\n        }\n        .ios-banner-icon {\n          font-size: 2rem;\n          margin-right: 12px;\n        }\n        .ios-banner-text {\n          flex: 1;\n          font-family: \'Poppins\', sans-serif;\n        }\n        .ios-banner-text strong {\n          font-weight: 600;\n        }\n        .ios-banner-text p {\n          margin: 4px 0 0 0;\n          font-size: 0.9rem;\n          opacity: 0.9;\n        }\n        .ios-banner-close {\n          background: none;\n          border: none;\n          color: white;\n          font-size: 1.5rem;\n          cursor: pointer;\n          padding: 8px;\n          margin-left: 12px;\n        }\n      ';
-        document.head.appendChild(style);
-
-        // Add close functionality
-        var closeBtn = iosBanner.querySelector('.ios-banner-close');
-        closeBtn.addEventListener('click', function () {
-          iosBanner.style.transform = 'translateY(100%)';
-          setTimeout(function () {
-            return iosBanner.remove();
-          }, 300);
-          localStorage.setItem('ios-install-dismissed', 'true');
-        });
-
-        document.body.appendChild(iosBanner);
-
-        // Animate in
-        setTimeout(function () {
-          iosBanner.style.transform = 'translateY(0)';
-        }, 500);
-      }
-    }
-  }, {
-    key: 'isIOS',
-    value: function isIOS() {
-      return (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
-      );
-    }
-
-    // Show install instructions after a delay
-
-  }, {
-    key: 'showInstallPromptAfterDelay',
-    value: function showInstallPromptAfterDelay() {
-      var _this5 = this;
-
-      if (this.isInstalled) {
-        return;
-      }
-
-      setTimeout(function () {
-        if (_this5.isIOS() && localStorage.getItem('ios-install-dismissed') !== 'true') {
-          _this5.showIOSInstructions();
-        }
-      }, 10000);
-    }
-
-    // Setup offline/online detection
-
-  }, {
-    key: 'setupOfflineDetection',
-    value: function setupOfflineDetection() {
-      var _this6 = this;
-
-      // Create offline indicator
-      this.offlineIndicator = document.createElement('div');
-      this.offlineIndicator.className = 'offline-indicator';
-      this.offlineIndicator.textContent = 'Working Offline';
-      document.body.appendChild(this.offlineIndicator);
-
-      // Listen for online/offline events
-      window.addEventListener('online', function () {
-        console.log('App is online');
-        _this6.hideOfflineIndicator();
-      });
-
-      window.addEventListener('offline', function () {
-        console.log('App is offline');
-        _this6.showOfflineIndicator();
-      });
-
-      // Check initial state
-      if (!navigator.onLine) {
-        this.showOfflineIndicator();
-      }
-    }
-  }, {
-    key: 'showOfflineIndicator',
-    value: function showOfflineIndicator() {
-      if (this.offlineIndicator) {
-        this.offlineIndicator.classList.add('show');
-      }
-    }
-  }, {
-    key: 'hideOfflineIndicator',
-    value: function hideOfflineIndicator() {
-      if (this.offlineIndicator) {
-        this.offlineIndicator.classList.remove('show');
-      }
-    }
-  }]);
-
-  return PWAUtils;
-}();
-
-exports.default = PWAUtils;
-
-},{}],251:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
+	value: true
 });
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -54371,77 +55056,689 @@ var _config = require('./../../config.js');
 
 var _config2 = _interopRequireDefault(_config);
 
-var _Button = require('./../components/Button.js');
+var _outputUI = require('./../../outputs/outputUI.js');
 
-var _Button2 = _interopRequireDefault(_Button);
+var _outputUI2 = _interopRequireDefault(_outputUI);
 
-var _gsap = require('gsap');
+var _Theme = require('./Theme.js');
 
-var _gsap2 = _interopRequireDefault(_gsap);
+var _Theme2 = _interopRequireDefault(_Theme);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-// Copyright 2017 Google Inc.
+// Now-playing bar for compact layouts (one column, < 700px wide).
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// There the Output panel sits below the camera and the class cards, so while
+// you train or test the model its response is off screen. This floating bar
+// mirrors it, like a music mini player: the detected class and that class's
+// output (emoji, phrase or sound). Tapping it scrolls to the Output panel.
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// It is data only; the #output-status live region already announces changes
+// to screen readers, so the bar is a plain button with no live region.
+// OutputSection tells it about top-class changes, tab switches and edits.
+// Styling lives in style/components/now-playing.styl.
 
-var RecordOpener = function () {
-    function RecordOpener(element) {
-        _classCallCheck(this, RecordOpener);
+// Matches the compact layout in style/components/machine.styl ($machine-medium).
+var COMPACT_QUERY = '(max-width: 699.98px)';
 
-        this.element = element;
-        this.openButton = new _Button2.default(document.querySelector('#open-recorder'));
+// The panel counts as on screen once this share of it is visible (or of the
+// viewport, when the panel is taller than the screen).
+var VISIBLE_SHARE = 0.3;
+var THRESHOLD_STEPS = 20;
 
-        this.openButton.element.addEventListener('click', this.open.bind(this));
-        // GLOBALS.outputSection.onChangeHandler = () => {
-        //     this.enable();
-        // };
-        if (!_config2.default.browserUtils.isChrome || _config2.default.browserUtils.isMobile) {
-            document.getElementById('record-open-section').style.display = 'none';
-        }
-    }
+var SVG_OPEN = '<svg class="now-playing__icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" ';
 
-    _createClass(RecordOpener, [{
-        key: 'disable',
-        value: function disable() {
-            this.openButton.element.classList.add('disabled');
-        }
-    }, {
-        key: 'enable',
-        value: function enable() {
-            this.openButton.element.classList.remove('disabled');
-        }
-    }, {
-        key: 'open',
-        value: function open() {
-            _gsap2.default.to(window, 0.3, { scrollTo: 1 });
+var ICONS = {
+	emoji: SVG_OPEN + 'viewBox="0 0 26 26"><circle cx="13" cy="13" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="11" r="1.4"/><circle cx="16" cy="11" r="1.4"/><path d="M9.5 15.5c1.8 2 5.2 2 7 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+	speech: SVG_OPEN + 'viewBox="0 0 26 26"><path d="M13 4.5c-5 0-9 3.3-9 7.4 0 2.3 1.3 4.4 3.3 5.8L6.5 21.5l4.6-2.3c.6.1 1.3.2 1.9.2 5 0 9-3.3 9-7.4S18 4.5 13 4.5z"/></svg>'
+};
 
-            if (_config2.default.outputSection.currentOutput && _config2.default.outputSection.currentOutput.element.querySelector('canvas')) {
-                setTimeout(function () {
-                    _config2.default.recordSection.setCanvas(_config2.default.outputSection.currentOutput.element.querySelector('canvas'));
-                }, 500);
-            }
-        }
-    }]);
+var KIND_NAMES = {
+	emoji: 'Emoji',
+	sound: 'Sound',
+	speech: 'Phrase'
+};
 
-    return RecordOpener;
+// IntersectionObserver thresholds 0, 0.05 ... 1
+function thresholds() {
+	var list = [];
+	for (var step = 0; step <= THRESHOLD_STEPS; step += 1) {
+		list.push(step / THRESHOLD_STEPS);
+	}
+
+	return list;
+}
+
+function onMediaChange(list, callback) {
+	if (list.addEventListener) {
+		list.addEventListener('change', callback);
+	} else {
+		list.addListener(callback);
+	}
+}
+
+// Visible text for the output value, and the phrase used in the button name.
+function describeValue(data) {
+	var kind = KIND_NAMES[data.kind].toLowerCase();
+
+	if (!data.value) {
+		return {
+			text: 'No ' + kind,
+			spoken: 'no ' + kind
+		};
+	}
+	if (data.kind === 'emoji') {
+		return {
+			text: KIND_NAMES.emoji,
+			spoken: data.label
+		};
+	}
+	if (data.kind === 'speech') {
+		return {
+			text: '\u201C' + data.label + '\u201D',
+			spoken: kind + ': ' + data.label
+		};
+	}
+
+	return {
+		text: data.label,
+		spoken: kind + ': ' + data.label
+	};
+}
+
+var NowPlaying = function () {
+	function NowPlaying(element, target) {
+		var _this = this;
+
+		_classCallCheck(this, NowPlaying);
+
+		this.element = element;
+		this.target = target;
+		this.index = -1;
+		this.renderedKey = null;
+		this.visible = false;
+		this.targetInView = true;
+
+		if (!element || !target || !window.IntersectionObserver || !window.matchMedia) {
+			return;
+		}
+
+		this.art = element.querySelector('.now-playing__art');
+		this.name = element.querySelector('.now-playing__name');
+		this.detail = element.querySelector('.now-playing__detail');
+
+		this.sync = this.sync.bind(this);
+		this.compact = window.matchMedia(COMPACT_QUERY);
+		onMediaChange(this.compact, this.sync);
+
+		// Launch screen (body.no-scroll), recorder (html.recording-open) and the
+		// pinned tutorial bar (.wizard--fixed) all take priority over this bar.
+		// Skipping the tutorial hides the bar's wrapper with an inline style.
+		this.wizard = document.querySelector('#wizard');
+		this.mutationObserver = new MutationObserver(this.sync);
+		var watched = [document.documentElement, document.body, this.wizard, document.querySelector('.wizard__wrapper')];
+		watched.forEach(function (node) {
+			if (node) {
+				_this.mutationObserver.observe(node, {
+					attributes: true,
+					attributeFilter: ['class', 'style']
+				});
+			}
+		});
+
+		this.intersectionObserver = new IntersectionObserver(this.targetChanged.bind(this), { threshold: thresholds() });
+		this.intersectionObserver.observe(target);
+
+		if (window.ResizeObserver) {
+			this.resizeObserver = new ResizeObserver(this.measure.bind(this));
+			this.resizeObserver.observe(element);
+		}
+
+		window.addEventListener('class-trained', this.sync);
+		element.addEventListener('click', this.showOutput.bind(this));
+
+		// Present but invisible from here on; .now-playing--visible shows it.
+		element.hidden = false;
+		this.refresh();
+	}
+
+	// The top class, from OutputSection.trigger() every prediction frame.
+	// Only a change does any work.
+
+
+	_createClass(NowPlaying, [{
+		key: 'update',
+		value: function update(index) {
+			if (index === this.index) {
+				return;
+			}
+			this.index = index;
+			this.refresh();
+		}
+
+		// A class's examples were cleared: forget it until it's detected again.
+
+	}, {
+		key: 'classCleared',
+		value: function classCleared(id) {
+			if (this.index > -1 && _config2.default.classNames[this.index] === id) {
+				this.index = -1;
+			}
+			this.refresh();
+		}
+
+		// Re-read the value from the current output (tab switch or an edit).
+
+	}, {
+		key: 'refresh',
+		value: function refresh() {
+			if (!this.compact) {
+				return;
+			}
+			var state = this.state();
+			if (state.key !== this.renderedKey) {
+				this.renderedKey = state.key;
+				this.render(state);
+			}
+			this.sync();
+		}
+	}, {
+		key: 'state',
+		value: function state() {
+			var section = _config2.default.outputSection;
+			var output = section ? section.currentOutput : null;
+			var id = this.index > -1 ? _config2.default.classNames[this.index] : null;
+			var data = null;
+
+			if (id && output && typeof output.nowPlaying === 'function') {
+				data = output.nowPlaying(this.index);
+			}
+			var outputId = output ? output.id : '';
+			var kind = data ? data.kind : '';
+			var value = data ? data.value : '';
+
+			return {
+				id: data ? id : null,
+				outputId: outputId,
+				data: data,
+				key: [id, outputId, kind, value].join('|')
+			};
+		}
+	}, {
+		key: 'render',
+		value: function render(state) {
+			var element = this.element;
+			var data = state.data;
+
+			if (!data) {
+				element.setAttribute('data-class', 'none');
+				element.setAttribute('data-kind', 'none');
+				this.name.textContent = 'No class detected';
+				this.detail.textContent = '';
+				this.art.innerHTML = this.idleIcon(state.outputId);
+				element.setAttribute('aria-label', 'Now playing: No class detected. Show output.');
+
+				return;
+			}
+
+			var name = _outputUI2.default.classLabel(state.id);
+			var value = describeValue(data);
+			element.setAttribute('data-class', state.id);
+			element.setAttribute('data-kind', data.value ? data.kind : 'none');
+			this.name.textContent = name;
+			this.detail.textContent = value.text;
+
+			if (data.kind === 'emoji' && data.value) {
+				this.art.textContent = data.value;
+			} else if (data.kind === 'sound') {
+				this.art.innerHTML = _outputUI2.default.icon('speaker');
+			} else {
+				this.art.innerHTML = ICONS[data.kind] || '';
+			}
+			element.setAttribute('aria-label', 'Now playing: ' + name + ', ' + value.spoken + '. Show output.');
+		}
+	}, {
+		key: 'idleIcon',
+		value: function idleIcon(outputId) {
+			if (outputId === 'SoundOutput') {
+				return _outputUI2.default.icon('speaker');
+			}
+			if (outputId === 'SpeechOutput') {
+				return ICONS.speech;
+			}
+
+			return ICONS.emoji;
+		}
+	}, {
+		key: 'targetChanged',
+		value: function targetChanged(entries) {
+			var entry = entries[entries.length - 1];
+			var rootHeight = entry.rootBounds ? entry.rootBounds.height : window.innerHeight;
+			var needed = VISIBLE_SHARE * Math.min(entry.boundingClientRect.height, rootHeight);
+
+			this.targetInView = entry.isIntersecting && entry.intersectionRect.height >= needed;
+			this.sync();
+		}
+
+		// Nothing to show until a class has examples (or a prediction arrived,
+		// e.g. from restored training data).
+
+	}, {
+		key: 'hasContent',
+		value: function hasContent() {
+			if (this.index > -1) {
+				return true;
+			}
+			var section = _config2.default.learningSection;
+			var classes = section && section.learningClasses ? section.learningClasses : [];
+
+			return classes.some(function (learningClass) {
+				return learningClass && learningClass.exampleCounter > 0;
+			});
+		}
+	}, {
+		key: 'isSuppressed',
+		value: function isSuppressed() {
+			var wizard = this.wizard;
+			var tutorialPinned = Boolean(wizard) && wizard.classList.contains('wizard--fixed') && wizard.getClientRects().length > 0;
+
+			return tutorialPinned || document.body.classList.contains('no-scroll') || document.documentElement.classList.contains('recording-open');
+		}
+	}, {
+		key: 'sync',
+		value: function sync() {
+			if (!this.compact) {
+				return;
+			}
+			var show = this.compact.matches && !this.targetInView && !this.isSuppressed() && this.hasContent();
+
+			if (show === this.visible) {
+				return;
+			}
+			this.visible = show;
+			if (show) {
+				this.measure();
+			}
+			this.element.classList.toggle('now-playing--visible', show);
+			document.body.classList.toggle('has-now-playing', show);
+		}
+
+		// Floating chrome (the PWA install pill and iOS banner) and the page's
+		// bottom padding clear the bar by this much. It changes with text size.
+
+	}, {
+		key: 'measure',
+		value: function measure() {
+			var height = this.element.offsetHeight;
+			if (height > 0) {
+				document.body.style.setProperty('--now-playing-height', height + 'px');
+			}
+		}
+	}, {
+		key: 'showOutput',
+		value: function showOutput() {
+			var tab = this.target.querySelector('.output__segment--selected');
+			if (tab) {
+				tab.focus({ preventScroll: true });
+			}
+			this.target.scrollIntoView({
+				behavior: _Theme2.default.prefersReducedMotion() ? 'auto' : 'smooth',
+				block: 'start'
+			});
+		}
+	}]);
+
+	return NowPlaying;
 }();
 
-exports.default = RecordOpener;
+exports.default = NowPlaying;
 
-},{"./../../config.js":239,"./../components/Button.js":247,"gsap":210}],252:[function(require,module,exports){
+},{"./../../config.js":240,"./../../outputs/outputUI.js":245,"./Theme.js":256}],254:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+// PWA utilities: install button, iOS "Add to Home Screen" hint and the
+// offline indicator. All styling lives in style/components/pwa.styl.
+
+var IOS_DISMISSED_KEY = 'ios-install-dismissed';
+
+// Wait a moment after the first trained class before suggesting an install,
+// and keep waiting while the tutorial bar or the recorder is on screen.
+var ENGAGEMENT_DELAY = 4000;
+var BUSY_RECHECK_DELAY = 5000;
+var EXIT_DURATION = 300;
+
+// The MobileNet weights are precached by the service worker and training runs
+// on the device, so training keeps working without a connection.
+var OFFLINE_MESSAGE = 'Offline — training still works on this device';
+
+var CLOSE_ICON = '<svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 14 14">' + '<path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>';
+
+var INSTALL_ICON = '<svg class="pwa-install-button__icon" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 18 18">' + '<path d="M9 2.5v8.5M5.5 7.5L9 11l3.5-3.5M3 14.5h12" stroke="currentColor" stroke-width="1.8" ' + 'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+
+function readFlag(key) {
+	try {
+		return localStorage.getItem(key) === 'true';
+	} catch (error) {
+		return false;
+	}
+}
+
+function writeFlag(key) {
+	try {
+		localStorage.setItem(key, 'true');
+	} catch (error) {
+		// Storage can be unavailable (e.g. blocked site data); nothing to do.
+	}
+}
+
+// Show a floating element and let its CSS transition run.
+function reveal(element) {
+	clearTimeout(element.pwaExitTimer);
+	element.hidden = false;
+	element.getBoundingClientRect();
+	element.classList.add('is-visible');
+}
+
+// Fade a floating element out, then take it out of the page.
+function conceal(element, onDone) {
+	element.classList.remove('is-visible');
+	clearTimeout(element.pwaExitTimer);
+	element.pwaExitTimer = setTimeout(function () {
+		element.hidden = true;
+		if (onDone) {
+			onDone();
+		}
+	}, EXIT_DURATION);
+}
+
+var PWAUtils = function () {
+	function PWAUtils() {
+		_classCallCheck(this, PWAUtils);
+
+		this.deferredPrompt = null;
+		this.installButton = null;
+		this.iosBanner = null;
+		this.isInstalled = false;
+		this.offlineIndicator = null;
+		this.isDevelopment = this.checkDevelopmentMode();
+
+		this.init();
+		this.setupOfflineDetection();
+	}
+
+	_createClass(PWAUtils, [{
+		key: 'checkDevelopmentMode',
+		value: function checkDevelopmentMode() {
+			return location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('192.168') || location.hostname.includes('10.');
+		}
+	}, {
+		key: 'init',
+		value: function init() {
+			var _this = this;
+
+			// In development mode with SSL issues, we might not get PWA events
+			if (this.isDevelopment) {
+				console.log('PWA Utils: development mode detected');
+			}
+
+			// Listen for the beforeinstallprompt event
+			window.addEventListener('beforeinstallprompt', function (event) {
+				// Prevent the mini-infobar from appearing
+				event.preventDefault();
+				// Save the event for later use
+				_this.deferredPrompt = event;
+				_this.showInstallOption();
+			});
+
+			// Listen for app installed event
+			window.addEventListener('appinstalled', function () {
+				_this.isInstalled = true;
+				_this.hideInstallOption();
+				_this.deferredPrompt = null;
+			});
+
+			this.checkIfInstalled();
+			this.createInstallButton();
+
+			// In development, show a helpful message about PWA features
+			if (this.isDevelopment) {
+				setTimeout(function () {
+					console.log('PWA features in development:');
+					console.log('   - Install prompts may not work with self-signed certificates');
+					console.log('   - Service worker may fail due to SSL issues');
+					console.log('   - This is normal for development - features will work in production');
+				}, 2000);
+			}
+		}
+	}, {
+		key: 'checkIfInstalled',
+		value: function checkIfInstalled() {
+			// Check if app is installed (standalone mode)
+			if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+				this.isInstalled = true;
+			}
+
+			// Check for iOS Safari installed
+			if (window.navigator.standalone === true) {
+				this.isInstalled = true;
+			}
+		}
+	}, {
+		key: 'createInstallButton',
+		value: function createInstallButton() {
+			var _this2 = this;
+
+			// Only create install button if not already installed
+			if (this.isInstalled) {
+				return;
+			}
+
+			var button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'pwa-install-button';
+			button.hidden = true;
+			button.setAttribute('aria-label', 'Install Teachable Machine');
+			button.innerHTML = INSTALL_ICON + '<span class="pwa-install-button__label">Install</span>';
+			button.addEventListener('click', function () {
+				_this2.promptInstall();
+			});
+
+			this.installButton = button;
+			document.body.appendChild(button);
+		}
+	}, {
+		key: 'showInstallOption',
+		value: function showInstallOption() {
+			if (this.installButton && !this.isInstalled) {
+				reveal(this.installButton);
+			}
+		}
+	}, {
+		key: 'hideInstallOption',
+		value: function hideInstallOption() {
+			if (this.installButton && !this.installButton.hidden) {
+				conceal(this.installButton);
+			}
+		}
+	}, {
+		key: 'promptInstall',
+		value: async function promptInstall() {
+			if (!this.deferredPrompt) {
+				if (this.isDevelopment) {
+					// Show a helpful message in development
+					console.warn('Development mode: install prompts don\'t work with self-signed SSL certificates.');
+					console.info('To test installation:');
+					console.info('1. Deploy to production with proper SSL');
+					console.info('2. Use ngrok for local testing');
+					console.info('3. Or test on Android Chrome with "chrome://flags/#unsafely-treat-insecure-origin-as-secure"');
+				}
+
+				return;
+			}
+
+			// Show the install prompt and wait for the user's response
+			this.deferredPrompt.prompt();
+			await this.deferredPrompt.userChoice;
+
+			// The event can only be used once
+			this.deferredPrompt = null;
+			this.hideInstallOption();
+		}
+	}, {
+		key: 'isIOS',
+		value: function isIOS() {
+			var iPhoneOrIPod = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+			// iPadOS reports itself as a Mac; tell them apart by touch support.
+			var iPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+
+			return iPhoneOrIPod || iPadOS;
+		}
+
+		// True while something else owns the bottom of the screen or the user's
+		// attention: the launch screen, the tutorial bar or the recorder sheet.
+
+	}, {
+		key: 'isBusy',
+		value: function isBusy() {
+			var launchScreenUp = document.body.classList.contains('no-scroll');
+			var tutorial = document.querySelector('.wizard__wrapper');
+			var tutorialVisible = Boolean(tutorial) && getComputedStyle(tutorial).display !== 'none' && tutorial.offsetHeight > 0;
+			var recorder = document.querySelector('#recording');
+			var recorderOpen = Boolean(recorder) && !recorder.hidden;
+
+			return launchScreenUp || tutorialVisible || recorderOpen;
+		}
+
+		// iOS has no install prompt, so explain how to add the app instead. Shown
+		// at most once, and never on launch (see showInstallPromptAfterDelay).
+
+	}, {
+		key: 'showIOSInstructions',
+		value: function showIOSInstructions() {
+			if (!this.isIOS() || this.isInstalled || this.iosBanner || readFlag(IOS_DISMISSED_KEY)) {
+				return;
+			}
+			writeFlag(IOS_DISMISSED_KEY);
+
+			var banner = document.createElement('section');
+			banner.className = 'ios-install-banner';
+			banner.hidden = true;
+			banner.setAttribute('aria-labelledby', 'ios-install-title');
+			banner.innerHTML = '<img class="ios-install-banner__icon" src="assets/static/favicon/favicon-152.png" alt="" width="40" height="40">' + '<div class="ios-install-banner__text">' + '<p class="ios-install-banner__title" id="ios-install-title">Install Teachable Machine</p>' + '<p class="ios-install-banner__body">Tap Share, then Add to Home Screen.</p>' + '</div>' + '<button type="button" class="ios-install-banner__close" aria-label="Close">' + CLOSE_ICON + '</button>';
+
+			function dismiss() {
+				conceal(banner, function () {
+					banner.remove();
+				});
+			}
+			banner.querySelector('.ios-install-banner__close').addEventListener('click', dismiss);
+			banner.addEventListener('keydown', function (event) {
+				if (event.key === 'Escape') {
+					dismiss();
+				}
+			});
+
+			this.iosBanner = banner;
+			document.body.appendChild(banner);
+			reveal(banner);
+		}
+
+		// Kept under its original name for index.js. Rather than a timer on
+		// launch, the iOS hint now waits for real engagement: the first time a
+		// class is trained, and only once the tutorial bar and recorder are gone.
+
+	}, {
+		key: 'showInstallPromptAfterDelay',
+		value: function showInstallPromptAfterDelay() {
+			var _this3 = this;
+
+			if (this.isInstalled || !this.isIOS() || readFlag(IOS_DISMISSED_KEY)) {
+				return;
+			}
+
+			this.classTrainedEvent = function () {
+				window.removeEventListener('class-trained', _this3.classTrainedEvent);
+				_this3.scheduleIOSInstructions(ENGAGEMENT_DELAY);
+			};
+			window.addEventListener('class-trained', this.classTrainedEvent);
+		}
+	}, {
+		key: 'scheduleIOSInstructions',
+		value: function scheduleIOSInstructions(delay) {
+			var _this4 = this;
+
+			clearTimeout(this.iosTimer);
+			this.iosTimer = setTimeout(function () {
+				if (_this4.isBusy()) {
+					_this4.scheduleIOSInstructions(BUSY_RECHECK_DELAY);
+
+					return;
+				}
+				_this4.showIOSInstructions();
+			}, delay);
+		}
+
+		// Setup offline/online detection
+
+	}, {
+		key: 'setupOfflineDetection',
+		value: function setupOfflineDetection() {
+			var _this5 = this;
+
+			// The live region exists from the start (empty) so that filling it in
+			// is announced by screen readers.
+			this.offlineIndicator = document.createElement('div');
+			this.offlineIndicator.className = 'offline-indicator';
+			this.offlineIndicator.setAttribute('role', 'status');
+			document.body.appendChild(this.offlineIndicator);
+
+			window.addEventListener('online', function () {
+				_this5.hideOfflineIndicator();
+			});
+
+			window.addEventListener('offline', function () {
+				_this5.showOfflineIndicator();
+			});
+
+			// Check initial state
+			if (!navigator.onLine) {
+				this.showOfflineIndicator();
+			}
+		}
+	}, {
+		key: 'showOfflineIndicator',
+		value: function showOfflineIndicator() {
+			if (this.offlineIndicator) {
+				this.offlineIndicator.textContent = OFFLINE_MESSAGE;
+				this.offlineIndicator.classList.add('show');
+			}
+		}
+	}, {
+		key: 'hideOfflineIndicator',
+		value: function hideOfflineIndicator() {
+			if (this.offlineIndicator) {
+				this.offlineIndicator.classList.remove('show');
+				this.offlineIndicator.textContent = '';
+			}
+		}
+	}]);
+
+	return PWAUtils;
+}();
+
+exports.default = PWAUtils;
+
+},{}],255:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -54472,40 +55769,228 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var Selector = function () {
-	function Selector(element) {
-		_classCallCheck(this, Selector);
+// "Record Video" entry point in the FAQ area. The recorder needs
+// canvas.captureStream() + MediaRecorder with WebM output, which is only
+// dependable in desktop Chrome, so the entry point is hidden elsewhere.
+
+var RecordOpener = function () {
+	function RecordOpener(element) {
+		_classCallCheck(this, RecordOpener);
 
 		this.element = element;
-		var wrapper = element.parentNode;
+		this.openButton = document.querySelector('#open-recorder');
 
-		this.element.addEventListener('change', this.change.bind(this));
-		this.titleWrapper = document.createElement('div');
-		this.titleWrapper.classList.add('output__selector-title-wrapper');
-		this.title = document.createElement('span');
-		this.title.classList.add('output__selector-title');
-		this.titleWrapper.appendChild(this.title);
-
-		wrapper.appendChild(this.titleWrapper);
-
-		this.change();
+		this.openButton.addEventListener('click', this.open.bind(this));
+		if (!_config2.default.browserUtils.isChrome || _config2.default.browserUtils.isMobile) {
+			this.element.hidden = true;
+		}
 	}
 
-	_createClass(Selector, [{
-		key: 'change',
-		value: function change() {
-			var value = this.element.value;
-			var text = this.element.options[this.element.selectedIndex].textContent;
-			this.title.textContent = text;
+	_createClass(RecordOpener, [{
+		key: 'disable',
+		value: function disable() {
+			this.openButton.disabled = true;
+		}
+	}, {
+		key: 'enable',
+		value: function enable() {
+			this.openButton.disabled = false;
+		}
+	}, {
+		key: 'open',
+		value: function open(event) {
+			if (event) {
+				event.preventDefault();
+			}
+			var output = _config2.default.outputSection.currentOutput;
+			var canvas = null;
+			if (output && output.element) {
+				canvas = output.element.querySelector('canvas');
+			}
+
+			// The sheet is fixed to the viewport, so there's no need to scroll.
+			_config2.default.recordSection.setCanvas(canvas);
 		}
 	}]);
 
-	return Selector;
+	return RecordOpener;
 }();
 
-exports.default = Selector;
+exports.default = RecordOpener;
 
-},{"./../../config.js":239}],253:[function(require,module,exports){
+},{"./../../config.js":240}],256:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+
+var _config = require('./../../config.js');
+
+var _config2 = _interopRequireDefault(_config);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// Reads the design tokens defined in style/tokens.styl so that canvas drawing
+// and inline styles follow the same palette as the CSS, including dark mode
+// and increased contrast. CSS custom properties are the source of truth;
+// GLOBALS.colors is only a fallback for when the stylesheet hasn't loaded.
+//
+// Appearance: 'system' (default, follows the OS), 'light' or 'dark'. A forced
+// choice is stored in localStorage and shown as <html data-appearance="...">,
+// which the tokens key off. The inline script in html/index.html applies the
+// stored choice before the stylesheet loads, so there's no flash; keep its
+// storage key and colours in sync with the constants below.
+
+var APPEARANCE_QUERIES = ['(prefers-color-scheme: dark)', '(prefers-contrast: more)'];
+
+var APPEARANCE_STORAGE_KEY = 'appearance';
+var APPEARANCE_EVENT = 'appearancechange';
+var APPEARANCES = ['system', 'light', 'dark'];
+
+// Matches --color-bg in each appearance (and the theme-color metas).
+var THEME_COLORS = {
+	light: '#F2F2F7',
+	dark: '#000000'
+};
+
+function eachElement(selector, visit) {
+	var elements = document.querySelectorAll(selector);
+	for (var index = 0; index < elements.length; index += 1) {
+		visit(elements[index]);
+	}
+}
+
+// Points the browser UI (theme-color) and native controls (color-scheme meta)
+// at the effective appearance. For 'system' the media-qualified metas go back
+// to their own colour.
+function applyAppearanceMetas(appearance) {
+	eachElement('meta[name="theme-color"]', function (meta) {
+		var media = meta.getAttribute('media') || '';
+		var metaAppearance = media.indexOf('dark') === -1 ? 'light' : 'dark';
+		var color = THEME_COLORS[appearance] || THEME_COLORS[metaAppearance];
+
+		meta.setAttribute('content', color);
+	});
+
+	eachElement('meta[name="color-scheme"]', function (meta) {
+		meta.setAttribute('content', appearance === 'system' ? 'light dark' : appearance);
+	});
+}
+
+var Theme = {
+	APPEARANCES: APPEARANCES,
+
+	token: function token(name, fallback) {
+		var styles = getComputedStyle(document.documentElement);
+		var value = styles.getPropertyValue(name);
+
+		value = value.trim();
+
+		return value || fallback;
+	},
+	classColor: function classColor(id) {
+		return Theme.token('--class-' + id, _config2.default.colors[id]);
+	},
+	classTint: function classTint(id) {
+		return Theme.token('--class-' + id + '-tint', _config2.default.rgbaColors[id]);
+	},
+
+
+	// Text color to place on top of a solid class color fill.
+	classOnColor: function classOnColor(id) {
+		return Theme.token('--class-' + id + '-on', '#ffffff');
+	},
+
+
+	// The person's choice: 'system', 'light' or 'dark'.
+	getAppearance: function getAppearance() {
+		var value = document.documentElement.getAttribute('data-appearance');
+
+		return value === 'light' || value === 'dark' ? value : 'system';
+	},
+
+
+	// Applies and remembers a choice, then notifies onAppearanceChange
+	// subscribers. Unknown values fall back to 'system'.
+	setAppearance: function setAppearance(value) {
+		var appearance = APPEARANCES.indexOf(value) === -1 ? 'system' : value;
+
+		try {
+			if (appearance === 'system') {
+				localStorage.removeItem(APPEARANCE_STORAGE_KEY);
+			} else {
+				localStorage.setItem(APPEARANCE_STORAGE_KEY, appearance);
+			}
+		} catch (error) {
+			// Storage can be unavailable (private mode, blocked site data); the
+			// choice still applies for this page.
+		}
+
+		if (appearance === 'system') {
+			document.documentElement.removeAttribute('data-appearance');
+		} else {
+			document.documentElement.setAttribute('data-appearance', appearance);
+		}
+		applyAppearanceMetas(appearance);
+
+		var event = document.createEvent('CustomEvent');
+		event.initCustomEvent(APPEARANCE_EVENT, false, false, { appearance: appearance });
+		document.dispatchEvent(event);
+
+		return appearance;
+	},
+
+
+	// Whether the page is currently dark, taking the in-app choice into account.
+	isDark: function isDark() {
+		var appearance = Theme.getAppearance();
+		if (appearance !== 'system') {
+			return appearance === 'dark';
+		}
+
+		return Boolean(window.matchMedia && window.matchMedia(APPEARANCE_QUERIES[0]).matches);
+	},
+	prefersReducedMotion: function prefersReducedMotion() {
+		return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	},
+
+
+	// Calls callback whenever appearance or contrast changes (OS setting or the
+	// in-app choice), so canvases can repaint. Returns a function that removes
+	// the listeners.
+	onAppearanceChange: function onAppearanceChange(callback) {
+		var lists = [];
+		if (window.matchMedia) {
+			lists = APPEARANCE_QUERIES.map(function (query) {
+				return window.matchMedia(query);
+			});
+		}
+		lists.forEach(function (list) {
+			if (list.addEventListener) {
+				list.addEventListener('change', callback);
+			} else {
+				list.addListener(callback);
+			}
+		});
+		document.addEventListener(APPEARANCE_EVENT, callback);
+
+		return function () {
+			lists.forEach(function (list) {
+				if (list.removeEventListener) {
+					list.removeEventListener('change', callback);
+				} else {
+					list.removeListener(callback);
+				}
+			});
+			document.removeEventListener(APPEARANCE_EVENT, callback);
+		};
+	}
+};
+
+exports.default = Theme;
+
+},{"./../../config.js":240}],257:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -54522,10 +56007,6 @@ var _config = require('./../../config.js');
 
 var _config2 = _interopRequireDefault(_config);
 
-var _Button = require('./../components/Button.js');
-
-var _Button2 = _interopRequireDefault(_Button);
-
 var _CamInput = require('./../components/CamInput.js');
 
 var _CamInput2 = _interopRequireDefault(_CamInput);
@@ -54537,6 +56018,10 @@ var _HighlightArrow2 = _interopRequireDefault(_HighlightArrow);
 var _WizardEmojiExample = require('./WizardEmojiExample.js');
 
 var _WizardEmojiExample2 = _interopRequireDefault(_WizardEmojiExample);
+
+var _Theme = require('./../components/Theme.js');
+
+var _Theme2 = _interopRequireDefault(_Theme);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -54571,6 +56056,10 @@ var InputSection = function () {
         // this.micInputToggle.element.addEventListener('touchend', this.selectMicInput.bind(this));
         this.mediaFlipButton = element.querySelector('.input__media__flip');
         this.mediaFlipButton.addEventListener('click', this.flipCamera.bind(this));
+        this.updateFlipAvailability();
+        if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+            navigator.mediaDevices.addEventListener('devicechange', this.updateFlipAvailability.bind(this));
+        }
 
         this.inputContainer = element.querySelector('.input__media');
 
@@ -54702,7 +56191,9 @@ var InputSection = function () {
         key: 'highlight',
         value: function highlight() {
             this.arrow.show();
-            _gsap2.default.from(this.arrow.element, 0.3, { opacity: 0 });
+            if (!_Theme2.default.prefersReducedMotion()) {
+                _gsap2.default.from(this.arrow.element, 0.3, { opacity: 0 });
+            }
         }
     }, {
         key: 'dehighlight',
@@ -54744,8 +56235,35 @@ var InputSection = function () {
                 this.camInput = new _CamInput2.default();
                 this.inputContainer.appendChild(this.camInput.element);
                 _config2.default.camInput = this.camInput;
+                // Device labels/counts are only complete once the camera is allowed.
+                this.camInput.webcamClassifier.video.addEventListener('loadeddata', this.updateFlipAvailability.bind(this));
                 // GLOBALS.camInput.start();
             }
+        }
+
+        // Offer Switch Camera only when there is more than one camera to switch
+        // to (capability, not screen size or user agent).
+
+    }, {
+        key: 'updateFlipAvailability',
+        value: function updateFlipAvailability() {
+            var button = this.mediaFlipButton;
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                button.hidden = false;
+
+                return;
+            }
+            var request = navigator.mediaDevices.enumerateDevices();
+
+            request.then(function (devices) {
+                var cameras = devices.filter(function (device) {
+                    return device.kind === 'videoinput';
+                });
+                button.hidden = cameras.length < 2;
+            }, function () {
+                button.hidden = false;
+            });
         }
     }, {
         key: 'selectCamInput',
@@ -54784,7 +56302,7 @@ var InputSection = function () {
 
 exports.default = InputSection;
 
-},{"./../../config.js":239,"./../components/Button.js":247,"./../components/CamInput.js":248,"./../components/HighlightArrow.js":249,"./WizardEmojiExample.js":263,"gsap":210}],254:[function(require,module,exports){
+},{"./../../config.js":240,"./../components/CamInput.js":251,"./../components/HighlightArrow.js":252,"./../components/Theme.js":256,"./WizardEmojiExample.js":267,"gsap":210}],258:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -54917,7 +56435,7 @@ var IntroSection = function () {
 
 exports.default = IntroSection;
 
-},{"./../../config.js":239,"gsap":210}],255:[function(require,module,exports){
+},{"./../../config.js":240,"gsap":210}],259:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -54942,6 +56460,10 @@ var _HighlightArrow = require('./../components/HighlightArrow.js');
 
 var _HighlightArrow2 = _interopRequireDefault(_HighlightArrow);
 
+var _Theme = require('./../components/Theme.js');
+
+var _Theme2 = _interopRequireDefault(_Theme);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -54960,6 +56482,20 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Examples per class we ask people to collect (shown as calibration progress).
+// Matches the tutorial's threshold in Wizard.js.
+var EXAMPLE_GOAL = 30;
+var DECAY_DELAY = 500;
+var CHECK_ICON = '<svg class="icon-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+
+function isHoldKey(event) {
+	return event.key === ' ' || event.key === 'Spacebar' || event.key === 'Enter';
+}
+
+function displayName(id) {
+	return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
 var LearningClass = function () {
 	function LearningClass(options) {
 		_classCallCheck(this, LearningClass);
@@ -54972,56 +56508,158 @@ var LearningClass = function () {
 		this.context = this.canvas.getContext('2d');
 
 		this.id = this.element.getAttribute('id');
+		this.name = displayName(this.id);
 		this.index = options.index;
-		this.button = new _Button2.default(this.element.querySelector('a.button--record'));
-		this.button.element.addEventListener('mousedown', this.buttonDown.bind(this));
+		this.color = options.color;
+		this.rgbaColor = options.rgbaColor;
+		this.isTraining = false;
+		this.detected = false;
 
-		this.button.element.addEventListener('touchstart', this.buttonDown.bind(this));
-		this.button.element.addEventListener('touchend', this.buttonUp.bind(this));
+		this.button = new _Button2.default(this.element.querySelector('.button--record'));
+		this.button.element.setAttribute('aria-pressed', 'false');
+		this.bindHold(this.button.element);
 
 		this.resetLink = this.element.querySelector('.link--reset');
-		// this.button.element.addEventListener('mouseup', this.buttonUp.bind(this));
+		this.resetLink.addEventListener('click', this.resetClass.bind(this));
+
 		this.exampleCounterElement = this.element.querySelector('.examples__counter');
+		this.exampleGoalElement = this.element.querySelector('.examples__goal');
+		this.exampleReadyElement = this.element.querySelector('.examples__ready');
+		this.exampleProgressElement = this.element.querySelector('.examples__progress-fill');
 		this.exampleCounter = 0;
 
 		this.percentage = 0;
+		this.renderedPercentage = -1;
+		this.meterElement = this.element.querySelector('.machine__meter');
 		this.percentageElement = this.element.querySelector('.machine__value');
-		this.percentageGrey = this.element.querySelector('.machine__percentage--grey');
-		this.percentageWhite = this.element.querySelector('.machine__percentage--white');
-		this.color = options.color;
-		this.rgbaColor = options.rgbaColor;
+		this.percentageText = this.element.querySelector('.machine__percentage');
+		this.badgeElement = this.element.querySelector('.learning__class-badge');
 
-		this.arrow = new _HighlightArrow2.default(3);
-		this.arrow.element.style.left = 100 + '%';
-		this.arrow.element.style.top = 100 + '%';
-		this.arrow.element.width = 60;
-		_gsap2.default.set(this.arrow.element, {
-			rotation: 90,
-			scale: 1,
-			x: 10,
-			y: -75
-		});
-		this.element.appendChild(this.arrow.element);
-
-		this.arrowX = new _HighlightArrow2.default(2);
-		this.arrowX.element.style.left = 0 + '%';
-		this.arrowX.element.style.top = 0 + '%';
-		this.arrowX.element.width = 60;
-		_gsap2.default.set(this.arrowX.element, {
-			rotation: -90,
-			scaleX: -0.8,
-			scaleY: 0.8,
-			x: 37,
-			y: -30
-		});
-		this.element.appendChild(this.arrowX.element);
-
-		this.resetLink.addEventListener('click', this.resetClass.bind(this));
-		this.size();
-		window.addEventListener('resize', this.size.bind(this));
+		this.createArrows();
+		this.syncDisabled();
+		this.renderExamples();
+		this.updatePercentage();
 	}
 
+	// Markup for a class card. The three default classes are in index.html
+	// with the same structure; keep both in sync.
+
+
 	_createClass(LearningClass, [{
+		key: 'createArrows',
+		value: function createArrows() {
+			this.arrow = new _HighlightArrow2.default(3);
+			this.arrow.element.style.left = 100 + '%';
+			this.arrow.element.style.top = 100 + '%';
+			this.arrow.element.width = 60;
+			_gsap2.default.set(this.arrow.element, {
+				rotation: 90,
+				scale: 1,
+				x: 10,
+				y: -75
+			});
+			this.element.appendChild(this.arrow.element);
+
+			this.arrowX = new _HighlightArrow2.default(2);
+			this.arrowX.element.style.left = 0 + '%';
+			this.arrowX.element.style.top = 0 + '%';
+			this.arrowX.element.width = 60;
+			_gsap2.default.set(this.arrowX.element, {
+				rotation: -90,
+				scaleX: -0.8,
+				scaleY: 0.8,
+				x: 37,
+				y: -30
+			});
+			this.element.appendChild(this.arrowX.element);
+		}
+
+		// Hold-to-train with any input: pointer (mouse, touch, pen) with pointer
+		// capture, or holding Space/Enter while the button has focus.
+
+	}, {
+		key: 'bindHold',
+		value: function bindHold(button) {
+			var release = this.buttonUp.bind(this);
+
+			if (window.PointerEvent) {
+				button.addEventListener('pointerdown', this.pointerDown.bind(this));
+				button.addEventListener('pointerup', release);
+				button.addEventListener('pointercancel', release);
+				button.addEventListener('pointerleave', release);
+				button.addEventListener('lostpointercapture', release);
+			} else {
+				button.addEventListener('mousedown', this.buttonDown.bind(this));
+				button.addEventListener('touchstart', this.buttonDown.bind(this));
+				button.addEventListener('touchend', release);
+				button.addEventListener('touchcancel', release);
+				window.addEventListener('mouseup', release);
+			}
+
+			button.addEventListener('keydown', this.keyDown.bind(this));
+			button.addEventListener('keyup', this.keyUp.bind(this));
+			button.addEventListener('blur', release);
+			button.addEventListener('contextmenu', function (event) {
+				event.preventDefault();
+			});
+			window.addEventListener('blur', release);
+			document.addEventListener('visibilitychange', function () {
+				if (document.hidden) {
+					release();
+				}
+			});
+		}
+	}, {
+		key: 'pointerDown',
+		value: function pointerDown(event) {
+			if (event.button > 0) {
+				return;
+			}
+			event.preventDefault();
+			if (event.currentTarget.setPointerCapture) {
+				try {
+					event.currentTarget.setPointerCapture(event.pointerId);
+				} catch (error) {
+					this.captureError = error;
+				}
+			}
+			this.buttonDown();
+		}
+	}, {
+		key: 'keyDown',
+		value: function keyDown(event) {
+			if (!isHoldKey(event)) {
+				return;
+			}
+			// Stops Enter from clicking and Space from scrolling.
+			event.preventDefault();
+			if (event.repeat) {
+				return;
+			}
+			this.buttonDown();
+		}
+	}, {
+		key: 'keyUp',
+		value: function keyUp(event) {
+			if (isHoldKey(event)) {
+				event.preventDefault();
+				this.buttonUp();
+			}
+		}
+	}, {
+		key: 'isInteractive',
+		value: function isInteractive() {
+			return !this.element.classList.contains('learning__class--disabled') && !this.section.element.classList.contains('section--disabled');
+		}
+
+		// Keeps keyboard users out of classes the tutorial hasn't unlocked yet.
+
+	}, {
+		key: 'syncDisabled',
+		value: function syncDisabled() {
+			this.button.element.disabled = !this.isInteractive();
+		}
+	}, {
 		key: 'hide',
 		value: function hide() {
 			this.element.style.display = 'none';
@@ -55029,16 +56667,18 @@ var LearningClass = function () {
 	}, {
 		key: 'show',
 		value: function show() {
-			this.element.style.display = 'flex';
+			this.element.style.display = '';
 		}
 	}, {
 		key: 'highlight',
 		value: function highlight() {
 			this.arrow.show();
-			_gsap2.default.from(this.arrow.element, 0.3, {
-				opacity: 0,
-				x: 40
-			});
+			if (!_Theme2.default.prefersReducedMotion()) {
+				_gsap2.default.from(this.arrow.element, 0.3, {
+					opacity: 0,
+					x: 40
+				});
+			}
 		}
 	}, {
 		key: 'dehighlight',
@@ -55050,7 +56690,9 @@ var LearningClass = function () {
 		key: 'highlightX',
 		value: function highlightX() {
 			this.arrowX.show();
-			_gsap2.default.from(this.arrowX.element, 0.3, { opacity: 0 });
+			if (!_Theme2.default.prefersReducedMotion()) {
+				_gsap2.default.from(this.arrowX.element, 0.3, { opacity: 0 });
+			}
 		}
 	}, {
 		key: 'dehighlightX',
@@ -55063,6 +56705,9 @@ var LearningClass = function () {
 		value: function clear() {
 			this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 			this.setSamples(0);
+			if (_config2.default.nowPlaying) {
+				_config2.default.nowPlaying.classCleared(this.id);
+			}
 		}
 	}, {
 		key: 'resetClass',
@@ -55070,58 +56715,102 @@ var LearningClass = function () {
 			event.preventDefault();
 			_config2.default.inputSection.resetClass(this.index);
 			this.clear();
+			// The Reset button hides itself; keep focus in the card.
+			this.button.element.focus();
+			this.section.announce(this.name + ' examples cleared.');
 		}
 	}, {
 		key: 'setSamples',
 		value: function setSamples(length) {
 			this.exampleCounter = length;
-			var text = this.exampleCounter;
 
 			var recommendedNumSamples = _config2.default.inputType === 'cam' ? 30 : 10;
-
-			this.exampleCounterElement.textContent = text;
 
 			if (this.exampleCounter >= recommendedNumSamples && _config2.default.classesTrained[this.id] === false) {
 				_config2.default.classesTrained[this.id] = true;
 			}
+
+			this.renderExamples();
+		}
+	}, {
+		key: 'renderExamples',
+		value: function renderExamples() {
+			var count = this.exampleCounter;
+			var ready = count >= EXAMPLE_GOAL;
+			var progress = Math.min(count / EXAMPLE_GOAL, 1);
+
+			this.exampleCounterElement.textContent = count;
+			this.exampleGoalElement.textContent = ready ? ' examples' : ' of ' + EXAMPLE_GOAL + ' examples';
+			this.exampleReadyElement.hidden = !ready;
+			this.exampleProgressElement.style.transform = 'scaleX(' + progress + ')';
+			this.element.classList.toggle('learning__class--ready', ready);
+			this.resetLink.hidden = count === 0;
+		}
+	}, {
+		key: 'examplesSummary',
+		value: function examplesSummary() {
+			if (this.exampleCounter >= EXAMPLE_GOAL) {
+				return this.name + ': ' + this.exampleCounter + ' examples. Ready.';
+			}
+
+			return this.name + ': ' + this.exampleCounter + ' of ' + EXAMPLE_GOAL + ' examples.';
 		}
 	}, {
 		key: 'setConfidence',
 		value: function setConfidence(percentage) {
-			if (!_config2.default.clearing) {
-				// this.percentage = percentage;
-				// this.updatePercentage();
-				var that = this;
+			var _this = this;
+
+			if (_config2.default.clearing) {
+				return;
+			}
+			if (_config2.default.recordSection && _config2.default.recordSection.setMeters) {
 				_config2.default.recordSection.setMeters(this.id, percentage);
-				_gsap2.default.to(this, 0.5, {
-					percentage: percentage,
-					onUpdate: function onUpdate() {
-						that.updatePercentage();
-					}
-				});
+			}
+			this.percentage = percentage;
+			this.updatePercentage();
+
+			// Fall back to 0 if predictions stop arriving (e.g. while training).
+			clearTimeout(this.decayTimer);
+			if (percentage > 0) {
+				this.decayTimer = setTimeout(function () {
+					_this.setConfidence(0);
+				}, DECAY_DELAY);
 			}
 		}
 	}, {
 		key: 'highlightConfidence',
 		value: function highlightConfidence() {
-			this.percentageElement.style.background = this.color;
+			if (this.detected) {
+				return;
+			}
+			this.detected = true;
+			this.element.classList.add('learning__class--detected');
+			this.badgeElement.hidden = false;
 		}
 	}, {
 		key: 'dehighlightConfidence',
 		value: function dehighlightConfidence() {
-			this.percentageElement.style.background = '#cfd1d2';
+			if (!this.detected) {
+				return;
+			}
+			this.detected = false;
+			this.element.classList.remove('learning__class--detected');
+			this.badgeElement.hidden = true;
 		}
 	}, {
 		key: 'buttonDown',
 		value: function buttonDown() {
-			var _this = this;
+			var _this2 = this;
 
-			var that = this;
-			this.button.setText('Training');
+			if (this.isTraining || !this.isInteractive()) {
+				return;
+			}
+			this.isTraining = true;
+			this.button.down();
+			this.button.setText('Training…');
+			this.button.element.setAttribute('aria-pressed', 'true');
+			this.element.classList.add('learning__class--training');
 			this.section.startRecording(this.index);
-
-			this.buttonUpEvent = this.buttonUp.bind(this);
-			window.addEventListener('mouseup', this.buttonUpEvent);
 
 			_config2.default.recording = true;
 			_config2.default.classId = this.id;
@@ -55129,7 +56818,7 @@ var LearningClass = function () {
 			_config2.default.outputSection.toggleSoundOutput(false);
 			clearTimeout(this.buttonClickTimeout);
 			this.buttonClickTimeout = setTimeout(function () {
-				_config2.default.webcamClassifier.buttonDown(_this.id, _this.canvas, _this);
+				_config2.default.webcamClassifier.buttonDown(_this2.id, _this2.canvas, _this2);
 			}, 100);
 
 			gtag('event', 'training', { 'id': this.index });
@@ -55137,7 +56826,13 @@ var LearningClass = function () {
 	}, {
 		key: 'buttonUp',
 		value: function buttonUp() {
-			this.button.setText('Train <br>' + this.id);
+			if (!this.isTraining) {
+				return;
+			}
+			this.isTraining = false;
+			this.button.setText('Train ' + this.name);
+			this.button.element.setAttribute('aria-pressed', 'false');
+			this.element.classList.remove('learning__class--training');
 			this.section.stopRecording();
 			clearTimeout(this.buttonClickTimeout);
 			this.button.up();
@@ -55150,6 +56845,8 @@ var LearningClass = function () {
 			_config2.default.webcamClassifier.buttonUp(this.id, this.canvas);
 
 			if (this.exampleCounter > 0) {
+				this.section.announce(this.examplesSummary());
+
 				var event = new CustomEvent('class-trained', {
 					detail: {
 						id: this.id,
@@ -55158,37 +56855,47 @@ var LearningClass = function () {
 				});
 				window.dispatchEvent(event);
 			}
-
-			window.removeEventListener('mouseup', this.buttonUpEvent);
 		}
 	}, {
 		key: 'updatePercentage',
 		value: function updatePercentage() {
-			var _this2 = this;
+			var rounded = Math.max(0, Math.min(100, Math.floor(this.percentage)));
 
-			var rounded = Math.floor(this.percentage);
-			this.percentageElement.style.width = this.percentage + '%';
-			this.percentageWhite.textContent = rounded + '%';
-
-			if (this.timer) {
-				clearInterval(this.timer);
+			if (rounded === this.renderedPercentage) {
+				return;
 			}
-			this.timer = setInterval(function () {
-				_this2.setConfidence(0);
-			}, 500);
+			this.renderedPercentage = rounded;
+			this.percentageElement.style.transform = 'scaleX(' + rounded / 100 + ')';
+			this.percentageText.textContent = rounded + '%';
+			this.meterElement.setAttribute('aria-valuenow', rounded);
+			this.meterElement.setAttribute('aria-valuetext', rounded + '%');
 		}
+
+		// Layout is pure CSS now; kept for callers.
+
 	}, {
 		key: 'size',
 		value: function size() {
-			this.percentageElement.style.width = 100 + '%';
-			var width = this.percentageElement.offsetWidth;
-			this.percentageWhite.style.width = width + 'px';
-			this.percentageElement.style.width = 0 + '%';
+			return this;
 		}
 	}, {
 		key: 'start',
 		value: function start() {
 			this.size();
+		}
+	}], [{
+		key: 'createElement',
+		value: function createElement(id) {
+			var name = displayName(id);
+			var element = document.createElement('div');
+
+			element.id = id;
+			element.className = 'learning__class learning__class--' + id;
+			element.setAttribute('role', 'group');
+			element.setAttribute('aria-labelledby', id + '-name');
+			element.innerHTML = '\n\t\t\t<div class="learning__class-header">\n\t\t\t\t<h3 class="learning__class-name" id="' + id + '-name">' + name + '</h3>\n\t\t\t\t<span class="learning__class-badge" hidden>' + CHECK_ICON + 'Detected</span>\n\t\t\t\t<button type="button" class="link--reset" aria-label="Reset ' + name + '" hidden>Reset</button>\n\t\t\t</div>\n\t\t\t<div class="examples">\n\t\t\t\t<div class="examples__wrapper">\n\t\t\t\t\t<canvas class="examples__viewer" aria-hidden="true"></canvas>\n\t\t\t\t</div>\n\t\t\t\t<div class="examples__info">\n\t\t\t\t\t<p class="machine__status examples__status"><span class="examples__counter">0</span><span class="examples__goal"> of ' + EXAMPLE_GOAL + ' examples</span><span class="examples__ready" hidden>' + CHECK_ICON + 'Ready</span></p>\n\t\t\t\t\t<div class="examples__progress" aria-hidden="true"><div class="examples__progress-fill"></div></div>\n\t\t\t\t\t<div class="confidence">\n\t\t\t\t\t\t<div class="confidence__header" aria-hidden="true">\n\t\t\t\t\t\t\t<span class="machine__status confidence__status">Confidence</span>\n\t\t\t\t\t\t\t<span class="machine__percentage">0%</span>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t\t<div class="machine__meter" role="meter" aria-label="' + name + ' confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0%">\n\t\t\t\t\t\t\t<div class="machine__value machine__value--color-' + id + '"></div>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t\t<button type="button" class="button button--record button--color-' + id + '" aria-pressed="false" aria-describedby="learning-hold-hint"><span class="button__content">Train ' + name + '</span></button>';
+
+			return element;
 		}
 	}]);
 
@@ -55197,7 +56904,7 @@ var LearningClass = function () {
 
 exports.default = LearningClass;
 
-},{"./../../config.js":239,"./../components/Button.js":247,"./../components/HighlightArrow.js":249,"gsap":210}],256:[function(require,module,exports){
+},{"./../../config.js":240,"./../components/Button.js":250,"./../components/HighlightArrow.js":252,"./../components/Theme.js":256,"gsap":210}],260:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -55234,6 +56941,10 @@ var _HighlightArrow = require('./../components/HighlightArrow.js');
 
 var _HighlightArrow2 = _interopRequireDefault(_HighlightArrow);
 
+var _Theme = require('./../components/Theme.js');
+
+var _Theme2 = _interopRequireDefault(_Theme);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -55252,40 +56963,41 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Max classes: the 3 defaults plus one added class (yellow).
+var MAX_CLASSES = 4;
+var ANNOUNCE_DELAY = 600;
+
 var LearningSection = function () {
 	function LearningSection(element) {
+		var _this = this;
+
 		_classCallCheck(this, LearningSection);
 
 		this.element = element;
 		var learningClassesElements = element.querySelectorAll('.learning__class');
 		this.condenseElement = element.querySelector('#learning-condensed-button');
 		this.condenseElement.addEventListener('click', this.condenseSection.bind(this));
-		var learningClasses = [];
-		var that = this;
+		this.liveRegion = element.querySelector('#learning-live');
 		this.condensed = false;
+		this.topClassId = null;
 
-		that.learningClasses = [];
+		this.learningClasses = [];
 		var classNames = _config2.default.classNames;
 		var colors = _config2.default.colors;
 
-		learningClassesElements.forEach(function (element, index) {
+		learningClassesElements.forEach(function (classElement, index) {
 			var id = classNames[index];
-			var color = colors[id];
-			var rgbaColor = _config2.default.rgbaColors[id];
-
 			var options = {
 				index: index,
-				element: element,
-				section: that,
-				color: color,
-				rgbaColor: rgbaColor
+				element: classElement,
+				section: _this,
+				color: colors[id],
+				rgbaColor: _config2.default.rgbaColors[id]
 			};
 
 			var learningClass = new _LearningClass2.default(options);
 			learningClass.index = index;
-			learningClasses.push(learningClass);
-			that.learningClasses[index] = learningClass;
-			// learningClass.start();
+			_this.learningClasses[index] = learningClass;
 		});
 
 		// this.trainingQuality = new TrainingQuality(element.querySelector('.quality'));
@@ -55295,15 +57007,15 @@ var LearningSection = function () {
 		this.highestIndex = null;
 		this.currentIndex = null;
 
-		// Add Class Button | is hidden for mobile
+		// Add Class button: available at every width.
 		this.addClassButton = document.getElementById('add-class-button');
+		this.addClassNote = document.getElementById('add-class-note');
 		if (this.addClassButton) {
-			if (_config2.default.browserUtils && _config2.default.browserUtils.isMobile) {
-				this.addClassButton.style.display = 'none';
-			} else {
-				this.addClassButton.addEventListener('click', this.addNewClass.bind(this));
-			}
+			this.addClassButton.addEventListener('click', this.addNewClass.bind(this));
 		}
+
+		this.observeDisabledState();
+		this.observeSectionState();
 
 		this.arrow = new _HighlightArrow2.default(2);
 		_gsap2.default.set(this.arrow.element, {
@@ -55315,10 +57027,81 @@ var LearningSection = function () {
 		this.element.appendChild(this.arrow.element);
 	}
 
-	// Method to add a new class
+	// The tutorial enables/disables classes by toggling CSS classes; mirror
+	// that onto the Train buttons so keyboard users can't train locked classes.
 
 
 	_createClass(LearningSection, [{
+		key: 'observeDisabledState',
+		value: function observeDisabledState() {
+			var _this2 = this;
+
+			var sync = function sync() {
+				_this2.learningClasses.forEach(function (learningClass) {
+					learningClass.syncDisabled();
+				});
+			};
+
+			if (!window.MutationObserver) {
+				return;
+			}
+			this.disabledObserver = new MutationObserver(sync);
+			this.disabledObserver.observe(this.element, {
+				attributes: true,
+				attributeFilter: ['class'],
+				subtree: true
+			});
+		}
+
+		// .section--disabled only blocks the pointer. Mirror it with `inert` so
+		// keyboard and screen reader users can't reach controls that don't work
+		// yet. Observed (not set in enable/disable) because other modules, e.g.
+		// EnhancedWebcamClassifier.js, remove the class directly.
+
+	}, {
+		key: 'observeSectionState',
+		value: function observeSectionState() {
+			var sections = document.querySelectorAll('#input-section, #learning-section, #output-section');
+
+			function sync(section) {
+				if (section.classList.contains('section--disabled')) {
+					section.setAttribute('inert', '');
+				} else {
+					section.removeAttribute('inert');
+				}
+			}
+
+			sections.forEach(function (section) {
+				sync(section);
+				if (window.MutationObserver) {
+					var observer = new MutationObserver(function () {
+						sync(section);
+					});
+					observer.observe(section, {
+						attributes: true,
+						attributeFilter: ['class']
+					});
+				}
+			});
+		}
+
+		// Polite screen reader message (one shared live region, never per frame).
+
+	}, {
+		key: 'announce',
+		value: function announce(message) {
+			if (!this.liveRegion) {
+				return;
+			}
+			if (this.liveRegion.textContent === message) {
+				this.liveRegion.textContent = '';
+			}
+			this.liveRegion.textContent = message;
+		}
+
+		// Method to add a new class
+
+	}, {
 		key: 'addNewClass',
 		value: function addNewClass(event) {
 			event.preventDefault();
@@ -55326,20 +57109,11 @@ var LearningSection = function () {
 			// Get the current number of classes
 			var currentClassCount = this.learningClasses.length;
 
-			// Check if we've reached the max number of classes (4 total: 3 original + 1 additional)
-			if (currentClassCount >= 4) {
-				console.warn('Maximum number of classes reached (4). You can add only 1 additional class.');
-
-				return;
-			}
-
 			// Since we only allow 1 additional class, it will always be 'yellow'
 			var nextClassName = 'yellow';
-			var displayName = 'Yellow';
 
-			// Check if yellow class already exists in the config
-			if (_config2.default.classNames.indexOf(nextClassName) !== -1) {
-				console.warn('Yellow class already exists!');
+			if (currentClassCount >= MAX_CLASSES || _config2.default.classNames.indexOf(nextClassName) !== -1) {
+				this.showMaxClassesNote();
 
 				return;
 			}
@@ -55367,25 +57141,17 @@ var LearningSection = function () {
 				}
 			}
 
-			// Create the HTML for the new class
+			// Create the card for the new class (same markup as index.html)
 			var container = this.element.querySelector('.section__container');
-			var newClassElement = document.createElement('div');
-			newClassElement.id = nextClassName;
-			newClassElement.className = 'learning__class learning__class--' + nextClassName;
-			newClassElement.innerHTML = '\n\t\t\t<div class="examples">\n\t\t\t\t<div class="machine__status examples__status"><span class="examples__counter">0</span> examples</div>\n\t\t\t\t<div class="examples__wrapper">\n\t\t\t\t\t<img src="assets/close.svg" class="examples__close-icon">\n\t\t\t\t\t<a href="#" class="link link--reset">Reset</a>\n\t\t\t\t\t<canvas class="examples__viewer"></canvas>\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t\t<div class="learning__class-column">\n\t\t\t\t<div class="confidence">\n\t\t\t\t\t<div class="machine__status confidence__status">Confidence</div>\n\t\t\t\t\t<div class="machine__meter">\n\t\t\t\t\t\t<div class="machine__value machine__value--color-' + nextClassName + '">\n\t\t\t\t\t\t\t<div class="machine__percentage machine__percentage--white">0%</div>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t\t<a href="#" class="button button--record button--color-' + nextClassName + '"><span class="button__content button__content--small">Train <br>' + displayName + '</span></a>\n\t\t\t</div>\n\t\t';
-
+			var newClassElement = _LearningClass2.default.createElement(nextClassName);
 			container.appendChild(newClassElement);
-
-			// Initialize the new class
-			var color = _config2.default.colors[nextClassName];
-			var rgbaColor = _config2.default.rgbaColors[nextClassName];
 
 			var options = {
 				index: currentClassCount,
 				element: newClassElement,
 				section: this,
-				color: color,
-				rgbaColor: rgbaColor
+				color: _config2.default.colors[nextClassName],
+				rgbaColor: _config2.default.rgbaColors[nextClassName]
 			};
 
 			var learningClass = new _LearningClass2.default(options);
@@ -55393,22 +57159,23 @@ var LearningSection = function () {
 			learningClass.id = nextClassName;
 
 			// Add to learning classes array
-			this.learningClasses.push(learningClass);
 			this.learningClasses[currentClassCount] = learningClass;
 
-			// Initialize and start the new class (this sets up all the event handlers)
+			// Initialize and start the new class
 			learningClass.start();
 
 			// Update output components to handle the new class
 			if (_config2.default.outputSection && _config2.default.outputSection.outputs) {
-				if (_config2.default.outputSection.outputs.EmojiOutput && _config2.default.outputSection.outputs.EmojiOutput.addNewClass) {
-					_config2.default.outputSection.outputs.EmojiOutput.addNewClass(nextClassName, currentClassCount);
+				var outputs = _config2.default.outputSection.outputs;
+
+				if (outputs.EmojiOutput && outputs.EmojiOutput.addNewClass) {
+					outputs.EmojiOutput.addNewClass(nextClassName, currentClassCount);
 				}
-				if (_config2.default.outputSection.outputs.SoundOutput && _config2.default.outputSection.outputs.SoundOutput.addNewClass) {
-					_config2.default.outputSection.outputs.SoundOutput.addNewClass(nextClassName, currentClassCount);
+				if (outputs.SoundOutput && outputs.SoundOutput.addNewClass) {
+					outputs.SoundOutput.addNewClass(nextClassName, currentClassCount);
 				}
-				if (_config2.default.outputSection.outputs.SpeechOutput && _config2.default.outputSection.outputs.SpeechOutput.addNewClass) {
-					_config2.default.outputSection.outputs.SpeechOutput.addNewClass(nextClassName, currentClassCount);
+				if (outputs.SpeechOutput && outputs.SpeechOutput.addNewClass) {
+					outputs.SpeechOutput.addNewClass(nextClassName, currentClassCount);
 				}
 			}
 
@@ -55420,8 +57187,20 @@ var LearningSection = function () {
 				_config2.default.recordSection.addNewClass(nextClassName);
 			}
 
-			// Hide the Add Class button since we only allow 1 additional class (4 total)
-			this.addClassButton.style.display = 'none';
+			// Only one extra class is allowed (4 total)
+			this.showMaxClassesNote();
+			learningClass.button.element.focus();
+			this.announce(learningClass.name + ' class added.');
+		}
+	}, {
+		key: 'showMaxClassesNote',
+		value: function showMaxClassesNote() {
+			if (this.addClassButton) {
+				this.addClassButton.disabled = true;
+			}
+			if (this.addClassNote) {
+				this.addClassNote.hidden = false;
+			}
 		}
 
 		// Update wires for new classes
@@ -55448,9 +57227,13 @@ var LearningSection = function () {
 		}
 	}, {
 		key: 'condenseSection',
-		value: function condenseSection() {
-			this.condensed ? this.element.classList.remove('condensed') : this.element.classList.add('condensed');
-			this.condensed ? this.condensed = false : this.condensed = true;
+		value: function condenseSection(event) {
+			if (event) {
+				event.preventDefault();
+			}
+			this.condensed = !this.condensed;
+			this.element.classList.toggle('condensed', this.condensed);
+			this.condenseElement.setAttribute('aria-pressed', this.condensed ? 'true' : 'false');
 		}
 	}, {
 		key: 'ready',
@@ -55463,12 +57246,14 @@ var LearningSection = function () {
 		key: 'highlight',
 		value: function highlight() {
 			this.arrow.show();
-			_gsap2.default.from(this.arrow.element, 0.3, { opacity: 0 });
+			if (!_Theme2.default.prefersReducedMotion()) {
+				_gsap2.default.from(this.arrow.element, 0.3, { opacity: 0 });
+			}
 		}
 	}, {
 		key: 'dehighlight',
 		value: function dehighlight() {
-			_gsap2.default.killTweensOf(this.arrow.element, 0.3, { opacity: 0 });
+			_gsap2.default.killTweensOf(this.arrow.element);
 			this.arrow.hide();
 		}
 	}, {
@@ -55527,6 +57312,7 @@ var LearningSection = function () {
 		key: 'enableClass',
 		value: function enableClass(index, highlight) {
 			this.learningClasses[index].element.classList.remove('learning__class--disabled');
+			this.learningClasses[index].syncDisabled();
 
 			if (highlight) {
 				this.highlightClass(index);
@@ -55536,6 +57322,7 @@ var LearningSection = function () {
 		key: 'disableClass',
 		value: function disableClass(index) {
 			this.learningClasses[index].element.classList.add('learning__class--disabled');
+			this.learningClasses[index].syncDisabled();
 		}
 	}, {
 		key: 'clearExamples',
@@ -55545,6 +57332,8 @@ var LearningSection = function () {
 				learningClass.setConfidence(0);
 				learningClass.dehighlightConfidence();
 			});
+			this.setTopClass(null);
+			this.wiresRight.dehighlight();
 		}
 	}, {
 		key: 'startRecording',
@@ -55559,7 +57348,6 @@ var LearningSection = function () {
 	}, {
 		key: 'ledOn',
 		value: function ledOn(id) {
-			this.wiresRight.dehighlight();
 			this.wiresRight.highlight(id);
 		}
 	}, {
@@ -55577,25 +57365,53 @@ var LearningSection = function () {
 
 			return maxIndex;
 		}
+
+		// Tracks the detected class; announces it only once it has settled, so a
+		// flickering prediction doesn't flood screen readers.
+
+	}, {
+		key: 'setTopClass',
+		value: function setTopClass(id) {
+			var _this3 = this;
+
+			if (id === this.topClassId) {
+				return;
+			}
+			this.topClassId = id;
+			clearTimeout(this.announceTimer);
+			if (id === null || _config2.default.recording) {
+				return;
+			}
+			this.announceTimer = setTimeout(function () {
+				var learningClass = _this3.learningClasses[_config2.default.classNames.indexOf(id)];
+
+				if (learningClass && _this3.topClassId === id && !_config2.default.recording) {
+					_this3.announce('Detected ' + learningClass.name + '.');
+				}
+			}, ANNOUNCE_DELAY);
+		}
 	}, {
 		key: 'setConfidences',
 		value: function setConfidences(confidences) {
 			var confidencesArry = Object.values(confidences);
 			var maxIndex = this.getMaxIndex(confidencesArry);
 			var maxValue = confidencesArry[maxIndex];
+			var hasTopClass = maxValue > 0.5;
 
-			// if (maxValue > 0.5 && this.currentIndex !== maxIndex) {
-			if (maxValue > 0.5) {
+			if (hasTopClass) {
 				this.currentIndex = maxIndex;
 				var id = _config2.default.classNames[this.currentIndex];
 				this.ledOn(id);
 				_config2.default.outputSection.trigger(id);
+				this.setTopClass(id);
+			} else {
+				this.wiresRight.dehighlight();
 			}
 
 			for (var index = 0; index < _config2.default.numClasses; index += 1) {
 				if (this.learningClasses[index]) {
 					this.learningClasses[index].setConfidence(confidencesArry[index] * 100);
-					if (index === maxIndex) {
+					if (hasTopClass && index === maxIndex) {
 						this.learningClasses[index].highlightConfidence();
 					} else {
 						this.learningClasses[index].dehighlightConfidence();
@@ -55607,6 +57423,7 @@ var LearningSection = function () {
 		key: 'setQuality',
 		value: function setQuality(quality) {
 			// this.trainingQuality.setQuality(quality);
+			return quality;
 		}
 	}]);
 
@@ -55615,7 +57432,7 @@ var LearningSection = function () {
 
 exports.default = LearningSection;
 
-},{"./../../config.js":239,"./../components/HighlightArrow.js":249,"./LearningClass.js":255,"./TrainingQuality.js":259,"./WiresLeft.js":260,"./WiresRight.js":261,"gsap":210}],257:[function(require,module,exports){
+},{"./../../config.js":240,"./../components/HighlightArrow.js":252,"./../components/Theme.js":256,"./LearningClass.js":259,"./TrainingQuality.js":263,"./WiresLeft.js":264,"./WiresRight.js":265,"gsap":210}],261:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -55632,21 +57449,13 @@ var _config = require('./../../config.js');
 
 var _config2 = _interopRequireDefault(_config);
 
-var _Selector = require('./../components/Selector.js');
-
-var _Selector2 = _interopRequireDefault(_Selector);
-
-var _Button = require('./../components/Button.js');
-
-var _Button2 = _interopRequireDefault(_Button);
-
-var _CamInput = require('./../components/CamInput.js');
-
-var _CamInput2 = _interopRequireDefault(_CamInput);
-
 var _HighlightArrow = require('./../components/HighlightArrow.js');
 
 var _HighlightArrow2 = _interopRequireDefault(_HighlightArrow);
+
+var _Theme = require('./../components/Theme.js');
+
+var _Theme2 = _interopRequireDefault(_Theme);
 
 var _SpeechOutput = require('./../../outputs/SpeechOutput.js');
 
@@ -55678,6 +57487,11 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// How long the top class must stay the same before it is announced to
+// screen readers. Predictions arrive every frame; this keeps the live region
+// to one polite message per settled change.
+var ANNOUNCE_DELAY = 1000;
+
 var OutputSection = function () {
     function OutputSection(element) {
         var _this = this;
@@ -55699,17 +57513,33 @@ var OutputSection = function () {
         this.outputs = outputs;
         this.loadedOutputs = [];
 
-        var outputLinks = element.querySelectorAll('.output_selector__option');
-        outputLinks.forEach(function (link) {
-            link.addEventListener('click', _this.changeOutput.bind(_this));
+        this.liveRegion = element.querySelector('#output-status');
+        this.pendingIndex = null;
+        this.announcedKey = null;
+        this.announceTimer = null;
+
+        // Output picker: a segmented control built as an ARIA tablist.
+        this.tabs = Array.from(element.querySelectorAll('.output__segment'));
+        this.tabs.forEach(function (tab) {
+            tab.addEventListener('click', _this.changeOutput.bind(_this));
+            tab.addEventListener('keydown', _this.tabKeyDown.bind(_this));
         });
-        this.currentLink = element.querySelector('.output_selector__option--selected');
+        this.currentLink = element.querySelector('.output__segment--selected') || this.tabs[0];
 
         this.outputContainer = document.querySelector('#output-player');
         this.currentOutput = null;
         this.currentLink.click();
 
+        // Edits to an emoji, sound or phrase all happen inside this panel;
+        // let the now-playing bar re-read its value (it ignores no-ops).
+        var refreshNowPlaying = this.refreshNowPlaying.bind(this);
+        ['input', 'click', 'focusout'].forEach(function (type) {
+            element.addEventListener(type, refreshNowPlaying);
+        });
+
         this.arrow = new _HighlightArrow2.default(1);
+        this.arrow.element.alt = '';
+        this.arrow.element.setAttribute('aria-hidden', 'true');
 
         _gsap2.default.set(this.arrow.element, {
             rotation: -50,
@@ -55729,7 +57559,11 @@ var OutputSection = function () {
         key: 'highlight',
         value: function highlight() {
             this.arrow.show();
-            _gsap2.default.from(this.arrow.element, 0.3, { opacity: 0 });
+            if (_Theme2.default.prefersReducedMotion()) {
+                _gsap2.default.set(this.arrow.element, { opacity: 1 });
+            } else {
+                _gsap2.default.from(this.arrow.element, 0.3, { opacity: 0 });
+            }
         }
     }, {
         key: 'dehighlight',
@@ -55755,13 +57589,21 @@ var OutputSection = function () {
     }, {
         key: 'changeOutput',
         value: function changeOutput(event) {
-            if (this.currentLink) {
-                this.currentLink.classList.remove('output_selector__option--selected');
-            }
+            this.selectTab(event.currentTarget);
+        }
+    }, {
+        key: 'selectTab',
+        value: function selectTab(tab) {
+            this.tabs.forEach(function (other) {
+                var selected = other === tab;
+                other.classList.toggle('output__segment--selected', selected);
+                other.setAttribute('aria-selected', selected ? 'true' : 'false');
+                other.setAttribute('tabindex', selected ? '0' : '-1');
+            });
 
-            this.currentLink = event.target;
-            this.currentLink.classList.add('output_selector__option--selected');
+            this.currentLink = tab;
             var outputId = this.currentLink.id;
+            this.outputContainer.setAttribute('aria-labelledby', outputId);
 
             if (this.currentOutput) {
                 this.currentOutput.stop();
@@ -55777,7 +57619,47 @@ var OutputSection = function () {
                 this.currentOutput.start();
             }
 
+            // Describe the next settled class with the newly selected output.
+            this.pendingIndex = null;
+            this.announcedKey = null;
+            this.refreshNowPlaying();
+
             gtag('event', 'select_output', { 'id': outputId });
+        }
+
+        // Left/Right (and Home/End) move between segments; selection follows focus.
+
+    }, {
+        key: 'tabKeyDown',
+        value: function tabKeyDown(event) {
+            var index = this.tabs.indexOf(event.currentTarget);
+            var last = this.tabs.length - 1;
+            var next = -1;
+
+            switch (event.key) {
+                case 'ArrowRight':
+                case 'Right':
+                    next = index === last ? 0 : index + 1;
+                    break;
+                case 'ArrowLeft':
+                case 'Left':
+                    next = index === 0 ? last : index - 1;
+                    break;
+                case 'Home':
+                    next = 0;
+                    break;
+                case 'End':
+                    next = last;
+                    break;
+                default:
+                    break;
+            }
+
+            if (next > -1) {
+                event.preventDefault();
+                this.tabs[next].focus();
+                this.selectTab(this.tabs[next]);
+            }
         }
     }, {
         key: 'toggleSoundOutput',
@@ -55804,10 +57686,56 @@ var OutputSection = function () {
             var index = this.classNames.indexOf(id);
             this.currentOutput.trigger(index);
 
+            if (!_config2.default.clearing) {
+                this.scheduleAnnouncement(index);
+                if (_config2.default.nowPlaying) {
+                    _config2.default.nowPlaying.update(index);
+                }
+            }
+
             if (this.broadcastEvents) {
                 var event = new CustomEvent('class-triggered', { detail: { id: id } });
                 window.dispatchEvent(event);
             }
+        }
+
+        // The compact-layout now-playing bar (NowPlaying.js), once it exists.
+
+    }, {
+        key: 'refreshNowPlaying',
+        value: function refreshNowPlaying() {
+            if (_config2.default.nowPlaying) {
+                _config2.default.nowPlaying.refresh();
+            }
+        }
+
+        // trigger() runs every frame. Only a change of top class restarts the
+        // timer, and a message is only written once the class has settled.
+
+    }, {
+        key: 'scheduleAnnouncement',
+        value: function scheduleAnnouncement(index) {
+            if (!this.liveRegion || index === this.pendingIndex) {
+                return;
+            }
+            this.pendingIndex = index;
+            clearTimeout(this.announceTimer);
+            this.announceTimer = setTimeout(this.announce.bind(this), ANNOUNCE_DELAY);
+        }
+    }, {
+        key: 'announce',
+        value: function announce() {
+            var output = this.currentOutput;
+            var index = this.pendingIndex;
+            if (!output || typeof output.describe !== 'function' || index === null || index < 0) {
+                return;
+            }
+            var key = output.id + ':' + index;
+            if (key === this.announcedKey) {
+                return;
+            }
+            this.announcedKey = key;
+            this.liveRegion.textContent = output.describe(index);
         }
     }]);
 
@@ -55816,11 +57744,11 @@ var OutputSection = function () {
 
 exports.default = OutputSection;
 
-},{"./../../config.js":239,"./../../outputs/EmojiOutput.js":241,"./../../outputs/SoundOutput.js":242,"./../../outputs/SpeechOutput.js":243,"./../components/Button.js":247,"./../components/CamInput.js":248,"./../components/HighlightArrow.js":249,"./../components/Selector.js":252,"gsap":210}],258:[function(require,module,exports){
+},{"./../../config.js":240,"./../../outputs/EmojiOutput.js":242,"./../../outputs/SoundOutput.js":243,"./../../outputs/SpeechOutput.js":244,"./../components/HighlightArrow.js":252,"./../components/Theme.js":256,"gsap":210}],262:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+	value: true
 });
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -55851,466 +57779,626 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The video recorder: a modal sheet that composites the webcam, the class
+// meters and the current output into a canvas and records it for 10 seconds.
+//
+// The exported video deliberately keeps a fixed light palette (the literal
+// GLOBALS.colors fallbacks) so a clip looks the same whatever the recording
+// device's appearance was.
+
+var COUNTDOWN_FROM = 3;
+var RECORD_SECONDS = 10;
+var FADE_MS = 250;
+var START_LABEL = 'Start Recording';
+var FOCUSABLE = 'button, [href], input, select, textarea, video[controls], [tabindex]:not([tabindex="-1"])';
+
+function formatSeconds(seconds) {
+	var prefix = '0:';
+	if (seconds < 10) {
+		prefix = '0:0';
+	}
+
+	return prefix + seconds;
+}
+
 var Recording = function () {
-    function Recording(element) {
-        var _this = this;
+	function Recording(element) {
+		var _this = this;
 
-        _classCallCheck(this, Recording);
+		_classCallCheck(this, Recording);
 
-        this.element = element;
-        this.canvas = element.querySelector('#recording__canvas');
-        this.startButtonText = element.querySelector('#recording__start-text');
-        this.downloadPreText = element.querySelector('#pre-download-message');
-        this.downloadLinkSection = element.querySelector('.recording-download-container');
-        this.downloadLinkButton = element.querySelector('#recording__download');
-        this.recordingVideo = element.querySelector('#recording__video');
-        this.recordTimer = element.querySelector('#record__timer');
-        this.closeButton = element.querySelector('#close__button');
-        this.restart = element.querySelector('#restart');
-        this.recordMessage = element.querySelector('#message');
-        this.recordMessageAlt = element.querySelector('#message-alt');
-        this.downloadLinkSection.style.display = 'none';
-        this.sharingNotice = element.querySelector('#sharing-notice');
+		this.element = element;
+		this.sheet = element.querySelector('.recording__sheet');
+		this.canvas = element.querySelector('#recording__canvas');
+		this.downloadPreText = element.querySelector('#pre-download-message');
+		this.downloadLinkSection = element.querySelector('.recording-download-container');
+		this.downloadLinkButton = element.querySelector('#recording__download');
+		this.recordingVideo = element.querySelector('#recording__video');
+		this.recordTimer = element.querySelector('#record__timer');
+		this.statusText = element.querySelector('#recording__status');
+		this.closeButton = element.querySelector('#close__button');
+		this.restart = element.querySelector('#restart');
+		this.recordMessage = element.querySelector('#message');
+		this.recordMessageAlt = element.querySelector('#message-alt');
+		this.sharingNotice = element.querySelector('#sharing-notice');
+		this.legal = element.querySelector('#recording__legal');
+		this.checkbox = element.querySelector('#recording__checkbox');
 
-        this.sendSuccess = false;
+		this.sendSuccess = false;
+		this.canvas.width = 680;
+		this.canvas.height = 340;
+		this.video = document.getElementsByTagName('video')[0];
 
-        this.legal = document.querySelector('#recording__legal');
-        this.checkbox = document.querySelector('#recording__checkbox');
+		// Initialize confidence values dynamically for all classes
+		this.confidences = {};
+		_config2.default.classNames.forEach(function (className) {
+			_this.confidences[className] = 0;
+		});
 
-        this.recordMessageAlt.style.display = 'none';
-        this.recordingVideo.style.display = 'none';
-        this.recordingVideo.setAttribute('src', '');
-        this.canvas.width = 680;
-        this.canvas.height = 340;
-        this.video = document.getElementsByTagName('video')[0];
+		this.recordedTime = RECORD_SECONDS;
+		this.count = COUNTDOWN_FROM;
+		this.showing = false;
+		this.recordingState = 'waiting';
+		this.RECORD_TIME = RECORD_SECONDS * 1000;
+		this.videoUrl = null;
+		this.discardRecording = false;
+		this.returnFocusTo = null;
 
-        // Initialize confidence values dynamically for all classes
-        this.confidences = {};
-        _config2.default.classNames.forEach(function (className, index) {
-            _this.confidences[className] = 0;
-        });
+		this.startButton = new _Button2.default(element.querySelector('#recording__start-button'));
+		this.startRecordEvent = this.onRecordButtonClick.bind(this);
+		this.startButton.element.addEventListener('click', this.startRecordEvent);
+		this.checkbox.addEventListener('change', this.toggleCheckbox.bind(this));
+		this.closeButton.addEventListener('click', this.hide.bind(this));
+		this.restart.addEventListener('click', this.onRestartClick.bind(this));
+		this.keydownEvent = this.onKeydown.bind(this);
 
-        this.recordedTime = 10;
-        this.count = 3;
-        this.showing = false;
-        this.closeButton.addEventListener('click', this.hide.bind(this));
-        this.restart.addEventListener('click', this.reset.bind(this));
-        this.recordingState = 'waiting';
-        this.RECORD_TIME = 10000;
+		this.element.hidden = true;
+		this.resetView();
+	}
 
-        this.startButton = new _Button2.default(document.querySelector('#recording__start-button'));
-        this.startRecordEvent = this.onRecordButtonClick.bind(this);
-        this.checkbox.addEventListener('click', this.toggleCheckbox.bind(this));
-    }
+	// Parts of the Start button's label (Button wraps them in .button__label).
 
-    _createClass(Recording, [{
-        key: 'toggleCheckbox',
-        value: function toggleCheckbox() {
-            if (this.checkbox.checked) {
-                this.startButton.element.addEventListener('click', this.startRecordEvent);
-                this.startButton.element.classList.remove('recording-start__button--disabled');
-            } else {
-                this.startButton.element.removeEventListener('click', this.startRecordEvent);
-                this.startButton.element.classList.add('recording-start__button--disabled');
-            }
-        }
-    }, {
-        key: 'setCanvas',
-        value: function setCanvas(element) {
-            var _this2 = this;
 
-            this.show();
-            if (element.name === 'gif') {
-                this.canvasType = 'gif';
-            } else {
-                this.canvasType = '';
-            }
-            document.querySelector('#recording__start-button .button__label #icon--record').style.display = 'inline-block';
-            document.querySelector('#recording__start-button .button__label #icon--stop').style.display = 'none';
-            this.sourceCanvas = element;
-            this.context = this.canvas.getContext('2d');
-            this.showing = true;
-            this.render();
+	_createClass(Recording, [{
+		key: 'part',
+		value: function part(id) {
+			return this.element.querySelector('#' + id);
+		}
+	}, {
+		key: 'setButtonLabel',
+		value: function setButtonLabel(text) {
+			var label = this.part('recording__start-text');
+			if (label) {
+				label.textContent = text;
+			}
+		}
+	}, {
+		key: 'setButtonIcon',
+		value: function setButtonIcon(name) {
+			var record = this.part('icon--record');
+			var stop = this.part('icon--stop');
+			if (record) {
+				record.hidden = name !== 'record';
+			}
+			if (stop) {
+				stop.hidden = name !== 'stop';
+			}
+		}
+	}, {
+		key: 'announce',
+		value: function announce(text) {
+			if (this.statusText) {
+				this.statusText.textContent = text;
+			}
+		}
+	}, {
+		key: 'toggleCheckbox',
+		value: function toggleCheckbox() {
+			var blocked = !this.checkbox.checked && this.recordingState === 'waiting';
+			var button = this.startButton.element;
+			button.setAttribute('aria-disabled', blocked.toString());
+			button.classList.toggle('recording-start__button--disabled', blocked);
+		}
+	}, {
+		key: 'setCanvas',
+		value: function setCanvas(element) {
+			var _this2 = this;
 
-            var img = new Image();
-            var stamp = new Image();
-            img.onload = function () {
-                _this2.wiresImage = img;
-            };
-            stamp.onload = function () {
-                _this2.stampImage = stamp;
-            };
-            img.src = 'assets/wires-recorder.png';
-            stamp.src = 'assets/madeby.svg';
-        }
-    }, {
-        key: 'render',
-        value: function render() {
-            var _this3 = this;
+			this.canvasType = '';
+			if (element && element.name === 'gif') {
+				this.canvasType = 'gif';
+			}
+			this.sourceCanvas = element;
+			this.context = this.canvas.getContext('2d');
+			this.show();
+			this.setButtonIcon('record');
+			cancelAnimationFrame(this.renderFrame);
+			this.render();
 
-            if (!this.showing) {
-                return;
-            }
-            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.context.fillStyle = '#e4e5e6';
-            this.context.fillRect(0, 0, 680, 340);
+			var img = new Image();
+			var stamp = new Image();
+			img.onload = function () {
+				_this2.wiresImage = img;
+			};
+			stamp.onload = function () {
+				_this2.stampImage = stamp;
+			};
+			img.src = 'assets/wires-recorder.png';
+			stamp.src = 'assets/madeby.svg';
+		}
+	}, {
+		key: 'render',
+		value: function render() {
+			var _this3 = this;
 
-            // call its drawImage() function passing it the source canvas directly
-            var maxHeight = 200;
-            var videoWidth = 266;
-            var padding = 20;
-            var startX = 26;
-            var startY = 16;
+			if (!this.showing) {
+				return;
+			}
+			this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+			this.context.fillStyle = '#e4e5e6';
+			this.context.fillRect(0, 0, 680, 340);
 
-            // White boxes
-            this.context.fillStyle = '#fff';
-            this.context.fillRect(startX, startY, videoWidth + padding, maxHeight + 70);
-            this.context.fillRect(340 + startX, startY, videoWidth + padding, maxHeight + 70);
+			// call its drawImage() function passing it the source canvas directly
+			var maxHeight = 200;
+			var videoWidth = 266;
+			var padding = 20;
+			var startX = 26;
+			var startY = 16;
 
-            // The "Output" Canvas
-            if (this.canvasType === 'gif') {
-                var _videoWidth = 260;
-                this.context.drawImage(this.sourceCanvas, startX + 343 + padding / 2, 45, _videoWidth, _videoWidth - 50);
-            } else {
-                this.context.drawImage(this.sourceCanvas, startX + 355 + padding / 2, 40, videoWidth, videoWidth - 50);
-            }
-            if (this.wiresImage) {
-                this.context.drawImage(this.wiresImage, startX + 276 + padding / 2, 45, 54, videoWidth - 50);
-            }
-            if (this.stampImage) {
-                this.context.drawImage(this.stampImage, this.canvas.width / 2 - videoWidth * 1.2 / 2, 302, videoWidth * 1.2, 20);
-            }
-            // Bars to cover it:
-            // this.context.fillStyle = '#e4e5e6';
-            // this.context.fillRect(startX + 340, 0, videoWidth + padding, startY);
-            // this.context.fillStyle = '#fff';
-            // this.context.fillRect(startX + 340, startY, videoWidth + padding, padding / 2);
-            // this.context.fillRect(startX + 340, maxHeight + startY + padding / 2, videoWidth + padding, 30);
+			// White boxes
+			this.context.fillStyle = '#fff';
+			this.context.fillRect(startX, startY, videoWidth + padding, maxHeight + 70);
+			this.context.fillRect(340 + startX, startY, videoWidth + padding, maxHeight + 70);
 
-            var barsY = maxHeight + startY + padding;
-            var numClasses = _config2.default.classNames.length;
-            var boxSize = (videoWidth - padding) / numClasses;
-            var boxStartX = startX + padding / 2;
+			// The "Output" Canvas
+			if (this.sourceCanvas) {
+				if (this.canvasType === 'gif') {
+					var gifWidth = 260;
+					this.context.drawImage(this.sourceCanvas, startX + 343 + padding / 2, 45, gifWidth, gifWidth - 50);
+				} else {
+					this.context.drawImage(this.sourceCanvas, startX + 355 + padding / 2, 40, videoWidth, videoWidth - 50);
+				}
+			}
+			if (this.wiresImage) {
+				this.context.drawImage(this.wiresImage, startX + 276 + padding / 2, 45, 54, videoWidth - 50);
+			}
+			if (this.stampImage) {
+				this.context.drawImage(this.stampImage, this.canvas.width / 2 - videoWidth * 1.2 / 2, 302, videoWidth * 1.2, 20);
+			}
 
-            // Render confidence bars dynamically for all classes
-            _config2.default.classNames.forEach(function (className, index) {
-                var xPos = boxStartX + index * (boxSize + padding / 2);
+			var barsY = maxHeight + startY + padding;
+			var numClasses = _config2.default.classNames.length;
+			var boxSize = (videoWidth - padding) / numClasses;
+			var boxStartX = startX + padding / 2;
 
-                // Background bar
-                _this3.context.fillStyle = '#e4e5e6';
-                _this3.context.fillRect(xPos, barsY, boxSize, 40);
+			// Render confidence bars dynamically for all classes
+			_config2.default.classNames.forEach(function (className, index) {
+				var xPos = boxStartX + index * (boxSize + padding / 2);
 
-                // Confidence bar
-                _this3.context.fillStyle = _config2.default.colors[className];
-                var confidence = _this3.confidences[className] || 0;
-                _this3.context.fillRect(xPos, barsY, boxSize * confidence, 40);
-            });
+				// Background bar
+				_this3.context.fillStyle = '#e4e5e6';
+				_this3.context.fillRect(xPos, barsY, boxSize, 40);
 
-            // Video comes in mirrored, so let's flip it:
-            this.context.save();
-            this.context.scale(-1, 1);
-            this.context.drawImage(this.video, -(startX + padding / 2), startY + padding / 2, maxHeight * (360 / 270) * -1, maxHeight);
-            this.context.restore();
-            //
-            // this.context.font = '18px Poppins';
-            // this.context.fillStyle = '#000';
-            // this.context.fillText('MADE AT: ', startX, 320);
-            // this.context.fillStyle = '#3e80f6';
-            // this.context.fillText('G.CO/TEACHABLEMACHINE', 110, 320);
+				// Confidence bar (fixed light palette, see the note at the top)
+				_this3.context.fillStyle = _config2.default.colors[className];
+				var confidence = _this3.confidences[className] || 0;
+				_this3.context.fillRect(xPos, barsY, boxSize * confidence, 40);
+			});
 
-            requestAnimationFrame(this.render.bind(this));
-        }
-    }, {
-        key: 'setMeters',
-        value: function setMeters(colorId, confidence) {
-            if (!this.showing) {
-                return;
-            }
-            var confidencePercentage = confidence / 100;
+			// Video comes in mirrored, so let's flip it:
+			this.context.save();
+			this.context.scale(-1, 1);
+			this.context.drawImage(this.video, -(startX + padding / 2), startY + padding / 2, maxHeight * (360 / 270) * -1, maxHeight);
+			this.context.restore();
+			//
+			// this.context.font = '18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+			// this.context.fillStyle = '#000';
+			// this.context.fillText('MADE AT: ', startX, 320);
+			// this.context.fillStyle = '#3e80f6';
+			// this.context.fillText('G.CO/TEACHABLEMACHINE', 110, 320);
 
-            // Dynamically handle any class
-            if (Reflect.has(this.confidences, colorId)) {
-                this.confidences[colorId] = confidencePercentage;
-            }
+			this.renderFrame = requestAnimationFrame(this.render.bind(this));
+		}
+	}, {
+		key: 'setMeters',
+		value: function setMeters(colorId, confidence) {
+			if (!this.showing) {
+				return;
+			}
+			var confidencePercentage = confidence / 100;
 
-            // For backward compatibility, still update the original variables
-            switch (colorId) {
-                case 'green':
-                    this.confidence1 = confidencePercentage;
-                    break;
-                case 'purple':
-                    this.confidence2 = confidencePercentage;
-                    break;
-                case 'orange':
-                    this.confidence3 = confidencePercentage;
-                    break;
-                case 'yellow':
-                    this.confidence4 = confidencePercentage;
-                    break;
-                default:
-                    break;
-            }
-        }
+			// Dynamically handle any class
+			if (Reflect.has(this.confidences, colorId)) {
+				this.confidences[colorId] = confidencePercentage;
+			}
 
-        // Method to add a new class for recording visualization
+			// For backward compatibility, still update the original variables
+			switch (colorId) {
+				case 'green':
+					this.confidence1 = confidencePercentage;
+					break;
+				case 'purple':
+					this.confidence2 = confidencePercentage;
+					break;
+				case 'orange':
+					this.confidence3 = confidencePercentage;
+					break;
+				case 'yellow':
+					this.confidence4 = confidencePercentage;
+					break;
+				default:
+					break;
+			}
+		}
 
-    }, {
-        key: 'addNewClass',
-        value: function addNewClass(className) {
-            if (!Reflect.has(this.confidences, className)) {
-                this.confidences[className] = 0;
-            }
-        }
-    }, {
-        key: 'stopRecording',
-        value: function stopRecording() {
-            // this.recordingState = 'Facebook';
-            if (this.mediaRecorder.state !== 'inactive') {
-                this.mediaRecorder.stop();
-            }
-            clearTimeout(this.recordingTimeout);
-            _config2.default.webcamClassifier.stopTimer();
-        }
-    }, {
-        key: 'onRecordButtonClick',
-        value: function onRecordButtonClick() {
-            switch (this.recordingState) {
-                case 'waiting':
-                    this.countdown();
-                    break;
-                case 'countdown':
-                    this.stopCountdown();
-                    break;
-                case 'recording':
-                    if (this.mediaRecorder) {
-                        if (this.mediaRecorder.state !== 'inactive') {
-                            this.mediaRecorder.stop();
-                            this.stopRecording();
-                        }
-                        this.recordingState = 'waiting';
-                        this.recordTimer.style.display = 'none';
-                        this.startButton.element.classList.remove('animate');
-                    }
-                    break;
-                case 'shareSuccess':
-                    this.shareOnFb();
-                    break;
-                case 'successMessage':
-                    this.recordingState = 'waiting';
-                    break;
-                default:
-                    break;
-            }
-        }
-    }, {
-        key: 'onShareButtonClick',
-        value: function onShareButtonClick() {
-            this.recordingState = 'waiting';
-            this.shareOnFb();
-            this.downloadLinkSection.style.marginLeft = 0;
-        }
-    }, {
-        key: 'reset',
-        value: function reset() {
-            _config2.default.webcamClassifier.startTimer();
-            this.recordingState = 'waiting';
-            this.recordTimer.style.display = 'block';
-            this.startButton.element.style.top = 0;
-            this.downloadLinkSection.style.marginLeft = '15px';
-            this.recordMessage.style.display = 'block';
-            this.recordMessageAlt.style.display = 'none';
-            this.startButton.element.style.display = 'inline-block';
-            this.legal.style.display = 'block';
-            this.downloadLinkSection.style.display = 'none';
-            document.querySelector('#recording__start-button .button__label #icon--stop').style.display = 'none';
-            document.querySelector('#recording__start-button .button__label #icon--record').style.display = 'inline-block';
-            document.querySelector('#recording__start-button .button__label #recording__start-text').innerText = 'Start Recording';
-            this.canvas.style.display = 'block';
-            this.sharingNotice.style.display = 'none';
-            this.recordingVideo.style.display = 'none';
-            this.recordingVideo.setAttribute('src', '');
-            this.stopRecordingTime();
-            this.stopCountdown();
-            this.downloadPreText.innerText = '';
-        }
-    }, {
-        key: 'countdown',
-        value: function countdown() {
-            var _this4 = this;
+		// Method to add a new class for recording visualization
 
-            this.recordingState = 'countdown';
-            this.canvas.style.display = 'block';
-            this.recordingVideo.style.display = 'none';
-            this.downloadLinkSection.style.display = 'none';
-            document.querySelector('#recording__start-button .button__label #icon--record').style.display = 'none';
-            document.querySelector('#recording__start-button .button__label #recording__start-text').innerText = this.count;
-            this.countdownTimeout = setTimeout(function () {
-                _this4.count = _this4.count - 1;
-                if (_this4.count > 0) {
-                    document.querySelector('#recording__start-button .button__label #recording__start-text').innerText = _this4.count;
-                    _this4.countdown();
-                } else {
-                    _this4.startRecording();
-                    _this4.recordingTime();
-                    _this4.count = 3;
-                }
-            }, 1000);
-        }
-    }, {
-        key: 'recordingTime',
-        value: function recordingTime() {
-            var _this5 = this;
+	}, {
+		key: 'addNewClass',
+		value: function addNewClass(className) {
+			if (!Reflect.has(this.confidences, className)) {
+				this.confidences[className] = 0;
+			}
+		}
+	}, {
+		key: 'stopRecording',
+		value: function stopRecording() {
+			// this.recordingState = 'Facebook';
+			if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+				this.mediaRecorder.stop();
+			}
+			clearTimeout(this.recordingTimeout);
+			_config2.default.webcamClassifier.stopTimer();
+		}
+	}, {
+		key: 'onRecordButtonClick',
+		value: function onRecordButtonClick(event) {
+			if (event) {
+				event.preventDefault();
+			}
+			switch (this.recordingState) {
+				case 'waiting':
+					if (this.checkbox.checked) {
+						this.countdown();
+					} else {
+						this.checkbox.focus();
+					}
+					break;
+				case 'countdown':
+					this.stopCountdown();
+					this.announce('Recording canceled.');
+					break;
+				case 'recording':
+					this.startButton.element.classList.remove('animate');
+					this.stopRecordingTime();
+					this.stopRecording();
+					break;
+				case 'shareSuccess':
+					this.shareOnFb();
+					break;
+				case 'successMessage':
+					this.recordingState = 'waiting';
+					break;
+				default:
+					break;
+			}
+		}
+	}, {
+		key: 'onShareButtonClick',
+		value: function onShareButtonClick() {
+			this.recordingState = 'waiting';
+			this.shareOnFb();
+		}
+	}, {
+		key: 'onRestartClick',
+		value: function onRestartClick(event) {
+			if (event) {
+				event.preventDefault();
+			}
+			this.reset();
+			this.startButton.element.focus();
+		}
 
-            this.recordingTimeTimeout = setTimeout(function () {
-                _this5.recordedTime = _this5.recordedTime - 1;
-                if (_this5.recordedTime > 0) {
-                    _this5.recordTimer.innerText = '0:0' + _this5.recordedTime;
-                    _this5.recordingTime();
-                } else {
-                    _this5.recordTimer.innerText = '0:00';
-                    _this5.recordedTime = 10;
-                }
-            }, 1000);
-        }
-    }, {
-        key: 'stopRecordingTime',
-        value: function stopRecordingTime() {
-            this.recordingState = 'waiting';
-            if (this.recordingTimeTimeout) {
-                clearTimeout(this.recordingTimeTimeout);
-            }
-            this.recordedTime = 10;
-            this.recordTimer.innerText = '0:10';
-        }
-    }, {
-        key: 'stopCountdown',
-        value: function stopCountdown() {
-            this.recordingState = 'waiting';
-            clearTimeout(this.countdownTimeout);
-            this.count = 3;
-            this.startButton.element.classList.remove('animate');
-            document.querySelector('#recording__start-button .button__label #recording__start-text').innerText = 'Start Recording';
-        }
-    }, {
-        key: 'startRecording',
-        value: function startRecording() {
-            var _this6 = this;
+		// Back to the "ready to record" state.
 
-            this.recordingState = 'recording';
-            document.querySelector('#recording__start-button .button__label #icon--stop').style.display = 'inline-block';
-            document.querySelector('#recording__start-button .button__label #recording__start-text').innerText = 'Stop Recording';
-            var recordedChunks = [];
-            this.startButton.element.classList.add('animate');
-            var finalStream = new MediaStream();
-            var canvasStream = this.canvas.captureStream().getVideoTracks()[0];
-            finalStream.addTrack(canvasStream);
-            finalStream.addTrack(_config2.default.stream.getAudioTracks()[0]);
+	}, {
+		key: 'reset',
+		value: function reset() {
+			_config2.default.webcamClassifier.startTimer();
+			this.resetView();
+		}
+	}, {
+		key: 'resetView',
+		value: function resetView() {
+			this.stopRecordingTime();
+			this.stopCountdown();
+			this.recordingState = 'waiting';
 
-            this.mediaRecorder = new MediaRecorder(finalStream);
+			this.recordMessage.hidden = false;
+			this.recordMessageAlt.hidden = true;
+			this.canvas.hidden = false;
+			this.recordingVideo.hidden = true;
+			this.recordingVideo.removeAttribute('src');
+			this.recordTimer.hidden = false;
+			this.startButton.element.hidden = false;
+			this.legal.hidden = false;
+			this.downloadLinkSection.hidden = true;
+			this.sharingNotice.hidden = true;
+			this.downloadPreText.textContent = '';
+			this.setButtonIcon('record');
+			this.setButtonLabel(START_LABEL);
+			this.announce('');
+			this.toggleCheckbox();
 
-            this.mediaRecorder.ondataavailable = function (event) {
-                if (event.data.size > 0) {
-                    recordedChunks.push(event.data);
-                }
-            };
-            this.mediaRecorder.start();
-            this.mediaRecorder.onstop = function () {
-                _this6.blob = new Blob(recordedChunks, { type: 'video/webm' });
-                var url = URL.createObjectURL(_this6.blob);
-                _this6.canvas.style.display = 'none';
-                _this6.recordingVideo.style.display = 'block';
-                _this6.recordMessage.style.display = 'none';
-                _this6.recordMessageAlt.style.display = 'block';
-                _this6.recordTimer.style.display = 'none';
-                _this6.startButton.element.style.top = '50px';
-                document.querySelector('#recording__start-button .button__label #icon--stop').style.display = 'none';
-                document.querySelector('#recording__start-button .button__label #recording__start-text').innerText = '';
-                _this6.downloadLinkSection.style.display = 'inline-block';
-                _this6.downloadLinkButton.href = url;
-                _this6.downloadLinkButton.download = 'teachable-machine.webm';
-                _this6.startButton.element.style.display = 'none';
-                _this6.legal.style.display = 'none';
-                _this6.recordingVideo.setAttribute('src', url);
-                // this.sharingNotice.style.display = 'block';
-            };
-            this.recordingTimeout = setTimeout(function () {
-                _this6.startButton.element.classList.remove('animate');
-                _this6.stopRecording();
-            }, this.RECORD_TIME);
-            gtag('event', 'recording_start');
-        }
-    }, {
-        key: 'show',
-        value: function show() {
-            var _this7 = this;
+			if (this.videoUrl) {
+				URL.revokeObjectURL(this.videoUrl);
+				this.videoUrl = null;
+			}
+		}
+	}, {
+		key: 'countdown',
+		value: function countdown() {
+			var _this4 = this;
 
-            this.recordingState = 'waiting';
-            this.showing = true;
-            this.element.style.opacity = 1;
-            this.element.style.pointerEvents = 'initial';
-            setTimeout(function () {
-                _this7.element.classList.add('fadein');
-            }, 1);
-        }
-    }, {
-        key: 'hide',
-        value: function hide() {
-            var _this8 = this;
+			this.recordingState = 'countdown';
+			this.toggleCheckbox();
+			this.canvas.hidden = false;
+			this.recordingVideo.hidden = true;
+			this.downloadLinkSection.hidden = true;
+			this.setButtonIcon('none');
+			this.setButtonLabel('Cancel');
+			this.announce('Recording starts in ' + this.count + '…');
+			this.countdownTimeout = setTimeout(function () {
+				_this4.count -= 1;
+				if (_this4.count > 0) {
+					_this4.countdown();
+				} else {
+					_this4.count = COUNTDOWN_FROM;
+					_this4.startRecording();
+					_this4.recordingTime();
+				}
+			}, 1000);
+		}
+	}, {
+		key: 'recordingTime',
+		value: function recordingTime() {
+			var _this5 = this;
 
-            this.element.classList.remove('fadein');
-            _config2.default.webcamClassifier.startTimer();
-            setTimeout(function () {
-                _this8.element.style.opacity = 0;
-                _this8.element.style.pointerEvents = 'none';
-                _config2.default.isRecording = false;
-                if (_this8.video) {
-                    _this8.recordingVideo.setAttribute('src', '');
-                }
-                _this8.reset();
-            }, 300);
-            clearTimeout(this.recordingTimeTimeout);
-            clearTimeout(this.countdownTimeout);
+			this.recordingTimeTimeout = setTimeout(function () {
+				_this5.recordedTime -= 1;
+				if (_this5.recordedTime > 0) {
+					_this5.recordTimer.textContent = formatSeconds(_this5.recordedTime);
+					_this5.recordingTime();
+				} else {
+					_this5.recordTimer.textContent = formatSeconds(0);
+					_this5.recordedTime = RECORD_SECONDS;
+				}
+			}, 1000);
+		}
+	}, {
+		key: 'stopRecordingTime',
+		value: function stopRecordingTime() {
+			this.recordingState = 'waiting';
+			if (this.recordingTimeTimeout) {
+				clearTimeout(this.recordingTimeTimeout);
+			}
+			this.recordedTime = RECORD_SECONDS;
+			this.recordTimer.textContent = formatSeconds(RECORD_SECONDS);
+		}
+	}, {
+		key: 'stopCountdown',
+		value: function stopCountdown() {
+			this.recordingState = 'waiting';
+			clearTimeout(this.countdownTimeout);
+			this.count = COUNTDOWN_FROM;
+			this.startButton.element.classList.remove('animate');
+			this.setButtonIcon('record');
+			this.setButtonLabel(START_LABEL);
+			this.toggleCheckbox();
+		}
+	}, {
+		key: 'startRecording',
+		value: function startRecording() {
+			var _this6 = this;
 
-            this.showing = false;
-        }
-    }, {
-        key: 'shareOnFb',
-        value: function shareOnFb() {
-            var _this9 = this;
+			this.recordingState = 'recording';
+			this.discardRecording = false;
+			this.setButtonIcon('stop');
+			this.setButtonLabel('Stop Recording');
+			this.announce('Recording. It stops by itself after ' + RECORD_SECONDS + ' seconds.');
+			var recordedChunks = [];
+			this.startButton.element.classList.add('animate');
+			var finalStream = new MediaStream();
+			var canvasStream = this.canvas.captureStream().getVideoTracks()[0];
+			finalStream.addTrack(canvasStream);
+			var audioTracks = _config2.default.stream ? _config2.default.stream.getAudioTracks() : [];
+			if (audioTracks.length > 0) {
+				finalStream.addTrack(audioTracks[0]);
+			}
 
-            this.downloadPreText.innerText = 'Posting... ';
-            window.fbWindowCallback = function (data) {
-                var formData = new FormData();
-                formData.append('code', data);
-                var fileOfBlob = new File([_this9.blob], 'share.webm');
+			this.mediaRecorder = new MediaRecorder(finalStream);
 
-                formData.append('video', fileOfBlob);
+			this.mediaRecorder.ondataavailable = function (event) {
+				if (event.data.size > 0) {
+					recordedChunks.push(event.data);
+				}
+			};
+			this.mediaRecorder.start();
+			this.mediaRecorder.onstop = function () {
+				if (_this6.discardRecording) {
+					_this6.discardRecording = false;
 
-                var xhr = new XMLHttpRequest();
-                xhr.open('POST', '/share-video');
-                xhr.onload = function () {
-                    if (xhr.status === 200) {
-                        _this9.downloadPreText.innerText = 'Posted to Facebook. ';
-                        // console.log('Something went wrong.  Name is now ' + xhr.responseText);
-                    } else if (xhr.status !== 200) {
-                        _this9.downloadPreText.innerText = 'Sorry, something went wrong. ';
-                        // console.log('Request failed.  Returned status of ' + xhr.status);
-                    }
-                };
-                xhr.send(formData);
-            };
-            var popup = window.open('/fb', 'Share on Facebook', 'width=600, height=600');
-            popup.focus();
-            gtag('event', 'recording_share');
-        }
-    }]);
+					return;
+				}
+				_this6.blob = new Blob(recordedChunks, { type: 'video/webm' });
+				_this6.showPreview(URL.createObjectURL(_this6.blob));
+			};
+			this.recordingTimeout = setTimeout(function () {
+				_this6.startButton.element.classList.remove('animate');
+				_this6.stopRecording();
+			}, this.RECORD_TIME);
+			gtag('event', 'recording_start');
+		}
+	}, {
+		key: 'showPreview',
+		value: function showPreview(url) {
+			this.recordingState = 'preview';
+			this.videoUrl = url;
+			this.startButton.element.classList.remove('animate');
+			this.canvas.hidden = true;
+			this.recordingVideo.hidden = false;
+			this.recordMessage.hidden = true;
+			this.recordMessageAlt.hidden = false;
+			this.recordTimer.hidden = true;
+			this.startButton.element.hidden = true;
+			this.legal.hidden = true;
+			this.downloadLinkSection.hidden = false;
+			this.downloadLinkButton.href = url;
+			this.downloadLinkButton.download = 'teachable-machine.webm';
+			this.recordingVideo.setAttribute('src', url);
+			this.announce('Your video is ready.');
+			// this.sharingNotice.hidden = false;
 
-    return Recording;
+			// The Stop button that had focus is gone; keep focus in the sheet.
+			if (this.showing) {
+				this.downloadLinkButton.focus();
+			}
+		}
+	}, {
+		key: 'getFocusable',
+		value: function getFocusable() {
+			var elements = Array.from(this.sheet.querySelectorAll(FOCUSABLE));
+
+			return elements.filter(function (item) {
+				return !item.disabled && item.getClientRects().length > 0;
+			});
+		}
+	}, {
+		key: 'onKeydown',
+		value: function onKeydown(event) {
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				this.hide();
+
+				return;
+			}
+			if (event.key !== 'Tab') {
+				return;
+			}
+			var focusable = this.getFocusable();
+			if (focusable.length === 0) {
+				event.preventDefault();
+				this.sheet.focus();
+
+				return;
+			}
+			var first = focusable[0];
+			var last = focusable[focusable.length - 1];
+			var active = document.activeElement;
+			var outside = !this.sheet.contains(active);
+			if (event.shiftKey && (active === first || outside)) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && (active === last || outside)) {
+				event.preventDefault();
+				first.focus();
+			}
+		}
+	}, {
+		key: 'show',
+		value: function show() {
+			clearTimeout(this.hideTimeout);
+			if (!this.showing) {
+				this.returnFocusTo = document.activeElement;
+			}
+			this.recordingState = 'waiting';
+			this.showing = true;
+			this.element.hidden = false;
+			document.documentElement.classList.add('recording-open');
+			document.addEventListener('keydown', this.keydownEvent);
+
+			// Flush styles so the fade-in transition runs from the hidden state.
+			this.element.getBoundingClientRect();
+			this.element.classList.add('fadein');
+
+			if (this.checkbox.checked) {
+				this.startButton.element.focus();
+			} else {
+				this.checkbox.focus();
+			}
+		}
+	}, {
+		key: 'hide',
+		value: function hide() {
+			var _this7 = this;
+
+			if (!this.showing) {
+				return;
+			}
+			this.showing = false;
+			cancelAnimationFrame(this.renderFrame);
+			this.element.classList.remove('fadein');
+			document.documentElement.classList.remove('recording-open');
+			document.removeEventListener('keydown', this.keydownEvent);
+			_config2.default.webcamClassifier.startTimer();
+
+			clearTimeout(this.recordingTimeTimeout);
+			clearTimeout(this.countdownTimeout);
+			clearTimeout(this.recordingTimeout);
+			if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+				this.discardRecording = true;
+				this.mediaRecorder.stop();
+			}
+
+			this.hideTimeout = setTimeout(function () {
+				_this7.element.hidden = true;
+				_config2.default.isRecording = false;
+				_this7.reset();
+			}, FADE_MS);
+
+			if (this.returnFocusTo && document.body.contains(this.returnFocusTo) && this.returnFocusTo.focus) {
+				this.returnFocusTo.focus();
+			}
+			this.returnFocusTo = null;
+		}
+	}, {
+		key: 'shareOnFb',
+		value: function shareOnFb() {
+			var _this8 = this;
+
+			this.downloadPreText.innerText = 'Posting... ';
+			window.fbWindowCallback = function (data) {
+				var formData = new FormData();
+				formData.append('code', data);
+				var fileOfBlob = new File([_this8.blob], 'share.webm');
+
+				formData.append('video', fileOfBlob);
+
+				var xhr = new XMLHttpRequest();
+				xhr.open('POST', '/share-video');
+				xhr.onload = function () {
+					if (xhr.status === 200) {
+						_this8.downloadPreText.innerText = 'Posted to Facebook. ';
+						// console.log('Something went wrong.  Name is now ' + xhr.responseText);
+					} else if (xhr.status !== 200) {
+						_this8.downloadPreText.innerText = 'Sorry, something went wrong. ';
+						// console.log('Request failed.  Returned status of ' + xhr.status);
+					}
+				};
+				xhr.send(formData);
+			};
+			var popup = window.open('/fb', 'Share on Facebook', 'width=600, height=600');
+			popup.focus();
+			gtag('event', 'recording_share');
+		}
+	}]);
+
+	return Recording;
 }();
 
 exports.default = Recording;
 
-},{"./../../config.js":239,"./../components/Button.js":247}],259:[function(require,module,exports){
+},{"./../../config.js":240,"./../components/Button.js":250}],263:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -56409,14 +58497,26 @@ var TrainingQuality = function () {
 
 exports.default = TrainingQuality;
 
-},{"gsap":210}],260:[function(require,module,exports){
+},{"gsap":210}],264:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+	value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); // Copyright 2017 Google Inc.
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _config = require('./../../config.js');
+
+var _config2 = _interopRequireDefault(_config);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+// Copyright 2017 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56430,243 +58530,273 @@ var _createClass = function () { function defineProperties(target, props) { for 
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var _config = require('./../../config.js');
+// The machine's wires, drawn as SVG measured from the real layout. Colours
+// are CSS custom properties (style/components/machine.styl: --wire-neutral and
+// --class-*), so they follow dark mode / increased contrast without repainting,
+// and reduced motion is handled in CSS.
+//
+// The wires element decides the orientation: taller than wide (wide layout,
+// columns side by side) runs the wires left to right; wider than tall (stacked
+// layout) runs them top to bottom.
 
-var _config2 = _interopRequireDefault(_config);
+var SVG_NS = 'http://www.w3.org/2000/svg';
+var SOURCE_SPREAD = 4;
+var FAN_STEP = 72;
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+function createSvgElement(name, attributes) {
+	var node = document.createElementNS(SVG_NS, name);
 
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	Object.keys(attributes).forEach(function (key) {
+		node.setAttribute(key, attributes[key]);
+	});
+
+	return node;
+}
+
+function getClassCards() {
+	return Array.from(document.querySelectorAll('#learning-section .learning__class'));
+}
+
+// Centre of the first visible element matching one of the selectors inside
+// root (or of root itself), relative to origin.
+function anchorPoint(root, selectors, origin) {
+	var candidates = selectors.map(function (selector) {
+		return root.querySelector(selector);
+	});
+	candidates.push(root);
+
+	for (var index = 0; index < candidates.length; index += 1) {
+		var candidate = candidates[index];
+		var rect = candidate ? candidate.getBoundingClientRect() : null;
+
+		if (rect && rect.width > 0 && rect.height > 0) {
+			return {
+				x: rect.left + rect.width / 2 - origin.left,
+				y: rect.top + rect.height / 2 - origin.top,
+				top: rect.top
+			};
+		}
+	}
+
+	return null;
+}
+
+// X positions for wires in the stacked layout. Uses the cards' real centres
+// when they sit in one row; otherwise fans the wires out around the centre.
+function stackedPositions(points, width) {
+	var tops = points.map(function (point) {
+		return Math.round(point.top);
+	});
+	var inOneRow = points.length > 1 && Math.max.apply(Math, _toConsumableArray(tops)) - Math.min.apply(Math, _toConsumableArray(tops)) < 4;
+	var step = Math.min(FAN_STEP, (width - 32) / Math.max(points.length, 1));
+
+	return points.map(function (point, index) {
+		if (inOneRow) {
+			return point.x;
+		}
+
+		return width / 2 + (index - (points.length - 1) / 2) * step;
+	});
+}
+
+function observeLayout(targets, callback) {
+	var frame = 0;
+
+	function schedule() {
+		cancelAnimationFrame(frame);
+		frame = requestAnimationFrame(callback);
+	}
+
+	window.addEventListener('resize', schedule);
+	window.addEventListener('orientationchange', schedule);
+
+	if (!window.ResizeObserver) {
+		return null;
+	}
+
+	var observer = new ResizeObserver(schedule);
+	targets.forEach(function (target) {
+		if (target) {
+			observer.observe(target);
+		}
+	});
+
+	return observer;
+}
 
 var WiresLeft = function () {
-    function WiresLeft(element, learningClasses) {
-        var _this = this;
+	function WiresLeft(element, learningClasses) {
+		_classCallCheck(this, WiresLeft);
 
-        _classCallCheck(this, WiresLeft);
+		this.element = element;
+		this.learningClasses = learningClasses;
+		this.activeIndex = null;
+		this.signals = [];
 
-        this.element = element;
-        this.learningClasses = learningClasses;
-        this.offsetY = 0;
-        this.canvas = document.createElement('canvas');
-        this.size();
-        this.element.appendChild(this.canvas);
-        this.wireGeneral = this.element.querySelector('.st0');
-        this.wireGreen = this.element.querySelector('.wire-green');
-        this.wirePurple = this.element.querySelector('.wire-purple');
-        this.wireOrange = this.element.querySelector('.wire-orange');
-        this.wireYellow = this.element.querySelector('.wire-yellow');
-        this.context = this.canvas.getContext('2d');
-        this.vertical = true;
-        window.addEventListener('resize', function () {
-            if (window.innerWidth <= 900) {
-                _this.canvas.style.display = 'none';
-            } else {
-                _this.canvas.style.display = 'block';
-            }
-        });
-        this.currentAnimator = null;
-        this.renderOnce = true;
-        this.render();
-    }
+		this.svg = element.querySelector('.wires-svg');
+		if (!this.svg) {
+			this.svg = createSvgElement('svg', {
+				'class': 'wires-svg',
+				'aria-hidden': 'true',
+				'focusable': 'false'
+			});
+			element.appendChild(this.svg);
+		}
 
-    _createClass(WiresLeft, [{
-        key: 'render',
-        value: function render(once) {
-            this.context.clearRect(0, 0, this.width, this.height);
-            this.context.lineWidth = 3;
+		var targets = [element, document.querySelector('.machine__sections'), document.querySelector('#input-section')];
+		this.observer = observeLayout(targets.concat(getClassCards()), this.render.bind(this));
+		this.render();
+	}
 
-            for (var index = 0; index < _config2.default.classNames.length; index += 1) {
+	_createClass(WiresLeft, [{
+		key: 'render',
+		value: function render() {
+			var _this = this;
 
-                var startY = this.startY + this.startSpace * index;
-                var endY = this.endY + this.endSpace * index;
+			var origin = this.element.getBoundingClientRect();
+			var width = origin.width;
+			var height = origin.height;
+			var input = document.querySelector('#input-section');
 
-                var start = {
-                    x: 0,
-                    y: this.startY + this.startSpace * index
-                };
+			if (!width || !height || !input) {
+				return;
+			}
 
-                var end = {
-                    x: this.endX,
-                    y: this.endY + this.endSpace * index
-                };
+			var source = anchorPoint(input, ['.input__media'], origin);
+			var cards = getClassCards();
+			var targetSelectors = ['.examples__wrapper', '.machine__meter'];
+			var targets = cards.map(function (card) {
+				return anchorPoint(card, targetSelectors, origin);
+			});
+			var horizontal = height > width;
+			var stackedX = horizontal ? [] : stackedPositions(targets.filter(Boolean), width);
 
-                var cp1 = {
-                    x: 35,
-                    y: start.y
-                };
+			this.svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+			while (this.svg.firstChild) {
+				this.svg.removeChild(this.svg.firstChild);
+			}
+			this.signals = [];
 
-                var cp2 = {
-                    x: 10,
-                    y: end.y
-                };
+			if (!source) {
+				return;
+			}
 
-                this.context.strokeStyle = '#cfd1d2';
+			var visibleIndex = 0;
+			targets.forEach(function (target, index) {
+				if (!target) {
+					return;
+				}
+				var offset = (index - (cards.length - 1) / 2) * SOURCE_SPREAD;
+				var path = '';
 
-                if (this.animator[index].highlight) {
-                    this.context.strokeStyle = this.animator[index].color;
-                }
+				if (horizontal) {
+					var startY = source.y + offset;
+					path = 'M0 ' + startY + ' C' + width / 2 + ' ' + startY + ' ' + width / 2 + ' ' + target.y + ' ' + width + ' ' + target.y;
+				} else {
+					var startX = source.x + offset;
+					var endX = stackedX[visibleIndex];
+					path = 'M' + startX + ' 0 C' + startX + ' ' + height / 2 + ' ' + endX + ' ' + height / 2 + ' ' + endX + ' ' + height;
+				}
+				visibleIndex += 1;
+				_this.addWire(index, path);
+			});
 
-                this.context.beginPath();
-                this.context.moveTo(start.x, start.y);
-                this.context.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-                this.context.lineTo(start.x + 100, start.y);
-                this.context.stroke();
-            }
+			this.updateLit();
+		}
+	}, {
+		key: 'addWire',
+		value: function addWire(index, path) {
+			var id = _config2.default.classNames[index] || 'neutral';
 
-            if (this.renderOnce) {
-                this.renderOnce = false;
-            } else {
-                this.timer = requestAnimationFrame(this.render.bind(this));
-            }
-        }
-    }, {
-        key: 'camMode',
-        value: function camMode() {
-            if (this.vert) {
-                this.element.style.left = 50 + '%';
-            }
-            this.offsetY = -2;
-            this.startY = this.height / 2 + this.offsetY;
-            this.renderOnce = true;
-            this.render();
-        }
-    }, {
-        key: 'highlight',
-        value: function highlight(index) {
-            console.log('🎬 WiresLeft.highlight - index:', index);
-            if (!this.animator[index]) {
-                console.warn('No animator found for index:', index);
+			this.svg.appendChild(createSvgElement('path', {
+				'class': 'wire',
+				'd': path
+			}));
+			this.signals[index] = createSvgElement('path', {
+				'class': 'wire-signal wire-signal--flow wire-signal--' + id,
+				'd': path
+			});
+			this.svg.appendChild(this.signals[index]);
+		}
+	}, {
+		key: 'updateLit',
+		value: function updateLit() {
+			var _this2 = this;
 
-                return;
-            }
+			this.signals.forEach(function (signal, index) {
+				if (signal) {
+					signal.classList.toggle('is-lit', index === _this2.activeIndex);
+				}
+			});
+		}
 
-            this.currentAnimator = this.animator[index];
-            this.currentAnimator.highlight = true;
-            this.start();
+		// Lights the wire into the class being trained (animated flow unless the
+		// person prefers reduced motion, see machine.styl).
 
-            // Get the class name for this index
-            var className = _config2.default.classNames[index];
-            console.log('🎬 WiresLeft.highlight - className:', className);
+	}, {
+		key: 'highlight',
+		value: function highlight(index) {
+			this.activeIndex = index;
+			this.updateLit();
+		}
+	}, {
+		key: 'dehighlight',
+		value: function dehighlight() {
+			this.activeIndex = null;
+			this.updateLit();
+		}
 
-            var wireElement = this.element.querySelector('.wire-' + className);
-            console.log('🎬 WiresLeft.highlight - wireElement:', wireElement);
+		// Kept for callers; drawing is event driven now.
 
-            if (wireElement) {
-                console.log('🎬 WiresLeft.highlight - before adding animate class:', wireElement.classList.toString());
-                wireElement.classList.add('animate');
-                console.log('🎬 WiresLeft.highlight - after adding animate class:', wireElement.classList.toString());
-                console.log('🎬 WiresLeft.highlight - wireElement computed style:', window.getComputedStyle(wireElement));
-            } else {
-                console.warn('No wire element found for class:', className);
-            }
-        }
-    }, {
-        key: 'dehighlight',
-        value: function dehighlight(index) {
-            var _this2 = this;
+	}, {
+		key: 'start',
+		value: function start() {
+			return this;
+		}
+	}, {
+		key: 'stop',
+		value: function stop() {
+			return this;
+		}
+	}, {
+		key: 'camMode',
+		value: function camMode() {
+			this.render();
+		}
+	}, {
+		key: 'size',
+		value: function size() {
+			this.render();
+		}
+	}, {
+		key: 'updateForNewClass',
+		value: function updateForNewClass() {
+			var _this3 = this;
 
-            if (this.currentAnimator) {
-                this.currentAnimator.highlight = false;
-                this.currentAnimator = null;
-                this.stop();
-                this.renderOnce = true;
-                this.render();
-            }
+			if (this.observer) {
+				getClassCards().forEach(function (card) {
+					_this3.observer.observe(card);
+				});
+			}
+			this.render();
+		}
+	}]);
 
-            // Remove animate class from all wire elements
-            _config2.default.classNames.forEach(function (className) {
-                var wireElement = _this2.element.querySelector('.wire-' + className);
-                if (wireElement) {
-                    wireElement.classList.remove('animate');
-                }
-            });
-        }
-    }, {
-        key: 'start',
-        value: function start() {
-            this.stop();
-            this.timer = requestAnimationFrame(this.render.bind(this));
-        }
-    }, {
-        key: 'stop',
-        value: function stop() {
-            if (this.timer) {
-                cancelAnimationFrame(this.timer);
-            }
-        }
-    }, {
-        key: 'size',
-        value: function size() {
-            var BREAKPOINT_DESKTOP = 900;
-            if (window.innerWidth <= BREAKPOINT_DESKTOP) {
-                this.canvas.style.display = 'none';
-            }
-
-            this.width = this.element.offsetWidth;
-
-            var firstLearningClass = this.learningClasses[0];
-            var lastLearningClass = this.learningClasses[this.learningClasses.length - 1];
-
-            var classesHeight = lastLearningClass.offsetTop - firstLearningClass.offsetTop;
-
-            this.height = 440;
-
-            // remove offset on desktop
-            this.element.setAttribute('style', '');
-            this.endSpace = classesHeight / Math.max(this.learningClasses.length - 1, 1);
-
-            this.canvas.width = this.width;
-            this.canvas.height = this.height;
-
-            this.startSpace = 3;
-
-            this.startX = 0;
-            // this.startY = (this.height / 2);
-            this.startY = this.height / 2 + this.offsetY;
-            this.endX = this.width;
-            this.endY = 80;
-
-            this.animator = {};
-            for (var index = 0; index < _config2.default.classNames.length; index += 1) {
-                var id = _config2.default.classNames[index];
-                this.animator[index] = {
-                    highlight: false,
-                    percentage: 0,
-                    color: _config2.default.colors[id],
-                    numParticles: 15
-                };
-            }
-
-            this.renderOnce = true;
-        }
-
-        // Method to update wires when new classes are added
-
-    }, {
-        key: 'updateForNewClass',
-        value: function updateForNewClass() {
-            // Re-initialize the animator for all current classes
-            this.animator = {};
-            for (var index = 0; index < _config2.default.classNames.length; index += 1) {
-                var id = _config2.default.classNames[index];
-                this.animator[index] = {
-                    highlight: false,
-                    percentage: 0,
-                    color: _config2.default.colors[id],
-                    numParticles: 15
-                };
-            }
-            this.renderOnce = true;
-            this.render();
-        }
-    }]);
-
-    return WiresLeft;
+	return WiresLeft;
 }();
+
+// Shared with WiresRight.js
+
+
+WiresLeft.anchorPoint = anchorPoint;
+WiresLeft.createSvgElement = createSvgElement;
+WiresLeft.getClassCards = getClassCards;
+WiresLeft.observeLayout = observeLayout;
+WiresLeft.stackedPositions = stackedPositions;
 
 exports.default = WiresLeft;
 
-},{"./../../config.js":239}],261:[function(require,module,exports){
+},{"./../../config.js":240}],265:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -56678,6 +58808,10 @@ var _createClass = function () { function defineProperties(target, props) { for 
 var _config = require('./../../config.js');
 
 var _config2 = _interopRequireDefault(_config);
+
+var _WiresLeft = require('./WiresLeft.js');
+
+var _WiresLeft2 = _interopRequireDefault(_WiresLeft);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -56697,284 +58831,210 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Wires from each class's confidence meter to a row of bulbs at the output.
+// The detected class lights its wire and bulb. See WiresLeft.js for how the
+// geometry and colours work.
+
+var BULB_RADIUS = 6;
+var BULB_SPACING = 24;
+
 var WiresRight = function () {
     function WiresRight(element) {
-        var _this = this;
-
         _classCallCheck(this, WiresRight);
 
         this.element = element;
+        this.activeId = null;
+        this.signals = {};
+        this.bulbs = {};
 
-        this.canvas = document.createElement('canvas');
-        this.bulbVert = true;
-        this.bulbSmall = false;
-
-        this.bulbGreen = this.element.querySelector('.wire--right-bulb-green-glow');
-        this.bulbPurple = this.element.querySelector('.wire--right-bulb-purple-glow');
-        this.bulbOrange = this.element.querySelector('.wire--right-bulb-orange-glow');
-        this.bulbYellow = this.element.querySelector('.wire--right-bulb-yellow-glow');
-
-        this.element.appendChild(this.canvas);
-        this.context = this.canvas.getContext('2d');
-
-        this.offsetY = 0;
-        this.animator = {};
-
-        for (var index = 0; index < _config2.default.classNames.length; index += 1) {
-
-            var bulbElement = document.createElement('div');
-
-            bulbElement.classList.add('wires__bulb');
-            bulbElement.classList.add('wires__bulb-' + _config2.default.classNames[index]);
-            this.size();
-
-            this.element.appendChild(bulbElement);
-
-            this.animator[index] = {
-                highlight: false,
-                bulb: bulbElement
-            };
+        this.svg = element.querySelector('.wires-svg');
+        if (!this.svg) {
+            this.svg = _WiresLeft2.default.createSvgElement('svg', {
+                'class': 'wires-svg',
+                'aria-hidden': 'true',
+                'focusable': 'false'
+            });
+            element.appendChild(this.svg);
         }
 
-        window.addEventListener('resize', function () {
-            if (window.innerWidth <= 900) {
-                _this.canvas.style.display = 'none';
-            } else {
-                _this.canvas.style.display = 'block';
-            }
-        });
-
-        window.addEventListener('orientationchange', function () {
-            _this.size();
-        });
-
-        this.altOffset = 340;
-        this.size();
-        this.loops = 10;
-        this.current = 0;
-        this.running = false;
-        this.renderOnce = true;
-        this.bulbVert ? this.render() : this.renderAlt();
-
-        if (this.bulbVert) {
-            this.offsetY = -90;
-            this.startY = 190 + this.offsetY;
-
-            this.renderOnce = true;
-            this.render();
-        } else {
-            this.altOffset = 300;
-            this.size();
-            this.renderAlt();
-        }
+        var targets = [element, document.querySelector('.machine__sections'), document.querySelector('#output-section')];
+        this.observer = _WiresLeft2.default.observeLayout(targets.concat(_WiresLeft2.default.getClassCards()), this.render.bind(this));
+        this.render();
     }
 
     _createClass(WiresRight, [{
-        key: 'render',
-        value: function render(once) {
-            this.context.clearRect(0, 0, this.width, this.height);
-            this.context.lineWidth = 3;
+        key: 'outputAnchor',
+        value: function outputAnchor(origin) {
+            var output = document.querySelector('#output-section');
 
-            for (var index = 0; index < _config2.default.classNames.length; index += 1) {
-                var startY = this.startY + this.startSpace * index;
-
-                var start = {
-                    x: this.startX,
-                    y: this.startY + this.startSpace * index
-                };
-
-                var end = {
-                    x: this.endX,
-                    y: this.endY + this.endSpace * index
-                };
-
-                var cp1 = {
-                    x: 5,
-                    y: start.y
-                };
-
-                var cp2 = {
-                    x: 25,
-                    y: end.y
-                };
-                this.context.strokeStyle = '#cfd1d2';
-                this.context.beginPath();
-                this.context.moveTo(start.x, start.y);
-                this.context.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-                this.context.stroke();
+            if (!output) {
+                return null;
             }
 
-            if (this.renderOnce) {
-                this.renderOnce = false;
-            } else {
-                if (this.current < this.loops) {
-                    this.current += 1;
-                } else {
-                    this.dehighlight();
-                }
-                this.running = true;
-                this.timer = requestAnimationFrame(this.render.bind(this));
-            }
+            var selectors = ['.output__player', '.section__container'];
+
+            return _WiresLeft2.default.anchorPoint(output, selectors, origin);
         }
     }, {
-        key: 'renderAlt',
-        value: function renderAlt(once) {
+        key: 'render',
+        value: function render() {
+            var _this = this;
 
-            this.context.clearRect(0, 0, this.width, this.height);
-            this.context.lineWidth = 3;
+            var origin = this.element.getBoundingClientRect();
+            var width = origin.width;
+            var height = origin.height;
 
-            for (var index = 0; index < _config2.default.classNames.length; index += 1) {
-                var startY = this.startY + this.startSpace * index;
-
-                var start = {
-                    x: this.startX,
-                    y: this.startY + this.startSpace * index
-                };
-
-                var end = {
-                    x: this.endX,
-                    y: this.endY + this.endSpace * index
-                };
-
-                this.context.strokeStyle = '#cfd1d2';
-                this.context.beginPath();
-                this.context.moveTo(start.x, start.y);
-                this.context.lineTo(end.x, start.y);
-                this.context.stroke();
+            if (!width || !height) {
+                return;
             }
 
-            if (this.renderOnce) {
-                this.renderOnce = false;
-            } else {
-                if (this.current < this.loops) {
-                    this.current += 1;
-                } else {
-                    this.dehighlight();
+            var cards = _WiresLeft2.default.getClassCards();
+            var meterSelectors = ['.machine__meter'];
+            var sources = cards.map(function (card) {
+                return _WiresLeft2.default.anchorPoint(card, meterSelectors, origin);
+            });
+            var visible = sources.filter(Boolean);
+            var output = this.outputAnchor(origin);
+            var horizontal = height > width;
+            var stackedX = horizontal ? [] : _WiresLeft2.default.stackedPositions(visible, width);
+            var center = {
+                x: output ? output.x : width / 2,
+                y: output ? output.y : height / 2
+            };
+
+            this.svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+            while (this.svg.firstChild) {
+                this.svg.removeChild(this.svg.firstChild);
+            }
+            this.signals = {};
+            this.bulbs = {};
+
+            var visibleIndex = 0;
+            sources.forEach(function (source, index) {
+                if (!source) {
+                    return;
                 }
-                this.timer = requestAnimationFrame(this.renderAlt.bind(this));
-            }
+                var offset = (visibleIndex - (visible.length - 1) / 2) * BULB_SPACING;
+                var path = '';
+                var bulb = {};
+
+                if (horizontal) {
+                    bulb.x = width - BULB_RADIUS - 2;
+                    bulb.y = center.y + offset;
+                    path = 'M0 ' + source.y + ' C' + width / 2 + ' ' + source.y + ' ' + width / 2 + ' ' + bulb.y + ' ' + bulb.x + ' ' + bulb.y;
+                } else {
+                    var startX = stackedX[visibleIndex];
+                    bulb.x = center.x + offset;
+                    bulb.y = height - BULB_RADIUS - 2;
+                    path = 'M' + startX + ' 0 C' + startX + ' ' + height / 2 + ' ' + bulb.x + ' ' + height / 2 + ' ' + bulb.x + ' ' + bulb.y;
+                }
+                visibleIndex += 1;
+                _this.addWire(_config2.default.classNames[index] || 'neutral', path, bulb);
+            });
+
+            this.updateLit();
         }
+    }, {
+        key: 'addWire',
+        value: function addWire(id, path, bulb) {
+            this.svg.appendChild(_WiresLeft2.default.createSvgElement('path', {
+                'class': 'wire',
+                'd': path
+            }));
+
+            this.signals[id] = _WiresLeft2.default.createSvgElement('path', {
+                'class': 'wire-signal wire-signal--draw wire-signal--' + id,
+                'd': path
+            });
+            this.svg.appendChild(this.signals[id]);
+            // Lets CSS draw the wire from end to end (see .wire-signal--draw).
+            if (this.signals[id].getTotalLength) {
+                this.signals[id].style.setProperty('--wire-length', Math.ceil(this.signals[id].getTotalLength()));
+            }
+
+            var group = _WiresLeft2.default.createSvgElement('g', { 'class': 'wire-bulb wire-bulb--' + id });
+            group.appendChild(_WiresLeft2.default.createSvgElement('circle', {
+                'class': 'wire-bulb__glow',
+                'cx': bulb.x,
+                'cy': bulb.y,
+                'r': BULB_RADIUS * 2
+            }));
+            group.appendChild(_WiresLeft2.default.createSvgElement('circle', {
+                'class': 'wire-bulb__light',
+                'cx': bulb.x,
+                'cy': bulb.y,
+                'r': BULB_RADIUS
+            }));
+            this.bulbs[id] = group;
+            this.svg.appendChild(group);
+        }
+    }, {
+        key: 'updateLit',
+        value: function updateLit() {
+            var _this2 = this;
+
+            Object.keys(this.signals).forEach(function (id) {
+                var lit = id === _this2.activeId;
+                _this2.signals[id].classList.toggle('is-lit', lit);
+                _this2.bulbs[id].classList.toggle('is-lit', lit);
+            });
+        }
+
+        // Lights the detected class's wire and bulb. Called every prediction
+        // frame, so it only touches the DOM when the class changes.
+
     }, {
         key: 'highlight',
         value: function highlight(id) {
-            var index = _config2.default.classNames.indexOf(id);
-
-            switch (index) {
-                case 0:
-                    this.bulbGreen.classList.add('bulb--selected');
-                    break;
-                case 1:
-                    this.bulbPurple.classList.add('bulb--selected');
-                    break;
-                case 2:
-                    this.bulbOrange.classList.add('bulb--selected');
-                    break;
-                case 3:
-                    if (this.bulbYellow) {
-                        this.bulbYellow.classList.add('bulb--selected');
-                    }
-                    break;
-                default:
+            if (id === this.activeId) {
+                return;
             }
+            this.activeId = id;
+            this.updateLit();
         }
     }, {
         key: 'dehighlight',
         value: function dehighlight() {
-            this.bulbGreen.classList.remove('bulb--selected');
-            this.bulbPurple.classList.remove('bulb--selected');
-            this.bulbOrange.classList.remove('bulb--selected');
-            if (this.bulbYellow) {
-                this.bulbYellow.classList.remove('bulb--selected');
+            if (this.activeId === null) {
+                return;
             }
+            this.activeId = null;
+            this.updateLit();
         }
+
+        // Kept for callers; drawing is event driven now.
+
     }, {
         key: 'start',
         value: function start() {
-            if (!this.running) {
-                this.timer = requestAnimationFrame(this.bulbVert ? this.render.bind(this) : this.renderAlt.bind(this));
-            }
+            return this;
         }
     }, {
         key: 'stop',
         value: function stop() {
-            cancelAnimationFrame(this.timer);
-            this.running = false;
+            return this;
+        }
+    }, {
+        key: 'renderAlt',
+        value: function renderAlt() {
+            this.render();
         }
     }, {
         key: 'size',
         value: function size() {
-            var _this2 = this;
-
-            var BREAKPOINT_DESKTOP = 900;
-            var BREAKPOINT_MED = 428;
-
-            this.width = this.element.offsetWidth;
-            var bulbs = Array.from(document.getElementsByClassName('wires__bulb'));
-            this.startSpace = (this.height - 80) / Math.max(_config2.default.classNames.length - 1, 1);
-            // console.log(this.startSpace);
-            this.startSpace = 130;
-            this.endSpace = (this.height + 45) / 5;
-            this.canvas.width = 70;
-            this.canvas.height = this.height;
-
-            // this element rotated in css and using height as width
-            // if (window.innerWidth >= BREAKPOINT_DESKTOP) {
-            this.height = 450;
-
-            // remove offset on desktop
-            this.element.setAttribute('style', '');
-
-            bulbs.forEach(function (bulb, index) {
-                bulb.style.top = _this2.endY + index * _this2.endSpace + 'px';
-            });
-
-            this.bulbVert = true;
-
-            this.startX = 0;
-            this.startY = 190 + this.offsetY;
-
-            // this.endSpace = this.height / 5;
-            this.endX = this.width;
-            // this.endY = (this.height / 2) - (2 * this.endSpace) + 25;
-            this.endY = 145;
-
-            if (window.innerWidth <= BREAKPOINT_DESKTOP) {
-                this.canvas.style.display = 'none';
-
-                bulbs.forEach(function (bulb, index) {
-                    bulb.style.top = 'none';
-                });
-            }
+            this.render();
         }
-
-        // Method to update wires when new classes are added
-
     }, {
         key: 'updateForNewClass',
         value: function updateForNewClass() {
-            // Check if we need to add new bulb elements for new classes
-            var currentClassCount = Object.keys(this.animator).length;
-            var totalClassCount = _config2.default.classNames.length;
+            var _this3 = this;
 
-            if (totalClassCount > currentClassCount) {
-                // Add new bulb elements for new classes
-                for (var index = currentClassCount; index < totalClassCount; index += 1) {
-                    var bulbElement = document.createElement('div');
-                    bulbElement.classList.add('wires__bulb');
-                    bulbElement.classList.add('wires__bulb-' + _config2.default.classNames[index]);
-                    this.element.appendChild(bulbElement);
-
-                    this.animator[index] = {
-                        highlight: false,
-                        bulb: bulbElement
-                    };
-                }
-
-                // Update bulb positioning and force re-render
-                this.size();
-                this.renderOnce = true;
-                this.bulbVert ? this.render() : this.renderAlt();
+            if (this.observer) {
+                _WiresLeft2.default.getClassCards().forEach(function (card) {
+                    _this3.observer.observe(card);
+                });
             }
+            this.render();
         }
     }]);
 
@@ -56983,7 +59043,7 @@ var WiresRight = function () {
 
 exports.default = WiresRight;
 
-},{"./../../config.js":239}],262:[function(require,module,exports){
+},{"./../../config.js":240,"./WiresLeft.js":264}],266:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -57006,6 +59066,8 @@ var _createClass = function () { function defineProperties(target, props) { for 
 
 /* eslint-disable consistent-return, callback-return, no-case-declarations */
 
+// Registers the scrollTo tween property used by the (mobile) steps below.
+
 
 var _config = require('./../../config.js');
 
@@ -57014,6 +59076,14 @@ var _config2 = _interopRequireDefault(_config);
 var _gsap = require('gsap');
 
 var _gsap2 = _interopRequireDefault(_gsap);
+
+var _ScrollToPlugin = require('gsap/ScrollToPlugin');
+
+var _ScrollToPlugin2 = _interopRequireDefault(_ScrollToPlugin);
+
+var _Theme = require('./../components/Theme.js');
+
+var _Theme2 = _interopRequireDefault(_Theme);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -57249,7 +59319,7 @@ var Wizard = function () {
                 startTime: 83.39999999999999,
                 stopTime: 92.8,
                 event: function event() {
-                    _this.setText('Now, move your hand up and down. You should see the cat GIF when your hand’s up, and dog the GIF when it’s down. Try it.');
+                    _this.setText('Now, move your hand up and down. You should see the cat GIF when your hand’s up, and the dog GIF when it’s down. Try it.');
                     _config2.default.inputSection.hideGif(2);
                 }
             }, {
@@ -57384,11 +59454,14 @@ var Wizard = function () {
         this.machine = document.querySelector('.machine');
         this.textContainer = this.bar.querySelector('.wizard__text-inner');
         this.soundButton = this.bar.querySelector('.wizard__sound-button');
-        this.soundIcon = this.soundButton.querySelector('.wizard__sound-icon');
+        this.pauseButton = this.bar.querySelector('.wizard__pause-button');
         this.skipButton = this.bar.querySelector('.wizard__skip-button');
+        this.progressValue = 0;
+        this.paused = false;
 
         this.skipButton.addEventListener('click', this.skip.bind(this));
         this.soundButton.addEventListener('click', this.toggleSound.bind(this));
+        this.pauseButton.addEventListener('click', this.togglePause.bind(this));
 
         this.classTrainedEvent = this.classTrained.bind(this);
 
@@ -57424,12 +59497,22 @@ var Wizard = function () {
             this.bar.classList.remove('wizard--fixed');
             this.stickyBar = false;
         }
+
+        // The wrapper reserves the bar's height in the page flow. While that slot is
+        // below the bottom of the viewport, the bar floats pinned to the bottom
+        // instead; once the user scrolls to the slot, it settles into place.
+
+    }, {
+        key: 'slotIsBelowViewport',
+        value: function slotIsBelowViewport() {
+            return this.wizardWrapper.getBoundingClientRect().bottom > window.innerHeight;
+        }
     }, {
         key: 'size',
         value: function size() {
             this.wizardWrapper.style.height = this.bar.offsetHeight + 'px';
 
-            if (this.machine.offsetHeight + this.bar.offsetHeight - window.pageYOffset > window.innerHeight) {
+            if (this.slotIsBelowViewport()) {
                 this.stickBar();
             } else if (this.stickyBar) {
                 this.unstickBar();
@@ -57438,10 +59521,10 @@ var Wizard = function () {
     }, {
         key: 'scroll',
         value: function scroll() {
-            if (this.machine.offsetHeight + this.bar.offsetHeight - window.pageYOffset <= window.innerHeight) {
-                this.unstickBar();
-            } else {
+            if (this.slotIsBelowViewport()) {
                 this.stickBar();
+            } else {
+                this.unstickBar();
             }
         }
     }, {
@@ -57499,6 +59582,38 @@ var Wizard = function () {
             }
         }
     }, {
+        key: 'togglePause',
+        value: function togglePause(event) {
+            event.preventDefault();
+            if (this.paused) {
+                this.resume();
+            } else {
+                this.pause();
+            }
+        }
+
+        // Pausing stops the voice-over; captions follow the audio clock, so they
+        // pause with it. Steps that start while paused wait for resume().
+
+    }, {
+        key: 'pause',
+        value: function pause() {
+            this.paused = true;
+            this.audio.pause();
+            this.pauseButton.classList.add('wizard__pause-button--paused');
+            this.pauseButton.setAttribute('aria-label', 'Resume Tutorial');
+        }
+    }, {
+        key: 'resume',
+        value: function resume() {
+            this.paused = false;
+            this.pauseButton.classList.remove('wizard__pause-button--paused');
+            this.pauseButton.setAttribute('aria-label', 'Pause Tutorial');
+            if (this.playing) {
+                this.audio.play();
+            }
+        }
+    }, {
         key: 'ended',
         value: function ended() {
             this.playing = false;
@@ -57551,10 +59666,23 @@ var Wizard = function () {
                 this.timer.style.opacity = 0;
             } else {
                 this.timer.style.opacity = 1;
-                this.timerFill.style.width = 80 * percentage + 'px';
+                this.setProgress(percentage);
             }
 
             this.audioTimer = requestAnimationFrame(this.timeUpdate.bind(this));
+        }
+    }, {
+        key: 'setProgress',
+        value: function setProgress(fraction) {
+            var clamped = Math.min(Math.max(fraction, 0), 1);
+            var value = Math.round(clamped * 100);
+            this.timerFill.style.width = clamped * 100 + '%';
+
+            // Only touch the attribute when the rounded value changes.
+            if (value !== this.progressValue) {
+                this.progressValue = value;
+                this.timer.setAttribute('aria-valuenow', value);
+            }
         }
     }, {
         key: 'play',
@@ -57563,7 +59691,9 @@ var Wizard = function () {
             this.currentStep = this.steps[index];
             this.audio.currentTime = this.currentStep.startTime;
             this.playing = true;
-            this.audio.play();
+            if (!this.paused) {
+                this.audio.play();
+            }
         }
     }, {
         key: 'touchPlay',
@@ -57589,32 +59719,39 @@ var Wizard = function () {
                 cancelAnimationFrame(this.audioTimer);
             }
         }
+
+        // Muting keeps the voice-over running silently so captions keep going.
+
     }, {
         key: 'mute',
         value: function mute() {
             this.audio.muted = true;
             this.muted = true;
-            this.soundIcon.classList.remove('wizard__sound-icon--on');
+            this.soundButton.setAttribute('aria-pressed', 'true');
         }
     }, {
         key: 'unmute',
         value: function unmute() {
             this.audio.muted = false;
             this.muted = false;
-            this.soundIcon.classList.add('wizard__sound-icon--on');
+            this.soundButton.setAttribute('aria-pressed', 'false');
         }
     }, {
         key: 'setText',
         value: function setText(message, isTip) {
-            var text = message;
             this.textContainer.textContent = message;
 
             if (message.length > 0) {
-                this.timerFill.style.width = 0 + 'px';
+                this.setProgress(0);
                 if (this.currentTrigger) {
                     this.baseTime = this.currentTrigger.startTime;
                     this.duration = this.currentTrigger.stopTime - this.baseTime;
                 }
+            }
+
+            // Captions can wrap onto more lines, so re-measure the bar.
+            if (this.wizardRunning) {
+                this.size();
             }
         }
     }, {
@@ -57638,9 +59775,7 @@ var Wizard = function () {
     }, {
         key: 'start',
         value: function start() {
-            var that = this;
             this.wizardRunning = true;
-            this.soundButton.style.display = 'block';
             this.play(0);
             this.startAudioTimer();
             _config2.default.launchScreen.destroy();
@@ -57650,6 +59785,32 @@ var Wizard = function () {
         key: 'startCamera',
         value: function startCamera() {
             _config2.default.camInput.start();
+        }
+
+        // Moves focus to the tutorial's controls, so keyboard users can pause or
+        // skip straight away.
+
+    }, {
+        key: 'focusControls',
+        value: function focusControls() {
+            this.pauseButton.focus();
+        }
+
+        // Moves focus to the machine, e.g. after the launch screen or the tutorial
+        // bar goes away. The machine isn't interactive itself, so it gets
+        // tabindex="-1" (focusable by script only).
+
+    }, {
+        key: 'focusMachine',
+        value: function focusMachine() {
+            var machine = document.querySelector('#machine');
+            if (!machine) {
+                return;
+            }
+            if (!machine.hasAttribute('tabindex')) {
+                machine.setAttribute('tabindex', '-1');
+            }
+            machine.focus({ preventScroll: true });
         }
     }, {
         key: 'skip',
@@ -57661,22 +59822,30 @@ var Wizard = function () {
                 gtag('event', 'wizard_skip_mid');
             }
 
-            if (this.wizardRunning) {
+            var barHadFocus = this.bar.contains(document.activeElement);
+
+            if (this.wizardRunning && !_Theme2.default.prefersReducedMotion()) {
                 _gsap2.default.to(this.wizardWrapper, 0.3, {
                     height: 0,
                     onComplete: function onComplete() {
                         _this4.wizardWrapper.style.display = 'none';
+                        _this4.unstickBar();
                     }
                 });
             } else {
                 this.wizardWrapper.style.display = 'none';
+                this.unstickBar();
             }
 
             this.stopAudioTimer();
             this.audio.pause();
             this.clear();
-            this.skipButton.style.display = 'none';
-            this.soundButton.style.display = 'none';
+            this.skipButton.hidden = true;
+            this.soundButton.hidden = true;
+            this.pauseButton.hidden = true;
+            if (barHadFocus) {
+                this.focusMachine();
+            }
             window.removeEventListener('class-trained', this.classTrainedEvent);
             setTimeout(function () {
                 _config2.default.camInput.start();
@@ -57711,7 +59880,7 @@ var Wizard = function () {
 exports.default = Wizard;
 /* eslint-enable consistent-return, callback-return, no-case-declarations */
 
-},{"./../../config.js":239,"gsap":210}],263:[function(require,module,exports){
+},{"./../../config.js":240,"./../components/Theme.js":256,"gsap":210,"gsap/ScrollToPlugin":208}],267:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -57742,6 +59911,8 @@ var WizardEmojiExample = function () {
 
 		this.element = document.createElement('div');
 		this.element.classList.add('wizard__emoji');
+		// Visual hint only; the tutorial captions carry the instructions.
+		this.element.setAttribute('aria-hidden', 'true');
 
 		var mask = document.createElement('div');
 		mask.classList.add('wizard__emoji-mask');
@@ -57749,14 +59920,6 @@ var WizardEmojiExample = function () {
 		var emojiElement = document.createElement('div');
 		emojiElement.classList.add('wizard__emoji-element');
 		emojiElement.textContent = emoji;
-		emojiElement.style.fontSize = '60px';
-		emojiElement.style.textAlign = 'center';
-		emojiElement.style.lineHeight = '80px';
-		emojiElement.style.background = '#ffffff';
-		emojiElement.style.borderRadius = '8px';
-		emojiElement.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-		emojiElement.style.width = '80px';
-		emojiElement.style.height = '80px';
 		mask.appendChild(emojiElement);
 
 		this.element.appendChild(mask);
@@ -57779,7 +59942,7 @@ var WizardEmojiExample = function () {
 
 exports.default = WizardEmojiExample;
 
-},{}],264:[function(require,module,exports){
+},{}],268:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -57792,10 +59955,6 @@ var _gsap = require('gsap');
 
 var _gsap2 = _interopRequireDefault(_gsap);
 
-var _ScrollToPlugin = require('gsap/ScrollToPlugin');
-
-var _ScrollToPlugin2 = _interopRequireDefault(_ScrollToPlugin);
-
 var _config = require('./../../../config.js');
 
 var _config2 = _interopRequireDefault(_config);
@@ -57803,6 +59962,10 @@ var _config2 = _interopRequireDefault(_config);
 var _Button = require('./../../components/Button.js');
 
 var _Button2 = _interopRequireDefault(_Button);
+
+var _Theme = require('./../../components/Theme.js');
+
+var _Theme2 = _interopRequireDefault(_Theme);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -57822,81 +59985,237 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// A touch that travels further than this (in px) is a scroll, not a tap.
+var TAP_SLOP = 10;
+
+function setVisible(element, visible) {
+    if (!element) {
+        return;
+    }
+    if (visible) {
+        element.removeAttribute('hidden');
+    } else {
+        element.setAttribute('hidden', '');
+    }
+}
+
+// Activates on click, and on a touch that ends without scrolling. The touch
+// path matters because the shared Button component may cancel touchstart,
+// which suppresses the synthetic click on touch screens.
+function addActivateListener(element, handler) {
+    var start = null;
+
+    element.addEventListener('touchstart', function (event) {
+        var touch = event.changedTouches[0];
+        start = {
+            x: touch.clientX,
+            y: touch.clientY
+        };
+    }, { passive: true });
+
+    element.addEventListener('touchend', function (event) {
+        var touch = event.changedTouches[0];
+        var moved = !start || Math.abs(touch.clientX - start.x) > TAP_SLOP || Math.abs(touch.clientY - start.y) > TAP_SLOP;
+        start = null;
+        if (!moved) {
+            handler(event);
+        }
+    });
+
+    element.addEventListener('click', handler);
+}
+
 var LaunchScreen = function () {
     function LaunchScreen() {
         _classCallCheck(this, LaunchScreen);
 
         this.element = document.querySelector('.intro');
+        this.exiting = false;
+        this.destroyed = false;
+        this.inertElements = [];
 
-        this.startButton = new _Button2.default(document.querySelector('#start-tutorial-button'));
+        this.desktopContent = document.querySelector('#intro-desktop');
+        this.startButtonElement = document.querySelector('#start-tutorial-button');
         this.skipButton = document.querySelector('#skip-tutorial-button');
         this.skipButtonMobile = document.querySelector('#skip-tutorial-button-mobile');
+        this.hint = document.querySelector('#intro-hint');
+        this.browserWarning = document.querySelector('#browser-warning');
 
         this.messageIsCompatible = document.querySelector('#is-compatible');
         this.messageIsNotCompatible = document.querySelector('#is-not-compatible');
 
-        this.startButton.element.classList.add('button--disabled');
-        document.querySelector('.wizard__launch-skip-paragraph').style.display = 'none';
-        document.querySelector('.wizard__browser-warning').style.display = 'block';
+        this.applyCompatibility();
+
+        // The shared Button measures itself, so only build the visible one.
+        if (_config2.default.browserUtils.isCompatible === true) {
+            if (_config2.default.browserUtils.isMobile) {
+                this.continueButton = new _Button2.default(this.skipButtonMobile);
+            } else {
+                this.startButton = new _Button2.default(this.startButtonElement);
+            }
+        }
 
         var facebookButton = document.querySelector('.intro__share-link--facebook');
         var twitterButton = document.querySelector('.intro__share-link--twitter');
 
-        var intro = document.querySelector('.intro__content-mobile');
-        /*eslint-disable */
-        var defaultPrevent = function defaultPrevent(event) {
-            event.preventDefault();
-        };
-        /* eslint-enable*/
-        intro.addEventListener('touchstart', defaultPrevent);
-        intro.addEventListener('touchmove', defaultPrevent);
-
-        var loader = function (el) {
-            var ajax = new XMLHttpRequest();
-            ajax.open('GET', 'assets/social-facebook.svg', true);
-            ajax.onload = function (event) {
-                el.innerHTML = ajax.responseText;
-            };
-            ajax.send();
-        }(facebookButton);
-
-        loader = function (el) {
-            var ajax = new XMLHttpRequest();
-            ajax.open('GET', 'assets/social-twitter.svg', true);
-            ajax.onload = function (event) {
-                el.innerHTML = ajax.responseText;
-            };
-            ajax.send();
-        }(twitterButton);
+        this.loadShareIcon(facebookButton, 'assets/social-facebook.svg');
+        this.loadShareIcon(twitterButton, 'assets/social-twitter.svg');
 
         facebookButton.addEventListener('click', this.openFacebookPopup.bind(this));
         twitterButton.addEventListener('click', this.openTwitterPopup.bind(this));
 
-        if (_config2.default.browserUtils.isCompatible === true && _config2.default.browserUtils.isMobile === false) {
-            this.startButton.element.classList.remove('button--disabled');
-            document.querySelector('.wizard__launch-skip-paragraph').style.display = 'block';
-            document.querySelector('.wizard__browser-warning').style.display = 'none';
+        // WebGL missing no longer hard-blocks (see BrowserUtils.js) - show a
+        // dismissible, non-blocking heads-up instead, since TensorFlow.js
+        // will fall back to its slower CPU backend automatically.
+        if (_config2.default.browserUtils.isCompatible && !_config2.default.browserUtils.hasWebgl) {
+            this.showWebglWarning();
         }
 
-        if (_config2.default.browserUtils.isMobile) {
-            this.messageIsCompatible.style.display = 'block';
-        } else {
-            this.messageIsCompatible.style.display = 'none';
-        }
+        addActivateListener(this.skipButton, this.skipClick.bind(this));
+        addActivateListener(this.skipButtonMobile, this.skipClick.bind(this));
+        addActivateListener(this.startButtonElement, this.startClick.bind(this));
 
-        if (_config2.default.browserUtils.isMobile && !_config2.default.browserUtils.isCompatible) {
-            this.messageIsCompatible.style.display = 'none';
-            this.messageIsNotCompatible.style.display = 'block';
-        }
-
-        this.skipButton.addEventListener('click', this.skipClick.bind(this));
-        this.skipButtonMobile.addEventListener('touchend', this.skipClick.bind(this));
-        this.skipButtonMobile.addEventListener('click', this.skipClick.bind(this));
-        this.startButton.element.addEventListener('click', this.startClick.bind(this));
-        this.startButton.element.addEventListener('touchend', this.startClick.bind(this));
+        // The launch screen covers the app, so keep keyboard and screen
+        // reader focus inside it until it's dismissed.
+        this.setBackgroundInert(true);
     }
 
+    /**
+     * Shows the launch state that matches the browser: tutorial on desktop,
+     * a short note plus Continue on phones and tablets, or what's missing
+     * and what to do when the camera can't be used.
+     * @returns {void}
+     */
+
+
     _createClass(LaunchScreen, [{
+        key: 'applyCompatibility',
+        value: function applyCompatibility() {
+            var browser = _config2.default.browserUtils;
+            var isCompatible = browser.isCompatible === true;
+            var canStartTutorial = isCompatible && !browser.isMobile;
+
+            setVisible(this.desktopContent, !browser.isMobile);
+            setVisible(this.startButtonElement, isCompatible);
+            setVisible(this.skipButton, canStartTutorial);
+            setVisible(this.hint, canStartTutorial);
+            setVisible(this.browserWarning, !isCompatible);
+            this.startButtonElement.disabled = !canStartTutorial;
+            this.startButtonElement.classList.toggle('button--disabled', !canStartTutorial);
+
+            setVisible(this.messageIsCompatible, browser.isMobile && isCompatible);
+            setVisible(this.messageIsNotCompatible, browser.isMobile && !isCompatible);
+            this.skipButtonMobile.disabled = !(browser.isMobile && isCompatible);
+        }
+    }, {
+        key: 'loadShareIcon',
+        value: function loadShareIcon(element, url) {
+            var request = new XMLHttpRequest();
+            request.open('GET', url, true);
+            request.onload = function () {
+                if (request.status < 200 || request.status >= 300) {
+                    return;
+                }
+                element.innerHTML = request.responseText;
+                var svg = element.querySelector('svg');
+                if (svg) {
+                    // The link carries the accessible name; the icon is decoration.
+                    svg.setAttribute('aria-hidden', 'true');
+                    svg.setAttribute('focusable', 'false');
+                    var title = svg.querySelector('title');
+                    if (title) {
+                        title.parentNode.removeChild(title);
+                    }
+                }
+            };
+            request.send();
+        }
+    }, {
+        key: 'setBackgroundInert',
+        value: function setBackgroundInert(inert) {
+            if (!inert) {
+                this.inertElements.forEach(function (element) {
+                    element.removeAttribute('inert');
+                });
+                this.inertElements = [];
+
+                return;
+            }
+
+            var siblings = this.element.parentNode.children;
+            for (var index = 0; index < siblings.length; index += 1) {
+                var element = siblings[index];
+                if (element !== this.element && !element.hasAttribute('inert')) {
+                    element.setAttribute('inert', '');
+                    this.inertElements.push(element);
+                }
+            }
+        }
+
+        /**
+         * Shows a small, dismissible, non-blocking banner when WebGL isn't
+         * available. Unlike the "#is-not-compatible" message, this doesn't stop
+         * the user from continuing - TensorFlow.js will fall back to its CPU
+         * backend, just slower. Styles live in style/components/intro.styl.
+         * @returns {void}
+         */
+
+    }, {
+        key: 'showWebglWarning',
+        value: function showWebglWarning() {
+            var _this = this;
+
+            var banner = document.createElement('div');
+            banner.className = 'webgl-banner';
+
+            var text = document.createElement('p');
+            text.className = 'webgl-banner__text';
+            text.setAttribute('role', 'status');
+
+            var dismissButton = document.createElement('button');
+            dismissButton.className = 'webgl-banner__button';
+            dismissButton.setAttribute('type', 'button');
+            dismissButton.textContent = 'Continue';
+            dismissButton.addEventListener('click', function () {
+                var hadFocus = banner.contains(document.activeElement);
+                banner.parentNode.removeChild(banner);
+                if (hadFocus) {
+                    _this.focusStartPoint();
+                }
+            });
+
+            banner.appendChild(text);
+            banner.appendChild(dismissButton);
+            document.body.appendChild(banner);
+
+            // Fill the live region after it's in the page so it gets announced.
+            setTimeout(function () {
+                text.textContent = 'GPU acceleration isn’t available on this device. ' + 'Teachable Machine still works, but predictions may be slower.';
+            }, 100);
+        }
+
+        // Moves focus to the most useful place: the launch screen's primary
+        // action while it's showing, otherwise the machine.
+
+    }, {
+        key: 'focusStartPoint',
+        value: function focusStartPoint() {
+            if (this.destroyed) {
+                _config2.default.wizard.focusMachine();
+
+                return;
+            }
+            var candidates = [this.startButtonElement, this.skipButtonMobile, this.skipButton];
+            for (var index = 0; index < candidates.length; index += 1) {
+                var candidate = candidates[index];
+                if (!candidate.disabled && !candidate.closest('[hidden]')) {
+                    candidate.focus();
+
+                    return;
+                }
+            }
+        }
+    }, {
         key: 'openFacebookPopup',
         value: function openFacebookPopup(event) {
             event.preventDefault();
@@ -57914,64 +60233,106 @@ var LaunchScreen = function () {
             window.open(url, 'fbShareWindow', 'height=450, width=600, top=' + (window.innerHeight / 2 - 150) + ', left=' + (window.innerWidth / 2 - 225) + ', toolbar=0, location=0, menubar=0, directories=0, scrollbars=0');
             /* eslint-enable space-infix-ops */
         }
+
+        // Slides the launch screen away (instantly under reduced motion), then
+        // calls onComplete.
+
+    }, {
+        key: 'exit',
+        value: function exit(onComplete) {
+            var duration = parseFloat(_Theme2.default.token('--duration-slow', '400')) / 1000;
+
+            if (_Theme2.default.prefersReducedMotion() || !(duration > 0)) {
+                onComplete();
+
+                return;
+            }
+
+            _gsap2.default.to(this.element, duration, {
+                y: -this.element.offsetHeight,
+                onComplete: onComplete
+            });
+        }
     }, {
         key: 'skipClick',
         value: function skipClick(event) {
-            var _this = this;
+            var _this2 = this;
 
-            event.preventDefault();
-            var intro = document.querySelector('.intro');
-            var offset = intro.offsetHeight;
+            if (event) {
+                event.preventDefault();
+                if (event.currentTarget.disabled) {
+                    return;
+                }
+            }
+            if (this.exiting) {
+                return;
+            }
+            this.exiting = true;
+
             _config2.default.wizard.skip();
             gtag('event', 'wizard_skip');
 
             if (_config2.default.browserUtils.isMobile) {
-                var msg = new SpeechSynthesisUtterance();
-                msg.text = ' ';
-                window.speechSynthesis.speak(msg);
+                // Unlocks speech output on iOS, which needs a user gesture.
+                if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
+                    var msg = new SpeechSynthesisUtterance();
+                    msg.text = ' ';
+                    window.speechSynthesis.speak(msg);
+                }
 
                 _config2.default.inputSection.createCamInput();
                 _config2.default.camInput.start();
-                var _event = new CustomEvent('mobileLaunch');
-                window.dispatchEvent(_event);
+                var launchEvent = new CustomEvent('mobileLaunch');
+                window.dispatchEvent(launchEvent);
             }
-            _gsap2.default.to(intro, 0.5, {
-                y: -offset,
-                onComplete: function onComplete() {
-                    _this.destroy();
-                    if (!_config2.default.browserUtils.isMobile) {
-                        _config2.default.wizard.startCamera();
-                    }
+
+            this.exit(function () {
+                _this2.destroy();
+                if (!_config2.default.browserUtils.isMobile) {
+                    _config2.default.wizard.startCamera();
                 }
+                _config2.default.wizard.focusMachine();
             });
         }
     }, {
         key: 'destroy',
         value: function destroy() {
+            if (this.destroyed) {
+                return;
+            }
+            this.destroyed = true;
             document.body.classList.remove('no-scroll');
             this.element.style.display = 'none';
+            this.setBackgroundInert(false);
         }
     }, {
         key: 'startClick',
-        value: function startClick() {
-            var _this2 = this;
+        value: function startClick(event) {
+            var _this3 = this;
 
-            var intro = document.querySelector('.intro');
-            var offset = intro.offsetHeight;
+            if (event) {
+                event.preventDefault();
+                if (event.currentTarget.disabled) {
+                    return;
+                }
+            }
+            if (this.exiting) {
+                return;
+            }
+            this.exiting = true;
+
             if (_config2.default.browserUtils.isMobile || _config2.default.browserUtils.isSafari) {
                 _config2.default.inputSection.createCamInput();
                 _config2.default.camInput.start();
                 _config2.default.wizard.touchPlay();
-                var event = new CustomEvent('mobileLaunch');
-                window.dispatchEvent(event);
+                var launchEvent = new CustomEvent('mobileLaunch');
+                window.dispatchEvent(launchEvent);
             }
 
-            _gsap2.default.to(intro, 0.5, {
-                y: -offset,
-                onComplete: function onComplete() {
-                    _this2.destroy();
-                    _config2.default.wizard.start();
-                }
+            this.exit(function () {
+                _this3.destroy();
+                _config2.default.wizard.start();
+                _config2.default.wizard.focusControls();
             });
         }
     }]);
@@ -57981,4 +60342,4 @@ var LaunchScreen = function () {
 
 exports.default = LaunchScreen;
 
-},{"./../../../config.js":239,"./../../components/Button.js":247,"gsap":210,"gsap/ScrollToPlugin":208}]},{},[240]);
+},{"./../../../config.js":240,"./../../components/Button.js":250,"./../../components/Theme.js":256,"gsap":210}]},{},[241]);
