@@ -224,11 +224,22 @@ class SpeechOutput {
         this.setSpeaking(null);
     }
 
-    describe(index) {
+    // What this output says for a class, for the now-playing bar.
+    nowPlaying(index) {
         let row = this.inputClasses[index];
+        let message = row && row.message ? row.message : null;
+
+        return {
+            kind: 'speech',
+            value: message,
+            label: message || 'None'
+        };
+    }
+
+    describe(index) {
         let name = OutputUI.classLabel(this.classNames[index]);
 
-        return `${name}: ${row && row.message ? row.message : 'None'}`;
+        return `${name}: ${this.nowPlaying(index).label}`;
     }
 
     trigger(index, overrideAndPlay = false) {

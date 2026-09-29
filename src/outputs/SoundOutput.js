@@ -369,11 +369,22 @@ class SoundOutput {
 		this.offScreen.hidden = false;
 	}
 
-	describe(index) {
+	// What this output plays for a class, for the now-playing bar.
+	nowPlaying(index) {
 		let row = this.inputClasses[index];
+		let sound = row && row.sound ? row.sound : null;
+
+		return {
+			kind: 'sound',
+			value: sound,
+			label: OutputUI.soundLabel(sound)
+		};
+	}
+
+	describe(index) {
 		let name = OutputUI.classLabel(this.classNames[index]);
 
-		return `${name}: ${OutputUI.soundLabel(row ? row.sound : null)}`;
+		return `${name}: ${this.nowPlaying(index).label}`;
 	}
 
 	trigger(index) {

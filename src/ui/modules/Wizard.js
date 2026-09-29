@@ -772,10 +772,12 @@ skip(event) {
             height: 0,
             onComplete: () => {
                 this.wizardWrapper.style.display = 'none';
+                this.unstickBar();
             }
         });
     }else {
         this.wizardWrapper.style.display = 'none';
+        this.unstickBar();
     }
 
     this.stopAudioTimer();

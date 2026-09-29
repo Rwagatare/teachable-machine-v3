@@ -42,7 +42,20 @@
     <meta name="application-name" content="Teachable Machine">
     <meta name="msapplication-TileColor" content="#F2F2F7">
     <meta name="msapplication-config" content="browserconfig.xml">
-    
+
+    <!-- Apply a saved Light/Dark choice before the stylesheet, so there's no flash. Keep in sync with src/ui/components/Theme.js. -->
+    <script>
+        (function () {
+            var appearance;
+            try { appearance = localStorage.getItem('appearance'); } catch (error) { return; }
+            if (appearance !== 'light' && appearance !== 'dark') { return; }
+            var color = appearance === 'dark' ? '#000000' : '#F2F2F7';
+            document.documentElement.setAttribute('data-appearance', appearance);
+            document.querySelector('meta[name="color-scheme"]').setAttribute('content', appearance);
+            var metas = document.querySelectorAll('meta[name="theme-color"]');
+            for (var i = 0; i < metas.length; i++) { metas[i].setAttribute('content', color); }
+        })();
+    </script>
     <link href="style.css" rel="stylesheet">
     <script src="bundle.js" defer></script>
     
@@ -113,6 +126,7 @@
     <div class="wrapper">
         <div class="intro" id="intro">
             <div class="intro__sharing">
+                <div data-appearance-toggle="compact"></div>
                 <a href="https://www.facebook.com/sharer/sharer.php?u=https://teachablemachine.withgoogle.com" class="intro__share-link intro__share-link--facebook" aria-label="Share on Facebook" target="_blank" rel="noopener"></a>
                 <a href="https://twitter.com/home?status=Teachable%20Machine%3A%20Explore%20machine%20learning,%20live%20in%20your%20browser.%20No%20coding%20required%20%E2%86%92%20http%3A//g.co/teachablemachine%20%23teachablemachine" class="intro__share-link intro__share-link--twitter" aria-label="Share on X (Twitter)" target="_blank" rel="noopener"></a>
             </div>
@@ -146,6 +160,7 @@
             </div>
         </div>
                 <div class="machine" id="machine">
+                    <div class="app-bar"><div data-appearance-toggle></div></div>
                     <div class="machine__sections">
                         <div id="input-section" class="section section--disabled input section--input" role="region" aria-labelledby="input-section-title">
                             <div class="section__header">
@@ -395,6 +410,16 @@
     <button type="button" class="button input-permission__reload">Reload Page</button>
 </div>
 </div>
+<!-- Now-playing bar: on compact layouts, the detected class and its output
+     while the Output panel is scrolled out of view (NowPlaying.js). -->
+<button type="button" class="now-playing" id="now-playing" aria-controls="output-section" aria-label="Show output" hidden>
+    <span class="now-playing__art" aria-hidden="true"></span>
+    <span class="now-playing__text" aria-hidden="true">
+        <span class="now-playing__class"><span class="now-playing__swatch"></span><span class="now-playing__name"></span></span>
+        <span class="now-playing__detail"></span>
+    </span>
+    <span class="now-playing__action" aria-hidden="true"><span class="now-playing__action-label">Show</span><svg class="now-playing__chevron" viewBox="0 0 26 26" aria-hidden="true" focusable="false"><path d="M5.5 16l7.5-7.5 7.5 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</button>
 <script async src="https://www.googletagmanager.com/gtag/js?id=UA-107306747-1"></script>
 <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments)}; gtag('js', new Date()); gtag('config', 'UA-107306747-1'); </script>
 <script type="text/javascript">

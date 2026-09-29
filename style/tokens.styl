@@ -2,9 +2,14 @@
 // Design tokens (Apple HIG-inspired)
 //
 // Everything here is a CSS custom property on :root, so it adapts at runtime
-// to the OS appearance (prefers-color-scheme), increased contrast
-// (prefers-contrast), reduced motion and reduced transparency. There is no
-// in-app appearance toggle on purpose: the page follows the OS.
+// to the appearance, increased contrast (prefers-contrast), reduced motion
+// and reduced transparency.
+//
+// Appearance follows the OS (prefers-color-scheme) unless the person picked
+// Light or Dark in the in-app setting (src/ui/components/Theme.js), which sets
+// <html data-appearance="light|dark">. Every dark rule therefore has two
+// selectors: OS dark and not forced light, or forced dark. Use when-dark()
+// (below) for component rules instead of a bare prefers-color-scheme query.
 //
 // IMPORTANT for component authors: Stylus colour functions (darken, lighten,
 // rgba($x, a), mix...) cannot operate on var(). Use the *-tint tokens or a
@@ -112,73 +117,122 @@ $type-roles = {
 	--shadow-floating: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.1)
 }
 
+// Token sets that differ from the light defaults above. Each is written once
+// and applied under two selectors (see when-dark() and the header comment).
+dark-tokens() {
+	--color-bg: #000000
+	--color-surface: #1C1C1E
+	--color-surface-elevated: #2C2C2E
+	--color-fill: #3A3A3C
+	--color-fill-secondary: rgba(120, 120, 128, 0.32)
+	--color-separator: rgba(84, 84, 88, 0.65)
+
+	--color-label: #FFFFFF
+	--color-label-secondary: #AEAEB2
+	--color-label-tertiary: #636366
+
+	--color-accent: #0A84FF
+	--color-accent-fill: #0071E3 // white on #0A84FF is only 3.65:1; this is 4.7:1
+	--color-on-accent: #FFFFFF
+
+	--color-danger: #FF453A
+
+	for name, c in $class-palette {
+		--class-{name}: c[1]
+		--class-{name}-tint: rgba(c[1], 0.18)
+		--class-{name}-on: c[3]
+	}
+
+	--glass-bg: rgba(30, 30, 30, 0.62)
+	--glass-clear-bg: rgba(30, 30, 30, 0.28)
+	--glass-border: rgba(255, 255, 255, 0.12)
+
+	// Dark mode conveys depth with lighter surfaces, not shadows
+	--shadow-card: none
+	--shadow-floating: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.45)
+}
+
+light-contrast-tokens() {
+	--color-label: #000000
+	--color-label-secondary: #3A3A3C
+	--color-label-tertiary: #6C6C70
+	--color-separator: rgba(60, 60, 67, 0.6)
+	--color-fill: #D1D1D6
+	--color-accent: #0040DD
+	--color-accent-fill: #0040DD
+	--glass-bg: rgba(255, 255, 255, 0.92)
+	--glass-clear-bg: rgba(255, 255, 255, 0.6)
+	--glass-border: rgba(0, 0, 0, 0.2)
+}
+
+dark-contrast-tokens() {
+	--color-label: #FFFFFF
+	--color-label-secondary: #EBEBF0
+	--color-label-tertiary: #8E8E93
+	--color-separator: rgba(235, 235, 245, 0.45)
+	--color-fill: #48484A
+	--color-accent: #409CFF
+	--color-accent-fill: #0062CC
+
+	for name, c in $class-palette {
+		--class-{name}: c[4]
+	}
+
+	--glass-bg: rgba(20, 20, 20, 0.9)
+	--glass-clear-bg: rgba(20, 20, 20, 0.6)
+	--glass-border: rgba(255, 255, 255, 0.3)
+}
+
+// Native form controls and scrollbars follow the effective appearance.
+:root {
+	color-scheme: light dark
+}
+
+:root[data-appearance="light"] {
+	color-scheme: light
+}
+
+:root[data-appearance="dark"] {
+	color-scheme: dark
+}
+
+// Dark: OS dark and not forced light, or forced dark. Specificity (0,2,0) on
+// both, so either beats the light defaults on plain :root.
 @media (prefers-color-scheme: dark) {
-	:root {
-		--color-bg: #000000
-		--color-surface: #1C1C1E
-		--color-surface-elevated: #2C2C2E
-		--color-fill: #3A3A3C
-		--color-fill-secondary: rgba(120, 120, 128, 0.32)
-		--color-separator: rgba(84, 84, 88, 0.65)
+	:root:not([data-appearance="light"]) {
+		dark-tokens()
+	}
+}
 
-		--color-label: #FFFFFF
-		--color-label-secondary: #AEAEB2
-		--color-label-tertiary: #636366
+:root[data-appearance="dark"] {
+	dark-tokens()
+}
 
-		--color-accent: #0A84FF
-		--color-accent-fill: #0071E3 // white on #0A84FF is only 3.65:1; this is 4.7:1
-		--color-on-accent: #FFFFFF
-
-		--color-danger: #FF453A
-
-		for name, c in $class-palette {
-			--class-{name}: c[1]
-			--class-{name}-tint: rgba(c[1], 0.18)
-			--class-{name}-on: c[3]
-		}
-
-		--glass-bg: rgba(30, 30, 30, 0.62)
-		--glass-clear-bg: rgba(30, 30, 30, 0.28)
-		--glass-border: rgba(255, 255, 255, 0.12)
-
-		// Dark mode conveys depth with lighter surfaces, not shadows
-		--shadow-card: none
-		--shadow-floating: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.45)
+// Increased contrast, light: only when the effective appearance is light
+// (OS light and not forced dark, or forced light), so it never mixes into
+// dark.
+@media (prefers-contrast: more) and (prefers-color-scheme: light) {
+	:root:not([data-appearance="dark"]) {
+		light-contrast-tokens()
 	}
 }
 
 @media (prefers-contrast: more) {
-	:root {
-		--color-label: #000000
-		--color-label-secondary: #3A3A3C
-		--color-label-tertiary: #6C6C70
-		--color-separator: rgba(60, 60, 67, 0.6)
-		--color-fill: #D1D1D6
-		--color-accent: #0040DD
-		--color-accent-fill: #0040DD
-		--glass-bg: rgba(255, 255, 255, 0.92)
-		--glass-clear-bg: rgba(255, 255, 255, 0.6)
-		--glass-border: rgba(0, 0, 0, 0.2)
+	:root[data-appearance="light"] {
+		light-contrast-tokens()
 	}
 }
 
-@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
-	:root {
-		--color-label: #FFFFFF
-		--color-label-secondary: #EBEBF0
-		--color-label-tertiary: #8E8E93
-		--color-separator: rgba(235, 235, 245, 0.45)
-		--color-fill: #48484A
-		--color-accent: #409CFF
-		--color-accent-fill: #0062CC
+// Increased contrast, dark: same two conditions as dark above.
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+	:root:not([data-appearance="light"]) {
+		dark-contrast-tokens()
+	}
+}
 
-		for name, c in $class-palette {
-			--class-{name}: c[4]
-		}
-
-		--glass-bg: rgba(20, 20, 20, 0.9)
-		--glass-clear-bg: rgba(20, 20, 20, 0.6)
-		--glass-border: rgba(255, 255, 255, 0.3)
+@media (prefers-contrast: more) {
+	:root[data-appearance="dark"] {
+		dark-contrast-tokens()
 	}
 }
 
@@ -195,6 +249,23 @@ $type-roles = {
 // ---------------------------------------------------------------------------
 // Mixins
 // ---------------------------------------------------------------------------
+
+// Dark-appearance overrides for a component. Emits the rules under both
+// "OS dark and not forced light" and "forced dark". Use as a block mixin:
+//   .thing
+//     +when-dark()
+//       filter: none
+when-dark() {
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-appearance="light"]) & {
+			{block}
+		}
+	}
+
+	:root[data-appearance="dark"] & {
+		{block}
+	}
+}
 
 // Apply a HIG type role: size, weight, line-height and tracking.
 // Roles: large-title, title-1, title-2, title-3, headline, body, callout,
