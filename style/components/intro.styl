@@ -1,304 +1,278 @@
+// ---------------------------------------------------------------------------
+// Launch screen
+//
+// One brand moment (the hand-drawn wordmark), a one-line value proposition
+// and a clear choice between the tutorial and skipping it. The screen scrolls
+// whenever its content is taller than the viewport (large text sizes,
+// landscape phones), and everything pinned to an edge respects the safe area.
+// ---------------------------------------------------------------------------
+
+$intro-content-width = 34em
+
 .intro {
-	background: #e9e9e9
 	position: fixed
+	top: 0
+	right: 0
+	bottom: 0
+	left: 0
 	z-index: 101
-	width: 100%
-	height: 100%
 	display: flex
-	justify-content: center
-	align-items: center
+	flex-direction: column
+	overflow-x: hidden
+	overflow-y: auto
+	-webkit-overflow-scrolling: touch
+	// @stylint off (overscroll-behavior unknown to the linter)
+	overscroll-behavior: contain
+	// @stylint on
+	background: var(--color-bg)
+	color: var(--color-label)
 }
 
+// Launch states are switched with the hidden attribute (see LaunchScreen.js
+// and the inline script at the end of index.html).
+.intro [hidden] {
+	display: none !important
+}
+
+// Share links: small and quiet, top right
 .intro__sharing {
 	flex: none
-	position: absolute
-	top: space(2)
-	right: space(2)
+	display: flex
+	justify-content: flex-end
+	gap: var(--space-1)
+	padding-top: calc(env(safe-area-inset-top) + var(--space-2))
+	padding-right: calc(env(safe-area-inset-right) + var(--space-3))
+	padding-left: calc(env(safe-area-inset-left) + var(--space-3))
 }
 
 .intro__share-link {
-	display: inline-block
-	width: 30px
-	height: 30px
-	margin: 0 0 0 space(0.5)
+	hit-target()
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	border-radius: var(--radius-pill)
+	color: var(--color-label-secondary)
+	press-feedback()
 
 	svg {
-		margin: 15%
-		width: 70%
-		height: 70%
-		fill: #808184
+		width: 20px
+		height: 20px
+		fill: currentColor
+	}
+
+	&:hover {
+		color: var(--color-label)
+		background: var(--color-fill-secondary)
 	}
 }
 
-.intro__share-link:hover svg {
-	fill: $color__blue--primary
-}
-
-.intro__footer {
-	align-items: flex-end
-	bottom: 0px
-	display: flex
-	justify-content: space-between
-	left: 0
-	padding: space(2)
-	position: absolute
-	width: 100%
-}
-
-.intro__footer-link--left {
-	width: 300px
-}
-
-.intro__footer-link--right {
-	color: #929395
-	font-size: 14px
-	position: relative
-	text-decoration: none
-	top: -5px
-}
-
-.intro__footer-image {
-	width: 100%
-}
-
-.intro__content-mobile {
-	display: none
-}
-
-.intro__content-mobile-incompatible {
-	display: none
-}
-
+// Main column
 .intro__inner {
-	text-align: center
-	padding-top: space(3)
-	padding-bottom: space(3)
-	max-width: 1060px
-	z-index: 2
-	width: 100vw
-	@extend .font__size--normal
-}
-
-
-.intro__cta {
-	margin-top: space(2)
-}
-
-.wizard__browser-warning {
-	display: none
-}
-
-.intro__image {
+	flex: 1 0 auto
+	display: flex
+	flex-direction: column
+	align-items: center
+	justify-content: center
 	width: 100%
-	max-width: 400px
+	max-width: 960px
+	margin: 0 auto
+	padding-top: var(--space-5)
+	padding-bottom: var(--space-7)
+	padding-right: calc(env(safe-area-inset-right) + var(--space-5))
+	padding-left: calc(env(safe-area-inset-left) + var(--space-5))
+	text-align: center
 }
 
 .intro__title {
-	margin-top: space(1)
 	width: 100%
+	margin: 0
 }
 
+// The wordmark keeps its 4:1 shape; on short screens it gets smaller instead
+// of pushing the actions out of view.
 .intro__title-image {
+	display: block
 	width: 100%
-	height: 220px
-
-	&.intro__title-image--desktop{
-		display: block
-	}
-
-	&.intro__title-image--mobile{
-		display: none
-	}
-}
-
-.intro__title-image--teachable {
-	margin-right: 25px
-}
-
-.intro__title-image--machine {
-
+	max-width: 880px
+	height: auto
+	max-height: 34vh
+	margin: 0 auto
+	object-fit: contain
 }
 
 .intro__text {
-	max-width: 420px
-	margin-top: space(5)
-	margin-bottom: 0
-	margin-left: auto
-	margin-right: auto
-	white-space: nowrap
+	max-width: $intro-content-width
+	margin: var(--space-5) auto 0
+	text-style(title-3)
+	font-weight: 400
+	color: var(--color-label)
 }
 
-.intro__text-break {
-	display: block
-}
-
-.intro__video {
-	position: relative
-	max-width: 800px
-	height: 0
-	margin-left: auto
-	margin-right: auto
-	margin-bottom: space(2)
-	overflow: hidden
-}
-.intro__video-wrapper {
-	position: relative
-	padding-bottom: 56.25% /* 16:9 */
-	padding-top: 25px
-	height: 0
-	margin-bottom: space(2)
-}
-.intro__video-player {
-	position: absolute
-	top: 0
-	left: 0
+.intro__content-desktop,
+.intro__content-mobile,
+.intro__content-mobile-incompatible {
 	width: 100%
-	height: 100%
-	background: $color__black
+	max-width: $intro-content-width
+	margin: var(--space-7) auto 0
 }
 
-@media screen and (max-width: 900px) {
+.intro__cta,
+.intro__content-mobile {
+	display: flex
+	flex-direction: column
+	align-items: center
+	gap: var(--space-3)
+}
 
+.intro__cta {
+	margin: 0
+}
+
+// Secondary action: a plain (borderless) button beside the filled primary
+.intro__secondary-button {
+	hit-target()
+	appearance: none
+	margin: 0
+	padding: var(--space-2) var(--space-5)
+	border: 0
+	border-radius: var(--radius-pill)
+	background: none
+	color: var(--color-accent)
+	text-style(headline)
+	cursor: pointer
+	press-feedback()
+
+	&:hover {
+		background: var(--color-fill-secondary)
+	}
+}
+
+.intro__hint {
+	margin: var(--space-1) 0 0
+	text-style(footnote)
+	color: var(--color-label-secondary)
+}
+
+// Notes and messages (mobile note, missing camera support)
+.intro__message {
+	margin: 0
+	text-style(callout)
+	color: var(--color-label)
+
+	& + & {
+		margin-top: var(--space-3)
+	}
+}
+
+.intro__footer {
+	flex: none
+	display: flex
+	flex-wrap: wrap
+	align-items: center
+	justify-content: space-between
+	gap: var(--space-3) var(--space-5)
+	padding-top: var(--space-3)
+	padding-right: calc(env(safe-area-inset-right) + var(--space-5))
+	padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-4))
+	padding-left: calc(env(safe-area-inset-left) + var(--space-5))
+}
+
+.intro__footer-link--left {
+	display: block
+	width: 240px
+	max-width: 60%
+}
+
+.intro__footer-image {
+	display: block
+	width: 100%
+	height: auto
+}
+
+.intro__footer-link--right {
+	display: inline-flex
+	align-items: center
+	min-height: 44px
+	text-style(footnote)
+	color: var(--color-label-secondary)
+}
+
+@media (max-width: 599px) {
+	.intro__text {
+		text-style(body)
+	}
+
+	.intro__content-desktop,
+	.intro__content-mobile,
+	.intro__content-mobile-incompatible {
+		margin-top: var(--space-6)
+	}
+}
+
+// Landscape phones: little height, so tighten the vertical rhythm
+@media (max-height: 500px) {
 	.intro__inner {
 		padding-top: 0
-	}
-
-	.intro__content-desktop {
-		display: none
-	}
-
-	.intro__content-mobile {
-		background: $color__white
-		border-radius: 5px
-		box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)
-		display: block
-		margin: 0 auto
-		padding: 25px
-		position: relative
-		text-align: left
-		width: 90%
-	}
-
-	.intro__content-mobile-incompatible {
-		display: none
-		margin: 20px auto 0
-		width: 80%
-
-		a {
-			text-decoration: none
-		}
-	}
-
-	.intro__content-mobile-header {
-		color: #58595b
-		line-height: 1.4
-	}
-
-	.intro__content-mobile-body {
-		color: #828386
-	}
-
-	.intro__content-mobile-ok {
-		margin-bottom: 0
-		text-align: right
-	}
-
-	.intro__content-mobile-ok-link {
-		display: inline-block
-		padding: 10px 20px
-		margin-right: -10px
-		text-decoration: none
+		padding-bottom: var(--space-4)
 	}
 
 	.intro__text {
-		font-size: 14px
+		margin-top: var(--space-3)
 	}
 
-	.intro__button-social {
-
-		& + & {
-			margin-left: 10px
-		}
-	}
-
-	.wizard__launch-skip {
-		font-size: 14px
-	}
-
-	.intro__title {
-		height: 70px
-		margin-bottom: space(1)
-		margin-top: 0
-	}
-
-	.intro__cta {
-		margin-top: space(2)
-	}
-
-	.intro__footer-link--left {
-		width: 50%
-	}
-
-	.intro__title-image {
-		height: 70px
-		margin: 0 auto
-		max-width: 280px
-		width: 60%
-
-		&.intro__title-image--desktop {
-			display: none
-		}
-
-		&.intro__title-image--mobile {
-			display: block
-			width: 100%
-		}
-	}
-
-	.intro__title-image--teachable,
-	.intro__title-image--machine {
-		margin-right: 0
-		max-width: 80%
-		height: 30px
+	.intro__content-desktop,
+	.intro__content-mobile,
+	.intro__content-mobile-incompatible {
+		margin-top: var(--space-4)
 	}
 }
 
-@media screen and (max-width: 900px) and (orientation: landscape) {
+// Machine gets focus by script after the launch screen closes (it has
+// tabindex="-1"); it isn't a control, so it doesn't need a focus ring.
+#machine[tabindex="-1"]:focus {
+	outline: none
+}
 
-	.intro__inner {
-		margin-top: -20px
-		padding-bottom: 10px
-	}
+// ---------------------------------------------------------------------------
+// No-WebGL notice (built in LaunchScreen.js#showWebglWarning). A floating,
+// dismissible banner, so it uses the glass material.
+// ---------------------------------------------------------------------------
 
-	.intro__title {
-		height: 50px
-	}
+.webgl-banner {
+	position: fixed
+	z-index: 1001
+	right: calc(env(safe-area-inset-right) + var(--space-3))
+	bottom: calc(env(safe-area-inset-bottom) + var(--space-3))
+	left: calc(env(safe-area-inset-left) + var(--space-3))
+	display: flex
+	flex-wrap: wrap
+	align-items: center
+	gap: var(--space-2) var(--space-4)
+	max-width: 640px
+	margin: 0 auto
+	padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5)
+	border-radius: var(--radius-l)
+	color: var(--color-label)
+	glass()
+}
 
-	.intro__title-image {
-		height: 50px
-	}
+.webgl-banner__text {
+	flex: 1 1 16em
+	margin: 0
+	text-style(subheadline)
+}
 
-	.intro__content-mobile {
-		width: 80%
-	}
-
-	.intro__content-mobile-ok {
-		margin-top: -10px
-	}
-
-	.intro__content-mobile-header {
-		font-size: 14px
-	}
-
-	.intro__content-mobile-body {
-		font-size: 12px
-	}
-
-	.intro__footer {
-		padding: 5px 20px
-	}
-
-	.intro__footer-link--left {
-		width: 25%
-	}
+.webgl-banner__button {
+	hit-target()
+	flex: none
+	appearance: none
+	margin: 0 0 0 auto
+	padding: 0 var(--space-5)
+	border: 0
+	border-radius: var(--radius-pill)
+	background: var(--color-accent-fill)
+	color: var(--color-on-accent)
+	text-style(headline)
+	cursor: pointer
+	press-feedback()
 }

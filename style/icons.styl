@@ -1,29 +1,31 @@
+// Background-image icons, sized to the text around them. Inside a .button the
+// flex gap does the spacing (see buttons.styl).
 .icon {
-	display: inline-block
-	width: 14px
-	height: 14px
 	position: relative
-	top: 2px
-	margin-right: space(0.5)
-	background-size: contain
+	display: inline-block
+	flex: none
+	width: 1.1em
+	height: 1.1em
+	margin-right: var(--space-1)
 	background-position: center center
 	background-repeat: no-repeat
+	background-size: contain
 }
 
 .icon--mic {
-	background-image url(assets/mic-icon.svg)
+	background-image: url(assets/mic-icon.svg)
 }
 
 .icon--cam {
-	background-image url(assets/cam-icon.svg)
+	background-image: url(assets/cam-icon.svg)
 }
 
 .icon--record {
-	background-image url(assets/outputs/record-icon.svg)
+	background-image: url(assets/outputs/record-icon.svg)
 }
 
 .icon--stop {
-	background-image url(assets/outputs/stop-icon.svg)
+	background-image: url(assets/outputs/stop-icon.svg)
 }
 
 .icon--share {
@@ -31,11 +33,11 @@
 }
 
 .icon--recorder {
-	background-image url(assets/outputs/recorder-icon.svg)
+	background-image: url(assets/outputs/recorder-icon.svg)
 }
 
 .icon--speaker {
-	background-image url(assets/speaker-icon.svg)
+	background-image: url(assets/speaker-icon.svg)
 	background-position-y: 100%
 	background-size: 100%
 }
@@ -43,7 +45,6 @@
 .icon--large {
 	width: 24px
 	height: 24px
-	top: 5px
 }
 
 .icon--facebook {
@@ -64,7 +65,6 @@
 	height: 30px
 	left: 0px
 	top: 0px
-	
 	display: inline-block
 	background-image: url(assets/sharing-twitter.svg)
 	background-size: 20px

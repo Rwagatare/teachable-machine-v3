@@ -30,20 +30,20 @@ import BrowserUtils from './ui/components/BrowserUtils';
 function init() {
 
 	// Shim for forEach for IE/Edge
-  if (typeof NodeList.prototype.forEach !== 'function') {
-    NodeList.prototype.forEach = Array.prototype.forEach;
+	if (typeof NodeList.prototype.forEach !== 'function') {
+		NodeList.prototype.forEach = Array.prototype.forEach;
 	}
 
-  GLOBALS.browserUtils = new BrowserUtils();
-  GLOBALS.launchScreen = new LaunchScreen();
-  
-  // Initialize PWA functionality
-  GLOBALS.pwaUtils = new PWAUtils();
+	GLOBALS.browserUtils = new BrowserUtils();
+	GLOBALS.launchScreen = new LaunchScreen();
 
-  GLOBALS.learningSection = new LearningSection(document.querySelector('#learning-section'));
+	// Initialize PWA functionality
+	GLOBALS.pwaUtils = new PWAUtils();
+
+	GLOBALS.learningSection = new LearningSection(document.querySelector('#learning-section'));
 	GLOBALS.inputSection = new InputSection(document.querySelector('#input-section'));
 	GLOBALS.outputSection = new OutputSection(document.querySelector('#output-section'));
-  GLOBALS.recordOpener = new RecordOpener(document.querySelector('#record-open-section'));
+	GLOBALS.recordOpener = new RecordOpener(document.querySelector('#record-open-section'));
 
 	GLOBALS.inputSection.ready();
 	GLOBALS.learningSection.ready();
@@ -53,23 +53,53 @@ function init() {
 		GLOBALS.isBackFacingCam = true;
 	}
 
-	// Camera status messages per browser
-	if (GLOBALS.browserUtils.isChrome && !GLOBALS.browserUtils.isEdge) {
-		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, <span class="input__media__activate--desktop"> you need to click up here to turn on your camera and then <a href="#">refresh the page</a>.</span><span class="input__media__activate--mobile"> you need to <a href="#">refresh the page</a> and allow camera access.</span></p>';
+	setCameraInstructions();
 
-		if (!GLOBALS.browserUtils.isCompatible) {
-			document.querySelector('.wizard__browser-warning').innerHTML = 'Something went wrong and we could not load the site, please try restarting your browser.';
-		}
-	}else if (GLOBALS.browserUtils.isSafari) {
-		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, you need to turn on your camera. To do this click "Safari" in the menu bar, navigate to "Settings for This Website", in the "Camera" drop down menu choose "Allow" and then <a href="#">refresh the page</a>.';
-	}else if (GLOBALS.browserUtils.isFirefox) {
-		document.querySelector('.input__media__activate').innerHTML = 'To teach your machine, you need to turn on your camera. To do this you need to click this icon <img class="camera-icon" src="assets/ff-camera-icon.png"> to grant access and <a href="#">refresh the page</a>.';
+	// Browsers hide the camera API on plain http:// pages other than localhost,
+	// which otherwise looks like an unsupported browser.
+	if (window.isSecureContext === false) {
+		let insecureMessage = 'The camera only works over a secure connection. Open this page with https://, or at localhost on this computer.';
+
+		document.querySelector('.wizard__browser-warning').textContent = insecureMessage;
+		document.querySelector('#is-not-compatible .intro__message').textContent = insecureMessage;
+	}else if (GLOBALS.browserUtils.isChrome && !GLOBALS.browserUtils.isEdge && !GLOBALS.browserUtils.isCompatible) {
+		document.querySelector('.wizard__browser-warning').textContent = 'Teachable Machine couldn’t start in this browser. Restart Chrome, then open this page again.';
 	}
-	
-	// Show PWA install prompt after delay
+
+	// Suggest installing on iOS once the user has trained a class
 	GLOBALS.pwaUtils.showInstallPromptAfterDelay();
 
 	setupClearSavedDataButton();
+}
+
+// Shown when camera access is blocked. The steps describe each browser's own
+// controls, which differ between desktop and mobile, so they're picked by
+// browser and platform rather than by screen width. Plain text only: the
+// whole element reloads the page when activated.
+function setCameraInstructions() {
+	const utils = GLOBALS.browserUtils;
+	const element = document.querySelector('.input__media__activate');
+	const intro = 'Teachable Machine needs your camera. ';
+	let steps = '';
+
+	if (utils.isChrome && !utils.isEdge) {
+		steps = utils.isMobile
+			? 'Tap the icon to the left of the address, allow Camera, then reload the page.'
+			: 'Click the camera icon at the right of the address bar, allow camera access, then reload the page.';
+	}else if (utils.isSafari) {
+		steps = utils.isMobile
+			? 'Tap aA in the address bar, choose Website Settings, set Camera to Allow, then reload the page.'
+			: 'In the menu bar, choose Safari > Settings for This Website, set Camera to Allow, then reload the page.';
+	}else if (utils.isFirefox && element) {
+		// The icon repeats the words next to it, so it has empty alt text.
+		element.innerHTML = intro + 'Click the camera icon <img class="camera-icon" src="assets/ff-camera-icon.png" alt=""> in the address bar, allow camera access, then reload the page.';
+
+		return;
+	}
+
+	if (element && steps) {
+		element.textContent = intro + steps;
+	}
 }
 
 function setupClearSavedDataButton() {
@@ -81,13 +111,17 @@ function setupClearSavedDataButton() {
 	clearDataButton.addEventListener('click', (event) => {
 		event.preventDefault();
 
-		if (!window.confirm('This will erase your saved training data from this device. Continue?')) {
+		// A native confirm is deliberate here: it is accessible everywhere and
+		// this action deletes data that can't be recovered.
+		// eslint-disable-next-line no-alert
+		if (!window.confirm('Delete saved training data from this device? This can’t be undone.')) {
 			return;
 		}
 
-		const clearPromise = (GLOBALS.webcamClassifier && GLOBALS.webcamClassifier.clearPersistedData) ?
-			GLOBALS.webcamClassifier.clearPersistedData() :
-			Promise.resolve();
+		let clearPromise = Promise.resolve();
+		if (GLOBALS.webcamClassifier && GLOBALS.webcamClassifier.clearPersistedData) {
+			clearPromise = GLOBALS.webcamClassifier.clearPersistedData();
+		}
 
 		clearPromise.then(() => {
 			location.reload();

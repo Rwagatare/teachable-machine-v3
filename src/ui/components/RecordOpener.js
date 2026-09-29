@@ -12,45 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// "Record Video" entry point in the FAQ area. The recorder needs
+// canvas.captureStream() + MediaRecorder with WebM output, which is only
+// dependable in desktop Chrome, so the entry point is hidden elsewhere.
+
 class RecordOpener {
-    constructor(element) {
-        this.element = element;
-        this.openButton = new Button(document.querySelector('#open-recorder'));
+	constructor(element) {
+		this.element = element;
+		this.openButton = document.querySelector('#open-recorder');
 
-        this.openButton.element.addEventListener('click', this.open.bind(this));
-        // GLOBALS.outputSection.onChangeHandler = () => {
-        //     this.enable();
-        // };
-        if (!GLOBALS.browserUtils.isChrome || GLOBALS.browserUtils.isMobile) {
-            document.getElementById('record-open-section').style.display = 'none';
-        }
-    }
+		this.openButton.addEventListener('click', this.open.bind(this));
+		if (!GLOBALS.browserUtils.isChrome || GLOBALS.browserUtils.isMobile) {
+			this.element.hidden = true;
+		}
+	}
 
-    disable() {
-        this.openButton.element.classList.add('disabled');
-    }
+	disable() {
+		this.openButton.disabled = true;
+	}
 
-    enable() {
-        this.openButton.element.classList.remove('disabled');
-    }
+	enable() {
+		this.openButton.disabled = false;
+	}
 
-    open() {
-        TweenLite.to(window, 0.3, {scrollTo: 1});
+	open(event) {
+		if (event) {
+			event.preventDefault();
+		}
+		let output = GLOBALS.outputSection.currentOutput;
+		let canvas = null;
+		if (output && output.element) {
+			canvas = output.element.querySelector('canvas');
+		}
 
-        if (
-            GLOBALS.outputSection.currentOutput &&
-            GLOBALS.outputSection.currentOutput.element.querySelector('canvas')
-
-        ) {
-            setTimeout(() => {
-                GLOBALS.recordSection.setCanvas(GLOBALS.outputSection.currentOutput.element.querySelector('canvas'));
-            }, 500);
-        }
-    }
+		// The sheet is fixed to the viewport, so there's no need to scroll.
+		GLOBALS.recordSection.setCanvas(canvas);
+	}
 }
 
 import GLOBALS from './../../config.js';
-import Button from './../components/Button.js';
-import TweenLite from 'gsap';
 
 export default RecordOpener;

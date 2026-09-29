@@ -1,0 +1,266 @@
+// ---------------------------------------------------------------------------
+// Design tokens (Apple HIG-inspired)
+//
+// Everything here is a CSS custom property on :root, so it adapts at runtime
+// to the OS appearance (prefers-color-scheme), increased contrast
+// (prefers-contrast), reduced motion and reduced transparency. There is no
+// in-app appearance toggle on purpose: the page follows the OS.
+//
+// IMPORTANT for component authors: Stylus colour functions (darken, lighten,
+// rgba($x, a), mix...) cannot operate on var(). Use the *-tint tokens or a
+// literal instead of calling a colour function on a token.
+// ---------------------------------------------------------------------------
+
+// Per-class hues: name: (light, dark, on-light, on-dark, dark-increased-contrast)
+$class-palette = {
+	green: (#248A3D #30D158 #FFFFFF #000000 #30DB5B),
+	purple: (#8944AB #BF5AF2 #FFFFFF #FFFFFF #DA8FFF),
+	orange: (#C93400 #FF9F0A #FFFFFF #000000 #FFB340),
+	red: (#D70015 #FF453A #FFFFFF #FFFFFF #FF6961),
+	blue: (#0040DD #0A84FF #FFFFFF #FFFFFF #409CFF),
+	yellow: (#A05A00 #FFD60A #FFFFFF #000000 #FFD426),
+	teal: (#0071A4 #40CBE0 #FFFFFF #000000 #5DE6FF),
+	neutral: (#6C6C70 #8E8E93 #FFFFFF #FFFFFF #AEAEB2)
+}
+
+// Type roles: name: (size, weight, line-height, tracking)
+$type-roles = {
+	'large-title': (2.125rem 700 1.2 -0.022em),
+	'title-1': (1.75rem 700 1.2 -0.018em),
+	'title-2': (1.375rem 700 1.27 -0.012em),
+	'title-3': (1.25rem 600 1.25 -0.01em),
+	headline: (1.0625rem 600 1.3 -0.004em),
+	body: (1.0625rem 400 1.4 0),
+	callout: (1rem 400 1.38 0),
+	subheadline: (0.9375rem 400 1.33 0),
+	footnote: (0.8125rem 400 1.38 0.004em),
+	caption: (0.75rem 400 1.33 0.01em)
+}
+
+// @stylint off (linter misreads custom properties as selectors)
+:root {
+	// Surfaces
+	--color-bg: #F2F2F7
+	--color-surface: #FFFFFF
+	--color-surface-elevated: #FFFFFF
+	--color-fill: #E5E5EA
+	--color-fill-secondary: rgba(120, 120, 128, 0.16)
+	--color-separator: rgba(60, 60, 67, 0.29)
+
+	// Text
+	--color-label: #1C1C1E
+	--color-label-secondary: #6C6C70
+	--color-label-tertiary: #8E8E93 // disabled / placeholder only
+
+	// Accent
+	--color-accent: #0066CC
+	--color-accent-fill: #0066CC // background of filled buttons; white label 5.6:1
+	--color-on-accent: #FFFFFF
+
+	// Signal
+	--color-danger: #D70015
+	--color-success: var(--class-green)
+
+	// Class colours
+	for name, c in $class-palette {
+		--class-{name}: c[0]
+		--class-{name}-tint: rgba(c[0], 0.14)
+		--class-{name}-on: c[2]
+	}
+
+	// Radii (keep nested corners concentric: inner = outer - padding)
+	--radius-xs: 6px
+	--radius-s: 10px
+	--radius-m: 14px
+	--radius-l: 20px
+	--radius-pill: 999px
+
+	// Spacing (4/8 grid)
+	--space-1: 4px
+	--space-2: 8px
+	--space-3: 12px
+	--space-4: 16px
+	--space-5: 20px
+	--space-6: 24px
+	--space-7: 32px
+	--space-8: 40px
+
+	// Type roles (rem, so they follow the user's text size)
+	for name, t in $type-roles {
+		--text-{name}-size: t[0]
+		--text-{name}-weight: t[1]
+		--text-{name}-line-height: t[2]
+		--text-{name}-tracking: t[3]
+	}
+
+	// Motion
+	--ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1)
+	--ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1)
+	--duration-fast: 150ms
+	--duration: 250ms
+	--duration-slow: 400ms
+
+	// Material: glass (floating controls only, never content)
+	--glass-bg: rgba(255, 255, 255, 0.72)
+	--glass-clear-bg: rgba(255, 255, 255, 0.28)
+	--glass-border: rgba(255, 255, 255, 0.5)
+	--glass-blur: 30px
+	--glass-saturate: 1.4
+
+	// Shadows
+	--shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.04)
+	--shadow-floating: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.1)
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-bg: #000000
+		--color-surface: #1C1C1E
+		--color-surface-elevated: #2C2C2E
+		--color-fill: #3A3A3C
+		--color-fill-secondary: rgba(120, 120, 128, 0.32)
+		--color-separator: rgba(84, 84, 88, 0.65)
+
+		--color-label: #FFFFFF
+		--color-label-secondary: #AEAEB2
+		--color-label-tertiary: #636366
+
+		--color-accent: #0A84FF
+		--color-accent-fill: #0071E3 // white on #0A84FF is only 3.65:1; this is 4.7:1
+		--color-on-accent: #FFFFFF
+
+		--color-danger: #FF453A
+
+		for name, c in $class-palette {
+			--class-{name}: c[1]
+			--class-{name}-tint: rgba(c[1], 0.18)
+			--class-{name}-on: c[3]
+		}
+
+		--glass-bg: rgba(30, 30, 30, 0.62)
+		--glass-clear-bg: rgba(30, 30, 30, 0.28)
+		--glass-border: rgba(255, 255, 255, 0.12)
+
+		// Dark mode conveys depth with lighter surfaces, not shadows
+		--shadow-card: none
+		--shadow-floating: 0 1px 3px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.45)
+	}
+}
+
+@media (prefers-contrast: more) {
+	:root {
+		--color-label: #000000
+		--color-label-secondary: #3A3A3C
+		--color-label-tertiary: #6C6C70
+		--color-separator: rgba(60, 60, 67, 0.6)
+		--color-fill: #D1D1D6
+		--color-accent: #0040DD
+		--color-accent-fill: #0040DD
+		--glass-bg: rgba(255, 255, 255, 0.92)
+		--glass-clear-bg: rgba(255, 255, 255, 0.6)
+		--glass-border: rgba(0, 0, 0, 0.2)
+	}
+}
+
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+	:root {
+		--color-label: #FFFFFF
+		--color-label-secondary: #EBEBF0
+		--color-label-tertiary: #8E8E93
+		--color-separator: rgba(235, 235, 245, 0.45)
+		--color-fill: #48484A
+		--color-accent: #409CFF
+		--color-accent-fill: #0062CC
+
+		for name, c in $class-palette {
+			--class-{name}: c[4]
+		}
+
+		--glass-bg: rgba(20, 20, 20, 0.9)
+		--glass-clear-bg: rgba(20, 20, 20, 0.6)
+		--glass-border: rgba(255, 255, 255, 0.3)
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--duration-fast: 0.01ms
+		--duration: 0.01ms
+		--duration-slow: 0.01ms
+	}
+}
+
+// @stylint on
+
+// ---------------------------------------------------------------------------
+// Mixins
+// ---------------------------------------------------------------------------
+
+// Apply a HIG type role: size, weight, line-height and tracking.
+// Roles: large-title, title-1, title-2, title-3, headline, body, callout,
+// subheadline, footnote, caption.
+text-style(role = body) {
+	if !($type-roles[role]) {
+		error('text-style(): unknown role ' + role)
+	}
+	font-size: unquote('var(--text-' + role + '-size)')
+	font-weight: unquote('var(--text-' + role + '-weight)')
+	line-height: unquote('var(--text-' + role + '-line-height)')
+	letter-spacing: unquote('var(--text-' + role + '-tracking)')
+}
+
+// Translucent material for FLOATING controls only (toolbars, overlaid
+// buttons). variant: regular (default) or clear (over the camera video).
+glass(variant = regular) {
+	if variant == clear {
+		background: var(--glass-clear-bg)
+	} else {
+		background: var(--glass-bg)
+	}
+	-webkit-backdrop-filter: unquote('blur(var(--glass-blur)) saturate(var(--glass-saturate))')
+	backdrop-filter: unquote('blur(var(--glass-blur)) saturate(var(--glass-saturate))')
+	border: 1px solid var(--glass-border)
+	box-shadow: var(--shadow-floating)
+
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		background: var(--color-surface-elevated)
+	}
+
+	// @stylint off (backdrop-filter unknown to the linter)
+	@media (prefers-reduced-transparency: reduce) {
+		background: var(--color-surface-elevated)
+		-webkit-backdrop-filter: none
+		backdrop-filter: none
+	}
+	// @stylint on
+}
+
+// Keyboard focus ring. Use inside a :focus-visible rule. The outline follows
+// the element's border-radius in modern browsers.
+focus-ring(offset = 2px) {
+	outline: 3px solid var(--color-accent)
+	outline-offset: offset
+}
+
+// Tactile press state. NOTE: sets `transition` (transform + opacity), which
+// replaces any transition declared earlier on the same element.
+press-feedback() {
+	transition: transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard)
+
+	&:active {
+		transform: scale(0.97)
+		opacity: 0.8
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		&:active {
+			transform: none
+		}
+	}
+}
+
+// Minimum touch target (HIG: 44x44pt).
+hit-target(min = 44px) {
+	min-width: min
+	min-height: min
+}

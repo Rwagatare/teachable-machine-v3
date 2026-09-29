@@ -161,6 +161,11 @@ export default class WebcamClassifier {
     localMobilenet.path = 'model/model.json';
     await localMobilenet.load();
     this.mobilenetModule = localMobilenet;
+
+    // TEMPORARY: logs which TensorFlow.js backend actually ended up active
+    // ('webgl' or the 'cpu' fallback), so predict() timings below can be
+    // read in context. Remove once we have a real-device latency reading.
+    console.log('[TM tfjs backend] ' + tf.getBackend());
   }
 
   /**
@@ -169,6 +174,7 @@ export default class WebcamClassifier {
    * predictions work immediately without retraining. If nothing was
    * saved, or the saved data doesn't match the current classes, this
    * is a no-op and the classifier simply starts empty as before.
+   * @returns {Promise<void>} Resolves once any saved data is restored.
    */
   async restorePersistedState() {
     const saved = await this.classifierStore.load();
@@ -192,7 +198,7 @@ export default class WebcamClassifier {
       this.classifier.setClassifierDataset(restoredDataset);
       this.mappedButtonIndexes = saved.mappedButtonIndexes.slice();
       this.applyRestoredExampleCounts();
-    } catch (error) {
+    }catch (error) {
       console.warn('WebcamClassifier: failed to restore saved training data, starting fresh.', error);
     }
   }
@@ -210,6 +216,7 @@ export default class WebcamClassifier {
    * UI (per-class example counters, "trained" flags, output enablement)
    * back in sync so it doesn't show 0 examples while predictions are
    * actually already working.
+   * @returns {void}
    */
   applyRestoredExampleCounts() {
     const recommendedNumSamples = (GLOBALS.inputType === 'cam') ? 30 : 10;
@@ -235,6 +242,7 @@ export default class WebcamClassifier {
    * Serializes the classifier's current dataset and writes it to
    * IndexedDB. Called once per recording session (on buttonUp) rather
    * than per frame, so holding the record button doesn't spam writes.
+   * @returns {Promise<void>} Resolves once the data is written.
    */
   async persistState() {
     if (!this.classifierStore) {
@@ -258,14 +266,17 @@ export default class WebcamClassifier {
         /* eslint-disable no-await-in-loop */
         const data = await tensor.data();
         /* eslint-enable no-await-in-loop */
-        serializedDataset[mappedIndex] = {shape: tensor.shape, data: Array.from(data)};
+        serializedDataset[mappedIndex] = {
+          shape: tensor.shape,
+          data: Array.from(data)
+        };
       }
       await this.classifierStore.save({
         classNames: this.classNames.slice(),
         mappedButtonIndexes: this.mappedButtonIndexes.slice(),
         classDataset: serializedDataset
       });
-    } catch (error) {
+    }catch (error) {
       console.warn('WebcamClassifier: failed to save training data.', error);
     }
   }
@@ -274,6 +285,7 @@ export default class WebcamClassifier {
    * Erases any saved training data from IndexedDB. Does not touch the
    * in-memory classifier - callers that want a full reset should reload
    * the page after calling this.
+   * @returns {Promise<void>} Resolves once the saved data is erased.
    */
   async clearPersistedData() {
     if (!this.classifierStore) {
@@ -495,7 +507,18 @@ return;
       let start = performance.now();
       measureTimer = this.measureTimingCounter === 0;
       if (exampleCount > 0) {
+        // TEMPORARY: rough predict() latency reading (~once every
+        // MEASURE_TIMING_EVERY_NUM_FRAMES frames, reusing the existing
+        // measureTimer throttle so this doesn't spam the console on every
+        // animation frame) to compare 'webgl' vs the 'cpu' fallback backend
+        // on a real device. Remove once we have a reading.
+        if (measureTimer) {
+          console.time('[TM predict]');
+        }
         const res = await this.predict(image);
+        if (measureTimer) {
+          console.timeEnd('[TM predict]');
+        }
         const computeConfidences = () => {
           GLOBALS.learningSection.setConfidences(res.confidences);
           this.measureTimingCounter = (this.measureTimingCounter + 1) % MEASURE_TIMING_EVERY_NUM_FRAMES;

@@ -1,16 +1,406 @@
-.output__loading-screen {
-	position: absolute
+// ---------------------------------------------------------------------------
+// Output column: segmented output picker, panel, per-class rows, icon
+// buttons and the search sheets shared by Emoji / Sound / Speech.
+// ---------------------------------------------------------------------------
+
+$output-classes = 'green' 'purple' 'orange' 'red' 'blue' 'yellow' 'teal'
+$output-emoji-font = 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', sans-serif
+
+// Each class element carries its colours as local custom properties, so the
+// components below use var(--output-class*) instead of one rule per class.
+// @stylint off
+for name in $output-classes {
+	.output-class--{name} {
+		--output-class: unquote('var(--class-' + name + ')')
+		--output-class-tint: unquote('var(--class-' + name + '-tint)')
+		--output-class-on: unquote('var(--class-' + name + '-on)')
+	}
+}
+
+.section--output {
+	// Field/segment colours with no global token.
+	--output-field-border: var(--color-label-tertiary)
+	--output-segment-selected: var(--color-surface-elevated)
+	max-width: 100%
+	min-width: 0
+}
+
+@media (prefers-color-scheme: dark) {
+	.section--output {
+		--output-field-border: #7C7C80
+		--output-segment-selected: #636366
+	}
+}
+// @stylint on
+
+// Segmented control (ARIA tablist)
+.output__controls {
+	display: block
 	width: 100%
-	height: 100%
-	background: $color__background
+	height: auto
+	margin-bottom: var(--space-3)
+}
+
+// Segments share the width equally; at very large text sizes they wrap onto
+// a second line instead of breaking words.
+.output__segmented {
+	display: flex
+	flex-wrap: wrap
+	gap: 2px // @stylint ignore
+	width: 100%
+	padding: 2px
+	border-radius: var(--radius-s)
+	background: var(--color-fill-secondary)
+}
+
+.output__segment {
+	flex: 1 1 0
+	min-width: unquote('min(max-content, 100%)')
+	min-height: 44px
+	margin: 0
+	padding: var(--space-1) var(--space-2)
+	border: 0
+	border-radius: 8px
+	background: transparent
+	color: var(--color-label)
+	font-family: inherit
+	text-style(subheadline)
+	font-weight: 500
+	text-align: center
+	overflow-wrap: break-word
+	cursor: pointer
+	-webkit-tap-highlight-color: transparent
+	press-feedback()
+	transition: background-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard)
+}
+
+.output__segment--selected {
+	background: var(--output-segment-selected)
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.04)
+	font-weight: 600
+}
+
+@media (hover: hover) {
+	.output__segment:not(.output__segment--selected):hover {
+		background: var(--color-fill-secondary)
+	}
+}
+
+@media (prefers-contrast: more) {
+	.output__segment--selected {
+		box-shadow: inset 0 0 0 1px var(--color-label)
+	}
+}
+
+// Panel
+.output__player {
+	position: relative
+	height: auto
+	background: transparent
+	container-type: inline-size // @stylint ignore
+}
+
+.output__container {
+	position: relative
+	width: 100%
+	height: auto
+}
+
+.output__container--sheet-open {
+	min-height: 360px
+	min-height: unquote('min(440px, 75vh)')
+	min-height: unquote('min(440px, 75dvh)')
+}
+
+.output__hint {
+	margin: var(--space-2) 0 0
+	color: var(--color-label-secondary)
+	text-align: center
+	text-style(footnote)
+}
+
+.output__loading-screen {
+	display: flex
+	align-items: center
+	justify-content: center
+	min-height: 200px
+	color: var(--color-label-secondary)
+}
+
+.output__loading-screen[hidden], .output__sound[hidden] {
+	display: none
 }
 
 .output__loading-title {
+	margin: 0
+	text-style(subheadline)
+}
+
+// Class tag: swatch + class name, so class is never shown by colour alone
+.output__class-tag {
+	display: inline-flex
+	align-items: center
+	gap: var(--space-2)
+	min-width: 0
+	color: var(--color-label-secondary)
+	text-style(footnote)
+	font-weight: 600
+	overflow-wrap: break-word
+}
+
+// Grows (inside a fixed 14px box, so nothing shifts) for the active class
+.output__swatch {
+	flex: none
+	width: 10px
+	height: 10px
+	margin: 2px
+	border-radius: 50%
+	background: var(--output-class, var(--class-neutral))
+	transition: width var(--duration-fast) var(--ease-standard), height var(--duration-fast) var(--ease-standard), margin var(--duration-fast) var(--ease-standard)
+}
+
+// Per-class rows (Sound, Speech)
+.output__rows {
+	display: flex
+	flex-direction: column
+	gap: var(--space-3)
+	margin: 0
+	padding: 0
+	list-style: none
+}
+
+.output__row {
+	display: flex
+	flex-direction: column
+	gap: var(--space-1)
+	min-width: 0
+}
+
+// At large text sizes the buttons wrap below the field
+.output__row-controls {
+	display: flex
+	flex-wrap: wrap
+	align-items: center
+	justify-content: flex-end
+	gap: var(--space-1)
+	min-width: 0
+}
+
+// A value field: the sound picker button and the phrase text input
+.output__value, .output__text-input {
+	flex: 1 1 8em
+	min-width: 0
+	min-height: 44px
+	margin: 0
+	padding: var(--space-2) var(--space-3)
+	border: 1px solid var(--output-field-border)
+	border-radius: var(--radius-s)
+	background: var(--color-bg)
+	color: var(--color-label)
+	font-family: inherit
+	font-size: unquote('max(16px, var(--text-body-size))')
+	line-height: 1.3
+	transition: border-color var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard)
+}
+
+.output__value {
+	display: flex
+	align-items: center
+	gap: var(--space-2)
+	text-align: left
+	cursor: pointer
+	-webkit-tap-highlight-color: transparent
+
+	.output__icon {
+		flex: none
+		width: 16px
+		height: 16px
+		color: var(--color-label-secondary)
+	}
+
+	&:active {
+		background: var(--color-fill-secondary)
+	}
+}
+
+.output__value-text {
+	flex: 1 1 auto
+	min-width: 0
+	overflow-wrap: break-word
+}
+
+.output__value--none .output__value-text {
+	color: var(--color-label-secondary)
+}
+
+.output__text-input {
+	-webkit-appearance: none
+	appearance: none
+}
+
+.output__text-input::placeholder {
+	color: var(--color-label-secondary)
+	opacity: 1
+}
+
+.output__text-input:focus {
+	border-color: var(--color-accent)
+}
+
+// The class currently detected: thicker class-coloured edge, tint, bolder
+// tag and a larger swatch (not colour alone).
+.output__row--active {
+	.output__value, .output__text-input {
+		border-color: var(--output-class)
+		box-shadow: inset 0 0 0 1px var(--output-class)
+		background: var(--output-class-tint)
+	}
+
+	.output__class-tag {
+		color: var(--color-label)
+		font-weight: 700
+	}
+
+	.output__swatch {
+		width: 14px
+		height: 14px
+		margin: 0
+	}
+}
+
+// Icon-only buttons (always carry an aria-label)
+.output__icon-button {
+	flex: none
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	width: 44px
+	height: 44px
+	margin: 0
+	padding: 0
+	border: 0
+	border-radius: var(--radius-s)
+	background: transparent
+	color: var(--color-accent)
+	cursor: pointer
+	-webkit-tap-highlight-color: transparent
+	press-feedback()
+
+	.output__icon {
+		width: 22px
+		height: 22px
+		fill: currentColor
+		pointer-events: none
+	}
+
+	&:disabled {
+		color: var(--color-label-tertiary)
+		cursor: default
+		opacity: 0.6
+		transform: none
+	}
+}
+
+@media (hover: hover) {
+	.output__icon-button:not(:disabled):hover {
+		background: var(--color-fill-secondary)
+	}
+}
+
+.output__play {
+	color: var(--output-class, var(--color-accent))
+
+	.output__icon {
+		width: 28px
+		height: 28px
+	}
+
+	.sound-on {
+		display: none
+	}
+}
+
+// Speaker waves show while this row is audible
+.output__icon-button--playing .sound-on {
+	display: inline
+}
+
+.output__clear {
+	color: var(--color-label-secondary)
+}
+
+// Search sheets (emoji, sound): cover the panel, scroll inside
+.output__sheet {
 	position: absolute
-	top: 50%
-	left: 50%
-	transform: translate3d(-50%, -50%, 0)
-	color: $color__text
+	top: 0
+	right: 0
+	bottom: 0
+	left: 0
+	z-index: 3
+	display: flex
+	flex-direction: column
+	background: var(--color-surface)
+}
+
+.output__sheet[hidden] {
+	display: none
+}
+
+.output__sheet-bar {
+	flex: none
+	display: flex
+	align-items: center
+	gap: var(--space-1)
+	padding-bottom: var(--space-2)
+}
+
+.output__sheet-back {
+	color: var(--output-class, var(--color-accent))
+	margin-left: -10px
+}
+
+.output__search-input {
+	flex: 1 1 auto
+	min-width: 0
+	min-height: 44px
+	margin: 0
+	padding: var(--space-2) var(--space-3)
+	border: 1px solid var(--output-field-border)
+	border-radius: var(--radius-s)
+	background: var(--color-bg)
+	color: var(--color-label)
+	font-family: inherit
+	font-size: unquote('max(16px, var(--text-body-size))')
+	-webkit-appearance: none
+	appearance: none
+}
+
+.output__search-input::placeholder {
+	color: var(--color-label-secondary)
+	opacity: 1
+}
+
+.output__search-input:focus {
+	border-color: var(--color-accent)
+}
+
+.output__sheet-hint {
+	flex: none
+	margin: 0 0 var(--space-2)
+	color: var(--color-label-secondary)
+	text-style(footnote)
+}
+
+.output__sheet-hint[hidden] {
+	display: none
+}
+
+.output__sheet-scroll {
+	flex: 1 1 auto
+	min-height: 0
+	overflow-y: auto
+	overscroll-behavior: contain // @stylint ignore
+	-webkit-overflow-scrolling: touch
 }
 
 @import 'output__emoji'

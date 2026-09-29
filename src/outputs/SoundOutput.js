@@ -12,464 +12,451 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// If some sounds never report that they can play (for example on a phone
+// that won't preload audio before a tap), show the controls anyway.
+const LOADING_TIMEOUT = 8000;
+
 class SoundOutput {
 	constructor() {
 		this.id = 'SoundOutput';
 		this.loaded = false;
 		this.canTrigger = true;
 		this.basePath = 'assets/outputs/sound/sounds/';
-		this.assets = [];
+		this.assets = [
+			'applause.mp3',
+			'bass.mp3',
+			'birds.mp3',
+			'cow.mp3',
+			'drum_joke.mp3',
+			'drum_roll.mp3',
+			'drums_1.mp3',
+			'drums_2.mp3',
+			'fanfare.mp3',
+			'flute_1.mp3',
+			'flute_2.mp3',
+			'flute_3.mp3',
+			'guitar_1.mp3',
+			'guitar_2.mp3',
+			'harp.mp3',
+			'jingle.mp3',
+			'orchestra.mp3',
+			'organ.mp3',
+			'trombone.mp3',
+			'trumpet_1.mp3',
+			'trumpet_2.mp3',
+			'trumpet_3.mp3',
+			'tuba.mp3'
+		];
 
-		this.assets.push('applause.mp3');
-		this.assets.push('bass.mp3');
-		this.assets.push('birds.mp3');
-		this.assets.push('cow.mp3');
-		this.assets.push('drum_joke.mp3');
-		this.assets.push('drum_roll.mp3');
-		this.assets.push('drums_1.mp3');
-		this.assets.push('drums_2.mp3');
-		this.assets.push('fanfare.mp3');
-		this.assets.push('flute_1.mp3');
-		this.assets.push('flute_2.mp3');
-		this.assets.push('flute_3.mp3');
-		this.assets.push('guitar_1.mp3');
-		this.assets.push('guitar_2.mp3');
-		this.assets.push('harp.mp3');
-		this.assets.push('jingle.mp3');
-		this.assets.push('orchestra.mp3');
-		this.assets.push('organ.mp3');
-		this.assets.push('trombone.mp3');
-		this.assets.push('trumpet_1.mp3');
-		this.assets.push('trumpet_2.mp3');
-		this.assets.push('trumpet_3.mp3');
-		this.assets.push('tuba.mp3');
-		
 		this.numAssets = this.assets.length;
-        window.addEventListener('mobileLaunch', this.touchAudio.bind(this));
+		window.addEventListener('mobileLaunch', this.touchAudio.bind(this));
+		document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this), false);
 
-		this.defaultAssets = [];
-		this.defaultAssets[0] = 'birds.mp3';
-		this.defaultAssets[1] = 'guitar_1.mp3';
-		this.defaultAssets[2] = 'trombone.mp3';
-		this.defaultAssets[3] = 'harp.mp3'; 
+		this.defaultAssets = [
+			'birds.mp3',
+			'guitar_1.mp3',
+			'trombone.mp3',
+			'harp.mp3'
+		];
 
 		this.numLoaded = 0;
 		this.sounds = {};
 		this.currentSound = null;
-		this.currentIcon = null;
+		this.currentIndex = null;
+		this.playingIndex = -1;
+		this.activeRow = null;
 		this.element = document.createElement('div');
 		this.element.classList.add('output__container');
 		this.element.classList.add('output__container--sound');
 		this.classNames = GLOBALS.classNames;
 		this.colors = GLOBALS.colors;
 		this.numClasses = GLOBALS.numClasses;
+
 		this.loadingScreen = document.createElement('div');
 		this.loadingScreen.classList.add('output__loading-screen');
-		this.loadingScreen.classList.add('output__loading-screen--sound');
-		let loadingTitle = document.createElement('div');
-		loadingTitle.textContent = 'Loading';
+		this.loadingScreen.setAttribute('role', 'status');
+		let loadingTitle = document.createElement('p');
+		loadingTitle.textContent = 'Loading sounds…';
 		loadingTitle.classList.add('output__loading-title');
 		this.loadingScreen.appendChild(loadingTitle);
 		this.element.appendChild(this.loadingScreen);
+
 		this.offScreen = document.createElement('div');
 		this.offScreen.classList.add('output__sound');
-		let options = {};
-		options.playCallback = this.searchResultPlayClick.bind(this);
-		options.selectCallback = this.searchResultClick.bind(this);
-		options.assets = this.assets;
-		this.search = new SoundSearch(options);
-		this.offScreen.appendChild(this.search.element);
+		this.offScreen.hidden = true;
+
+		this.search = new SoundSearch({
+			playCallback: this.searchResultPlayClick.bind(this),
+			selectCallback: this.searchResultClick.bind(this),
+			closeCallback: this.searchClosed.bind(this),
+			assets: this.assets
+		});
+
+		this.list = document.createElement('ul');
+		this.list.classList.add('output__rows');
+		this.list.setAttribute('aria-label', 'Sound for each class');
+		this.offScreen.appendChild(this.list);
 		this.inputClasses = [];
-        this.lastSound;
 
 		for (let index = 0; index < this.assets.length; index += 1) {
 			let sound = this.assets[index];
 			let audio = new Audio();
 			audio.muted = true;
 			audio.loop = true;
-			audio.addEventListener('canplaythrough', this.assetLoaded.bind(this));
+			audio.addEventListener('canplaythrough', this.assetLoaded.bind(this), {once: true});
+			audio.addEventListener('error', this.assetLoaded.bind(this), {once: true});
+			audio.addEventListener('ended', this.soundEnded.bind(this));
 			audio.src = this.basePath + sound;
 			this.sounds[sound] = audio;
 		}
 
 		for (let index = 0; index < this.numClasses; index += 1) {
-			let id = this.classNames[index];
-			let inputClass = document.createElement('div');
-			let sound = this.defaultAssets[index] || this.defaultAssets[0];
-			inputClass.classList.add('output__sound-class');
-			inputClass.classList.add(`output__sound-class--${id}`);
-
-			let speakerIcon = document.createElement('div');
-			speakerIcon.classList.add('output__sound-speaker');
-			speakerIcon.classList.add(`output__sound-speaker--${id}`);
-			inputClass.sound = sound;
-			inputClass.icon = speakerIcon;
-
-			let loader = ((el) => {
-				let ajax = new XMLHttpRequest();
-				ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
-				ajax.onload = (event) => {
-					el.innerHTML = ajax.responseText;
-				};
-				ajax.send();
-			})(speakerIcon);
-
-			let editIcon = document.createElement('div');
-			editIcon.classList.add('output__sound-edit');
-			editIcon.classList.add(`output__sound-edit--${id}`);
-
-			let input = document.createElement('input');
-			input.classId = id;
-			input.classList.add('output__sound-input');
-			input.classList.add(`output__sound-input--${id}`);
-			input.setAttribute('readonly', 'readonly');
-			input.value = sound;
-			inputClass.appendChild(speakerIcon);
-			inputClass.appendChild(editIcon);
-			inputClass.appendChild(input);
-
-			var deleteIcon = document.createElement('div');
-			deleteIcon.classList.add('output__sound-delete');
-			inputClass.appendChild(deleteIcon);
-
-			deleteIcon.addEventListener('click', this.clearInput.bind(this));
-			input.addEventListener('click', this.editInput.bind(this));
-            document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this), false);
-			// speakerIcon.addEventListener('click', this.testSound.bind(this));
-			// this.inputClasses[index] = speakerIcon;
-			inputClass.input = input;
-			this.inputClasses[index] = inputClass;
-			this.offScreen.appendChild(inputClass);
-
+			this.addRow(this.classNames[index], index);
 		}
+
 		this.element.appendChild(this.offScreen);
-		this.speakers = [];
+		this.element.appendChild(this.search.element);
 		this.buildCanvas();
+
+		this.loadingTimer = setTimeout(this.showScreen.bind(this), LOADING_TIMEOUT);
 	}
 
 	// Method to dynamically add a new class
 	addNewClass(className, index) {
-		// Update our local references
 		this.classNames = GLOBALS.classNames;
 		this.numClasses = GLOBALS.numClasses;
-		
-		// Create UI elements for the new class
-		let inputClass = document.createElement('div');
-		let sound = this.defaultAssets[index] || this.defaultAssets[0]; 
-		inputClass.classList.add('output__sound-class');
-		inputClass.classList.add(`output__sound-class--${className}`);
-
-		let speakerIcon = document.createElement('div');
-		speakerIcon.classList.add('output__sound-speaker');
-		speakerIcon.classList.add(`output__sound-speaker--${className}`);
-		inputClass.sound = sound;
-		inputClass.icon = speakerIcon;
-
-		let loader = ((el) => {
-			let ajax = new XMLHttpRequest();
-			ajax.open('GET', 'assets/outputs/speaker-icon.svg', true);
-			ajax.onload = (event) => {
-				el.innerHTML = ajax.responseText;
-			};
-			ajax.send();
-		})(speakerIcon);
-
-		let editIcon = document.createElement('div');
-		editIcon.classList.add('output__sound-edit');
-		editIcon.classList.add(`output__sound-edit--${className}`);
-
-		let input = document.createElement('input');
-		input.classId = className;
-		input.classList.add('output__sound-input');
-		input.classList.add(`output__sound-input--${className}`);
-		input.setAttribute('readonly', 'readonly');
-		input.value = sound;
-		inputClass.appendChild(speakerIcon);
-		inputClass.appendChild(editIcon);
-		inputClass.appendChild(input);
-
-		var deleteIcon = document.createElement('div');
-		deleteIcon.classList.add('output__sound-delete');
-		inputClass.appendChild(deleteIcon);
-
-		deleteIcon.addEventListener('click', this.clearInput.bind(this));
-		input.addEventListener('click', this.editInput.bind(this));
-		inputClass.input = input;
-		this.inputClasses[index] = inputClass;
-		this.offScreen.appendChild(inputClass);
+		this.addRow(className, index);
 	}
 
-    handleVisibilityChange() {
-		if (GLOBALS.outputSection.currentOutput &&
-			GLOBALS.outputSection.currentOutput.id === 'SoundOutput'
+	// One row per class: class tag, the chosen sound (opens the picker),
+	// a preview button and a remove button.
+	addRow(className, index) {
+		let name = OutputUI.classLabel(className);
+		let sound = this.defaultAssets[index] || this.defaultAssets[0];
+
+		let inputClass = document.createElement('li');
+		inputClass.classList.add('output__row');
+		inputClass.classList.add(`output-class--${className}`);
+		inputClass.classId = className;
+		inputClass.index = index;
+		inputClass.sound = sound;
+
+		let tag = OutputUI.classTag(className);
+		tag.setAttribute('aria-hidden', 'true');
+		inputClass.appendChild(tag);
+
+		let controls = document.createElement('div');
+		controls.classList.add('output__row-controls');
+
+		let input = document.createElement('button');
+		input.type = 'button';
+		input.classList.add('output__value');
+		input.setAttribute('aria-haspopup', 'dialog');
+		input.setAttribute('aria-expanded', 'false');
+		input.classId = className;
+		input.appendChild(OutputUI.visuallyHidden(`Edit ${name} Sound: `));
+		let valueText = document.createElement('span');
+		valueText.classList.add('output__value-text');
+		input.appendChild(valueText);
+		input.insertAdjacentHTML('beforeend', OutputUI.icon('chevron'));
+		input.addEventListener('click', () => {
+			this.editInput(index);
+		});
+
+		let playButton = OutputUI.iconButton({
+			className: 'output__play',
+			label: `Play Sound for ${name}`,
+			icon: 'speaker'
+		});
+		playButton.addEventListener('click', () => {
+			this.rowPlayClick(index);
+		});
+
+		let deleteButton = OutputUI.iconButton({
+			className: 'output__clear',
+			label: `Remove ${name} Sound`,
+			icon: 'clear'
+		});
+		deleteButton.addEventListener('click', () => {
+			this.clearInput(index);
+		});
+
+		controls.appendChild(input);
+		controls.appendChild(playButton);
+		controls.appendChild(deleteButton);
+		inputClass.appendChild(controls);
+
+		inputClass.input = input;
+		inputClass.valueText = valueText;
+		inputClass.icon = playButton;
+		inputClass.playButton = playButton;
+		inputClass.deleteButton = deleteButton;
+		inputClass.label = name;
+
+		this.inputClasses[index] = inputClass;
+		this.list.appendChild(inputClass);
+		this.renderRow(inputClass);
+	}
+
+	renderRow(row) {
+		let hasSound = Boolean(row.sound);
+		row.valueText.textContent = OutputUI.soundLabel(row.sound);
+		row.input.classList.toggle('output__value--none', !hasSound);
+		row.playButton.disabled = !hasSound;
+		row.deleteButton.disabled = !hasSound;
+	}
+
+	handleVisibilityChange() {
+		if (GLOBALS.outputSection && GLOBALS.outputSection.currentOutput &&
+			GLOBALS.outputSection.currentOutput.id === 'SoundOutput' &&
+			this.currentSound
 		) {
-			if (this.currentSound === null) {
-				this.currentSound;
-			}else if (document.hidden) {
+			if (document.hidden) {
 				this.currentSound.pause();
 			}else {
-				this.currentSound.play();
+				this.playAudio(this.currentSound);
 			}
-		}
-    }
-
-    playCurrentSound() {
-		if (this.currentSound) {
-			this.currentSound.play();
 		}
 	}
 
-    pauseCurrentSound() {
+	playCurrentSound() {
+		if (this.currentSound) {
+			this.playAudio(this.currentSound);
+		}
+	}
+
+	pauseCurrentSound() {
 		if (this.currentSound) {
 			this.currentSound.pause();
 		}
-    }
+	}
 
-	clearInput(event) {
-		if (this.currentSound === this.sounds[event.target.parentNode.sound]) {
-			this.currentSound.muted = true;
-            this.currentSound = null;
-            if (this.currentIcon) {
-				this.currentIcon.classList.remove('output__sound-speaker--active');
-				this.currentIcon = null;
-			}
+	// play() returns a promise that rejects if autoplay is blocked.
+	playAudio(audio) {
+		let promise = audio.play();
+		if (promise && typeof promise.catch === 'function') {
+			promise.catch(() => false);
 		}
-		event.target.parentNode.sound = null;
-		event.target.parentNode.input.value = 'Nothing';
-
-		event.target.parentNode.input.classList.add('output__sound-input--nothing');
-
-        if (this.currentBorder && this.currentClassName) {
-            this.currentBorder.classList.remove(`output__sound-input--${this.currentClassName}-selected`);
-        }
-    }
-
-	searchResultPlayClick(event) {
-		event.stopPropagation();
-		let sound = event.target.parentNode.value;
-		this.lastSound = sound;
-		this.playSound(sound);
 	}
 
-	searchResultClick(event) {
-		let value = event.target.value;
-		this.activeInput.value = value;
-		this.activeInput.parentNode.sound = value;
-		this.activeInput.parentNode.input.classList.remove('output__sound-input--nothing');
-		if (this.currentSound) {
-            this.currentSound.muted = true;
-            this.currentSound = null;
-        }
-        this.search.hide();
-	}
-
-	editInput(event) {
-		this.activeInput = event.target;
-		let classId = this.activeInput.classId;
-		if (this.currentSound) {
-			this.currentSound.muted = true;
-			this.currentSound = null;
-			if (this.currentIcon) {
-				this.currentIcon.classList.remove('output__sound-speaker--active');
-				this.currentIcon = null;
-			}
+	clearInput(index) {
+		let row = this.inputClasses[index];
+		if (this.currentSound && this.currentSound === this.sounds[row.sound]) {
+			this.stopSound();
 		}
-		this.search.show(classId);
+		row.sound = null;
+		this.renderRow(row);
+		if (index === this.currentIndex) {
+			this.updateCanvas(index, 'None');
+		}
 	}
 
-	filterResults() {
-		let phrase = this.searchInput.value;
+	// Preview toggle for a result in the picker.
+	searchResultPlayClick(sound) {
+		if (this.search.playingSound === sound) {
+			this.stopSound();
 
+			return;
+		}
+		if (this.playSound(sound, true)) {
+			this.search.setPlaying(sound);
+		}
+	}
+
+	searchResultClick(sound) {
+		let row = this.activeRow;
+		this.stopSound();
+		if (row) {
+			row.sound = sound;
+			this.renderRow(row);
+		}
+		this.search.hide(true);
+		this.searchClosed();
+	}
+
+	searchClosed() {
+		this.element.classList.remove('output__container--sheet-open');
+		this.stopSound();
+		this.activeRow = null;
+
+		// Let the next prediction start the (possibly new) sound again.
+		this.currentIndex = null;
+	}
+
+	editInput(index) {
+		let row = this.inputClasses[index];
+		this.activeRow = row;
+		this.stopSound();
+		this.element.classList.add('output__container--sheet-open');
+		this.search.show(row.classId, row.sound, row.input);
+	}
+
+	// Preview toggle for a class row.
+	rowPlayClick(index) {
+		let row = this.inputClasses[index];
+		if (this.playingIndex === index) {
+			this.stopSound();
+
+			return;
+		}
+		if (row.sound && this.playSound(row.sound, true)) {
+			this.setPlaying(index);
+		}
+	}
+
+	// Reflect which row is audible: speaker waves + Play/Stop label.
+	setPlaying(index) {
+		this.playingIndex = index;
+		this.inputClasses.forEach((row, position) => {
+			let playing = position === index;
+			row.playButton.classList.toggle('output__icon-button--playing', playing);
+			row.playButton.setAttribute('aria-label', `${playing ? 'Stop' : 'Play'} Sound for ${row.label}`);
+		});
 	}
 
 	soundEnded(event) {
-		if (this.activeSpeaker) {
-			this.currentSound.muted = true;
-			this.activeSpeaker.classList.remove('output__sound-speaker--active');	
-		}
-		this.canTrigger = true;
-		if (this.currentSound === event.target) {
-			this.currentSound.muted = true;
-			this.currentSound = null;
-			if (this.currentIcon) {
-				this.currentIcon.classList.remove('output__sound-speaker--active');
-				this.currentIcon = null;
-			}
+		// Only one-shot previews end; class sounds loop.
+		let audio = event.target;
+		audio.loop = true;
+		if (this.currentSound === audio) {
+			this.stopSound();
 		}
 	}
 
-    playSound(sound) {
-        this.muteSounds();
-		if (!this.search.visible) {
-			if (this.currentSound === sound) {
-				this.currentSound = null;
-			}else if (this.sounds[sound]) {
-				this.currentSound = this.sounds[sound];
-				this.currentSound.muted = false;
-				this.currentSound.currentTime = 0;
-				this.currentSound.play();
-                this.lastSound = this.currentSound;
-			}
+	// isPreview: plays once, even while the picker is open.
+	playSound(sound, isPreview) {
+		this.muteSounds();
+		let audio = this.sounds[sound];
+		if (!audio || (this.search.visible && !isPreview)) {
+			return false;
 		}
-    }
+		this.currentSound = audio;
+		audio.loop = !isPreview;
+		audio.muted = false;
+		audio.currentTime = 0;
+		this.playAudio(audio);
 
-    muteSounds() {
+		return true;
+	}
+
+	muteSounds() {
 		if (this.currentSound) {
-            this.currentSound.muted = true;
+			this.currentSound.muted = true;
 		}
 	}
 
-	assetLoaded(event) {
+	stopSound() {
+		this.muteSounds();
+		if (this.currentSound) {
+			this.currentSound.loop = true;
+		}
+		this.currentSound = null;
+		this.setPlaying(-1);
+		this.search.setPlaying(null);
+	}
+
+	assetLoaded() {
 		this.numLoaded += 1;
 		if (this.numLoaded === this.numAssets) {
 			this.loaded = true;
-			for (let index = 0; index < this.numAssets; index += 1) {
-				let id = this.assets[index];
-			}
 			this.showScreen();
 		}
 	}
 
 	showScreen() {
-		this.loadingScreen.style.display = 'none';
-		this.offScreen.style.display = 'block';
+		clearTimeout(this.loadingTimer);
+		this.loadingScreen.hidden = true;
+		this.offScreen.hidden = false;
+	}
+
+	describe(index) {
+		let row = this.inputClasses[index];
+		let name = OutputUI.classLabel(this.classNames[index]);
+
+		return `${name}: ${OutputUI.soundLabel(row ? row.sound : null)}`;
 	}
 
 	trigger(index) {
-        if (!GLOBALS.clearing) {
-            if (this.currentIndex !== index) {
-                this.currentIndex = index;
+		if (!GLOBALS.clearing && this.currentIndex !== index) {
+			this.currentIndex = index;
+			let row = this.inputClasses[index];
+			let sound = row.sound;
 
-                let sound = this.inputClasses[this.currentIndex].sound;
-                if (sound) {
-                    this.playSound(sound);
-                }else {
-                    this.muteSounds();
-                }
+			// While the picker is open, leave the user's preview alone.
+			if (!this.search.visible) {
+				if (sound && this.playSound(sound, false)) {
+					this.setPlaying(index);
+				}else {
+					this.stopSound();
+				}
+			}
 
-                if (this.currentIcon) {
-                    this.currentIcon.classList.remove('output__sound-speaker--active');
-                }
+			this.inputClasses.forEach((other, position) => {
+				other.classList.toggle('output__row--active', position === index);
+			});
 
-                if (this.currentBorder && this.currentClassName) {
-                    this.currentBorder.classList.remove(`output__sound-input--${this.currentClassName}-selected`);
-                }
+			this.updateCanvas(index, OutputUI.soundLabel(sound));
+		}
 
-                let border = this.inputClasses[index].input;
-                let id = this.classNames[index];
-
-                this.currentClassName = id;
-                this.currentBorder = border;
-                this.currentBorder.classList.add(`output__sound-input--${this.currentClassName}-selected`);
-
-                this.currentIcon = this.inputClasses[this.currentIndex];
-                this.currentIcon.classList.add('output__sound-speaker--active');
-                if (this.canvas) {
-                    sound === null ? sound = '(nothing)' : sound;
-                    this.updateCanvas(this.currentIndex, sound);
-                }
-
-            }
-        }
-        if (GLOBALS.clearing) {
-            if (this.currentIcon) {
-                this.currentIcon.classList.remove('output__sound-speaker--active');
-            }
-            if (this.currentBorder && this.currentClassName) {
-                this.currentBorder.classList.remove(`output__sound-input--${this.currentClassName}-selected`);
-            }
-            for (let index = 0; index < this.numAssets; index += 1) {
-                let id = this.assets[index];
-                this.sounds[id].pause();
-            }
-        }
-    }
-
+		if (GLOBALS.clearing) {
+			this.inputClasses.forEach((other) => {
+				other.classList.remove('output__row--active');
+			});
+			this.setPlaying(-1);
+			for (let index = 0; index < this.numAssets; index += 1) {
+				this.sounds[this.assets[index]].pause();
+			}
+		}
+	}
 
 	stop() {
+		this.search.hide(false);
+		this.element.classList.remove('output__container--sheet-open');
+		this.activeRow = null;
 		for (let index = 0; index < this.numAssets; index += 1) {
-			let id = this.assets[index];
-			this.sounds[id].pause();
+			this.sounds[this.assets[index]].pause();
 		}
+		this.setPlaying(-1);
 		this.element.style.display = 'none';
 	}
 
 	start() {
 		this.element.style.display = 'block';
 		this.handleVisibilityChange();
+		if (this.currentSound) {
+			this.setPlaying(this.inputClasses.findIndex((row) => this.sounds[row.sound] === this.currentSound));
+		}
 	}
 
+	// Hidden canvas the video recorder draws from (see RecordOpener).
 	buildCanvas() {
 		this.canvas = document.createElement('canvas');
 		this.canvas.style.display = 'none';
+		this.canvas.setAttribute('aria-hidden', 'true');
 		this.context = this.canvas.getContext('2d');
 		this.canvas.width = 340;
 		this.canvas.height = 260;
 		this.offScreen.appendChild(this.canvas);
-
-		let img = new Image();
-		img.onload = () => {
-			this.canvasImage = img;
-		};
-		img.src = 'assets/outputs/speaker-icon.svg';
+		OutputUI.paintRecorderBackground(this.context, null);
 	}
 
-	updateCanvas(colorId, sound) {
-        if (sound === 'null') {
-            this.sound = ' ';
-        }
-		let color = '#2baa5e'; 
-		const className = GLOBALS.classNames[colorId];
-		if (className && GLOBALS.colors[className]) {
-			color = GLOBALS.colors[className];
-		}else {
-			switch (colorId) {
-				case 0:
-				color = '#2baa5e';
-				break;
-				case 1:
-				color = '#c95ac5';
-				break;
-				case 2:
-				color = '#dd4d31';
-				break;
-				case 3:
-				color = '#fbbc04'; 
-				break;
-				default:
-				color = '#2baa5e';
-				break;
-			}
-		}
-		if (this.canvasImage) {
-			this.context.globalCompositeOperation = 'source-over';
-			this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-			this.context.fillStyle = 'rgb(255, 255, 255)';
-			this.context.fillRect(0, 0, 300, 300);
-			this.context.drawImage(this.canvasImage, 105, 52, 95, 95);
-            this.context.font = '25px Poppins';
-            this.context.fillStyle = '#000';
-            this.context.fillText(sound, (this.canvas.width / 2 - this.context.measureText(sound).width / 2) - 20, 207);
-			this.context.globalCompositeOperation = 'screen';
-			this.context.fillStyle = color;
-			this.context.fillRect(0, 0, 300, 300);
-		}
+	// Always the light palette: this ends up in an exported video.
+	updateCanvas(colorId, soundName) {
+		let id = this.classNames[colorId];
+		OutputUI.drawRecorderCard(this.context, id, soundName || 'None');
 	}
 
 	touchAudio() {
-        for (let key in this.sounds) {
-            /* eslint-disable */
-            if (this.sounds.hasOwnProperty(key)) {
-                this.sounds[key].play();
-                this.sounds[key].pause();
-            }
-            /* eslint-enable */
-        }
-    }
+		Object.keys(this.sounds).forEach((key) => {
+			let audio = this.sounds[key];
+			this.playAudio(audio);
+			audio.pause();
+		});
+	}
 }
 
-
 import SoundSearch from './sound/SoundSearch.js';
+import OutputUI from './outputUI.js';
 import GLOBALS from './../config.js';
 
 export default SoundOutput;

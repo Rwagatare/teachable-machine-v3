@@ -16,6 +16,8 @@ class WizardEmojiExample {
 	constructor(emoji) {
 		this.element = document.createElement('div');
 		this.element.classList.add('wizard__emoji');
+		// Visual hint only; the tutorial captions carry the instructions.
+		this.element.setAttribute('aria-hidden', 'true');
 
 		let mask = document.createElement('div');
 		mask.classList.add('wizard__emoji-mask');
@@ -23,14 +25,6 @@ class WizardEmojiExample {
 		let emojiElement = document.createElement('div');
 		emojiElement.classList.add('wizard__emoji-element');
 		emojiElement.textContent = emoji;
-		emojiElement.style.fontSize = '60px';
-		emojiElement.style.textAlign = 'center';
-		emojiElement.style.lineHeight = '80px';
-		emojiElement.style.background = '#ffffff';
-		emojiElement.style.borderRadius = '8px';
-		emojiElement.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-		emojiElement.style.width = '80px';
-		emojiElement.style.height = '80px';
 		mask.appendChild(emojiElement);
 
 		this.element.appendChild(mask);

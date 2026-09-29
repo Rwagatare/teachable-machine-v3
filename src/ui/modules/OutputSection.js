@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// How long the top class must stay the same before it is announced to
+// screen readers. Predictions arrive every frame; this keeps the live region
+// to one polite message per settled change.
+const ANNOUNCE_DELAY = 1000;
+
 class OutputSection {
     constructor(element) {
         this.element = element;
@@ -29,17 +34,26 @@ class OutputSection {
         this.outputs = outputs;
         this.loadedOutputs = [];
 
-        let outputLinks = element.querySelectorAll('.output_selector__option');
-        outputLinks.forEach((link) => {
-            link.addEventListener('click', this.changeOutput.bind(this));
+        this.liveRegion = element.querySelector('#output-status');
+        this.pendingIndex = null;
+        this.announcedKey = null;
+        this.announceTimer = null;
+
+        // Output picker: a segmented control built as an ARIA tablist.
+        this.tabs = Array.from(element.querySelectorAll('.output__segment'));
+        this.tabs.forEach((tab) => {
+            tab.addEventListener('click', this.changeOutput.bind(this));
+            tab.addEventListener('keydown', this.tabKeyDown.bind(this));
         });
-        this.currentLink = element.querySelector('.output_selector__option--selected');
+        this.currentLink = element.querySelector('.output__segment--selected') || this.tabs[0];
 
         this.outputContainer = document.querySelector('#output-player');
         this.currentOutput = null;
         this.currentLink.click();
 
         this.arrow = new HighlightArrow(1);
+        this.arrow.element.alt = '';
+        this.arrow.element.setAttribute('aria-hidden', 'true');
 
         TweenMax.set(this.arrow.element, {
             rotation: -50,
@@ -56,7 +70,11 @@ class OutputSection {
 
     highlight() {
         this.arrow.show();
-        TweenMax.from(this.arrow.element, 0.3, {opacity: 0});
+        if (Theme.prefersReducedMotion()) {
+            TweenMax.set(this.arrow.element, {opacity: 1});
+        }else {
+            TweenMax.from(this.arrow.element, 0.3, {opacity: 0});
+        }
     }
 
     dehighlight() {
@@ -77,13 +95,20 @@ class OutputSection {
     }
 
     changeOutput(event) {
-        if (this.currentLink) {
-            this.currentLink.classList.remove('output_selector__option--selected');
-        }
+        this.selectTab(event.currentTarget);
+    }
 
-        this.currentLink = event.target;
-        this.currentLink.classList.add('output_selector__option--selected');
+    selectTab(tab) {
+        this.tabs.forEach((other) => {
+            let selected = other === tab;
+            other.classList.toggle('output__segment--selected', selected);
+            other.setAttribute('aria-selected', selected ? 'true' : 'false');
+            other.setAttribute('tabindex', selected ? '0' : '-1');
+        });
+
+        this.currentLink = tab;
         let outputId = this.currentLink.id;
+        this.outputContainer.setAttribute('aria-labelledby', outputId);
 
         if (this.currentOutput) {
             this.currentOutput.stop();
@@ -99,7 +124,43 @@ class OutputSection {
             this.currentOutput.start();
         }
 
+        // Describe the next settled class with the newly selected output.
+        this.pendingIndex = null;
+        this.announcedKey = null;
+
         gtag('event', 'select_output', {'id': outputId});
+    }
+
+    // Left/Right (and Home/End) move between segments; selection follows focus.
+    tabKeyDown(event) {
+        let index = this.tabs.indexOf(event.currentTarget);
+        let last = this.tabs.length - 1;
+        let next = -1;
+
+        switch (event.key) {
+            case 'ArrowRight':
+            case 'Right':
+                next = index === last ? 0 : index + 1;
+                break;
+            case 'ArrowLeft':
+            case 'Left':
+                next = index === 0 ? last : index - 1;
+                break;
+            case 'Home':
+                next = 0;
+                break;
+            case 'End':
+                next = last;
+                break;
+            default:
+                break;
+        }
+
+        if (next > -1) {
+            event.preventDefault();
+            this.tabs[next].focus();
+            this.selectTab(this.tabs[next]);
+        }
     }
 
     toggleSoundOutput(play) {
@@ -122,20 +183,47 @@ class OutputSection {
         let index = this.classNames.indexOf(id);
         this.currentOutput.trigger(index);
 
+        if (!GLOBALS.clearing) {
+            this.scheduleAnnouncement(index);
+        }
+
         if (this.broadcastEvents) {
             let event = new CustomEvent('class-triggered', {detail: {id: id}});
             window.dispatchEvent(event);
         }
+    }
+
+    // trigger() runs every frame. Only a change of top class restarts the
+    // timer, and a message is only written once the class has settled.
+    scheduleAnnouncement(index) {
+        if (!this.liveRegion || index === this.pendingIndex) {
+            return;
+        }
+        this.pendingIndex = index;
+        clearTimeout(this.announceTimer);
+        this.announceTimer = setTimeout(this.announce.bind(this), ANNOUNCE_DELAY);
+    }
+
+    announce() {
+        let output = this.currentOutput;
+        let index = this.pendingIndex;
+        if (!output || typeof output.describe !== 'function' || index === null || index < 0) {
+            return;
+        }
+        let key = output.id + ':' + index;
+        if (key === this.announcedKey) {
+            return;
+        }
+        this.announcedKey = key;
+        this.liveRegion.textContent = output.describe(index);
     }
 }
 
 import TweenMax from 'gsap';
 import GLOBALS from './../../config.js';
 
-import Selector from './../components/Selector.js';
-import Button from './../components/Button.js';
-import CamInput from './../components/CamInput.js';
 import HighlightArrow from './../components/HighlightArrow.js';
+import Theme from './../components/Theme.js';
 
 import SpeechOutput from './../../outputs/SpeechOutput.js';
 import EmojiOutput from './../../outputs/EmojiOutput.js';

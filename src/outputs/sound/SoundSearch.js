@@ -12,121 +12,219 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Sheet for choosing a class's sound. Each result has a preview button and a
+// select button. Escape and Back close it and return focus to the opener.
+//
+// options.playCallback(sound)   preview toggle for a sound file name
+// options.selectCallback(sound) a sound was chosen
+// options.closeCallback()       the sheet closed without a choice
+
+let sheetCount = 0;
+
 class SoundSearch {
 	constructor(options) {
 		this.playCallback = options.playCallback;
 		this.selectCallback = options.selectCallback;
+		this.closeCallback = options.closeCallback;
 		this.assets = options.assets;
+		this.visible = false;
+		this.opener = null;
+		this.playingSound = null;
+
+		sheetCount += 1;
+		let inputId = `sound-search-input-${sheetCount}`;
 
 		this.element = document.createElement('div');
 		this.element.classList.add('output__sound-search');
+		this.element.classList.add('output__sheet');
+		this.element.setAttribute('role', 'dialog');
+		this.element.hidden = true;
+
 		this.searchBar = document.createElement('div');
-		this.searchBar.classList.add('output__sound-search-bar');
+		this.searchBar.classList.add('output__sheet-bar');
 		this.element.appendChild(this.searchBar);
-		this.searchInput = document.createElement('input');
-		this.searchInput.classList.add('output__sound-search-input');
-		this.searchBar.appendChild(this.searchInput);
-		this.backButton = document.createElement('div');
-		this.backButton.addEventListener('click', this.hide.bind(this));
-		this.backButton.classList.add('output__sound-back');
 
-		let loader = ((el) => {
-			let ajax = new XMLHttpRequest();
-			ajax.open('GET', 'assets/outputs/back-icon.svg', true);
-			ajax.onload = (event) => {
-				el.innerHTML = ajax.responseText;
-			};
-			ajax.send();
-		})(this.backButton);
-
+		this.backButton = OutputUI.iconButton({
+			className: 'output__sheet-back',
+			label: 'Back',
+			icon: 'back'
+		});
+		this.backButton.addEventListener('click', this.close.bind(this));
 		this.searchBar.appendChild(this.backButton);
 
-		this.searchResults = document.createElement('div');
+		let label = document.createElement('label');
+		label.className = 'visually-hidden';
+		label.setAttribute('for', inputId);
+		label.textContent = 'Search sounds';
+		this.searchBar.appendChild(label);
+
+		this.searchInput = document.createElement('input');
+		this.searchInput.type = 'search';
+		this.searchInput.id = inputId;
+		this.searchInput.classList.add('output__search-input');
+		this.searchInput.setAttribute('placeholder', 'Search sounds');
+		this.searchInput.setAttribute('autocomplete', 'off');
+		this.searchInput.setAttribute('enterkeyhint', 'search');
+		this.searchBar.appendChild(this.searchInput);
+
+		this.scroll = document.createElement('div');
+		this.scroll.classList.add('output__sheet-scroll');
+		this.element.appendChild(this.scroll);
+
+		this.searchResults = document.createElement('ul');
 		this.searchResults.classList.add('output__sound-search-results');
+		this.scroll.appendChild(this.searchResults);
+
+		this.emptyMessage = document.createElement('p');
+		this.emptyMessage.classList.add('output__sheet-hint');
+		this.emptyMessage.setAttribute('role', 'status');
+		this.scroll.appendChild(this.emptyMessage);
 
 		this.allResults = [];
 		for (let index = 0; index < this.assets.length; index += 1) {
-			let item = document.createElement('div');
-			item.classList.add('output__sound-search-result');
-
-			let icon = document.createElement('div');
-			icon.classList.add('output__sound-search-result-icon');
-
-			let label = document.createElement('input');
-			label.setAttribute('readonly', 'readonly');
-			label.classList.add('output__sound-search-result-input');
-
-			// icon.classList.add('output__sound-search-result-play');
-			let loader = ((el) => {
-				let ajax = new XMLHttpRequest();
-				ajax.open('GET', 'assets/outputs/play-icon.svg', true);
-				ajax.onload = (event) => {
-					el.innerHTML = ajax.responseText;
-				};
-				ajax.send();
-			})(icon);
-
-			item.value = this.assets[index];
-			label.value = item.value;
-			icon.addEventListener('click', this.playCallback);
-			this.allResults.push(item);
-
-			item.appendChild(icon);
-			item.appendChild(label);
-
-			item.addEventListener('click', this.selectCallback);
-
-			this.searchResults.appendChild(item);
+			this.allResults.push(this.buildResult(this.assets[index]));
 		}
-		this.element.appendChild(this.searchResults);
-		this.searchInput.addEventListener('keyup', this.filterResults.bind(this));
+
+		this.searchInput.addEventListener('input', this.filterResults.bind(this));
+		this.element.addEventListener('keydown', this.keyDown.bind(this));
 	}
 
-	hide() {
-		this.element.style.display = 'none';
-		this.searchResults.className = 'output__sound-search-results';
-		this.searchInput.className = 'output__sound-search-input';
-		this.backButton.className = 'output__sound-back';
+	buildResult(sound) {
+		let name = OutputUI.soundLabel(sound);
+		let item = document.createElement('li');
+		item.classList.add('output__sound-search-result');
+		item.sound = sound;
+		item.label = name;
 
-		this.allResults.forEach((item) => {
-			let icon = item.children[0];
-			icon.className = 'output__sound-search-result-icon';
+		let play = OutputUI.iconButton({
+			className: 'output__sound-search-play',
+			label: `Play ${name}`,
+			icon: 'play'
 		});
+		play.addEventListener('click', () => {
+			this.playCallback(sound);
+		});
+
+		let select = document.createElement('button');
+		select.type = 'button';
+		select.classList.add('output__sound-search-select');
+		select.innerHTML = OutputUI.icon('check');
+		let text = document.createElement('span');
+		text.classList.add('output__sound-search-name');
+		text.textContent = name;
+		select.appendChild(text);
+		select.addEventListener('click', () => {
+			this.selectCallback(sound);
+		});
+
+		item.playButton = play;
+		item.selectButton = select;
+		item.appendChild(play);
+		item.appendChild(select);
+		this.searchResults.appendChild(item);
+
+		return item;
+	}
+
+	keyDown(event) {
+		if (event.key === 'Escape' || event.key === 'Esc') {
+			event.preventDefault();
+			event.stopPropagation();
+			this.close();
+		}
+	}
+
+	close() {
+		this.hide(true);
+		if (this.closeCallback) {
+			this.closeCallback();
+		}
+	}
+
+	hide(returnFocus) {
+		if (!this.visible) {
+			return;
+		}
+		this.element.hidden = true;
 		this.visible = false;
+		this.setPlaying(null);
+		if (this.opener) {
+			this.opener.setAttribute('aria-expanded', 'false');
+			if (returnFocus === true) {
+				this.opener.focus();
+			}
+		}
 	}
 
-	show(classId) {
-		this.element.style.display = 'block';
-		this.searchResults.classList.add(`output__sound-search-results--${classId}`);
-		this.searchInput.classList.add(`output__sound-search-input--${classId}`);
-		this.backButton.classList.add(`output__sound-back--${classId}`);
+	// classId: class being edited; current: its sound (or null); opener: the
+	// control that opened the sheet, which gets focus back on close.
+	show(classId, current, opener) {
+		this.opener = opener || null;
+		this.element.className = `output__sound-search output__sheet output-class--${classId}`;
+		this.element.setAttribute('aria-label', `Choose ${OutputUI.classLabel(classId)} Sound`);
+		this.searchInput.value = '';
+		this.filterResults();
 
 		this.allResults.forEach((item) => {
-			let icon = item.children[0];
-			icon.classList.add(`output__sound-search-result-icon--${classId}`);
+			let isCurrent = item.sound === current;
+			item.classList.toggle('output__sound-search-result--current', isCurrent);
+			if (isCurrent) {
+				item.selectButton.setAttribute('aria-current', 'true');
+			}else {
+				item.selectButton.removeAttribute('aria-current');
+			}
 		});
-		this.searchInput.focus();
+
+		this.element.hidden = false;
 		this.visible = true;
+		this.scroll.scrollTop = 0;
+		if (this.opener) {
+			this.opener.setAttribute('aria-expanded', 'true');
+		}
+
+		// Avoid raising the on-screen keyboard over the list on touch screens.
+		if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+			this.searchInput.focus();
+		}else {
+			this.backButton.focus();
+		}
+	}
+
+	// Reflect which result is being previewed (null for none).
+	setPlaying(sound) {
+		this.playingSound = sound;
+		this.allResults.forEach((item) => {
+			let playing = item.sound === sound;
+			item.playButton.innerHTML = OutputUI.icon(playing ? 'stop' : 'play');
+			item.playButton.setAttribute('aria-label', `${playing ? 'Stop' : 'Play'} ${item.label}`);
+			item.playButton.classList.toggle('output__icon-button--playing', playing);
+		});
 	}
 
 	filterResults() {
-		let phrase = this.searchInput.value;
-		let showAll = false;
-
-		if (phrase.length === 0) {
-			showAll = true;
-		}
+		let phrase = this.searchInput.value.trim().toLowerCase();
+		let shown = 0;
 
 		this.allResults.forEach((item) => {
-			if (showAll) {
-				item.style.display = 'block';
-			}else if (item.value.toLowerCase().indexOf(phrase.toLowerCase()) > -1) {
-				item.style.display = 'block';
-			}else {
-				item.style.display = 'none';
+			let matches = phrase.length === 0 ||
+				item.label.toLowerCase().indexOf(phrase) > -1 ||
+				item.sound.toLowerCase().indexOf(phrase) > -1;
+			item.hidden = !matches;
+			if (matches) {
+				shown += 1;
 			}
 		});
+
+		if (shown === 0) {
+			this.emptyMessage.textContent = `No sounds match “${this.searchInput.value.trim()}”. Try another word.`;
+			this.emptyMessage.hidden = false;
+		}else {
+			this.emptyMessage.textContent = '';
+			this.emptyMessage.hidden = true;
+		}
 	}
 }
+
+import OutputUI from './../outputUI.js';
 
 export default SoundSearch;

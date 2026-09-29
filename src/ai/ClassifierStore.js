@@ -51,7 +51,10 @@ class ClassifierStore {
       const db = await openDatabase();
       await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).put(Object.assign({id: CURRENT_SESSION_ID, savedAt: Date.now()}, payload));
+        tx.objectStore(STORE_NAME).put(Object.assign({
+          id: CURRENT_SESSION_ID,
+          savedAt: Date.now()
+        }, payload));
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(tx.error);
@@ -59,7 +62,7 @@ class ClassifierStore {
       db.close();
 
       return true;
-    } catch (error) {
+    }catch (error) {
       console.warn('ClassifierStore: could not save training data, continuing in-memory only.', error);
 
       return false;
@@ -78,7 +81,7 @@ class ClassifierStore {
       db.close();
 
       return record;
-    } catch (error) {
+    }catch (error) {
       console.warn('ClassifierStore: could not load saved training data, starting fresh.', error);
 
       return null;
@@ -98,7 +101,7 @@ class ClassifierStore {
       db.close();
 
       return true;
-    } catch (error) {
+    }catch (error) {
       console.warn('ClassifierStore: could not clear saved training data.', error);
 
       return false;

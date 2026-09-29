@@ -12,272 +12,195 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Wires from each class's confidence meter to a row of bulbs at the output.
+// The detected class lights its wire and bulb. See WiresLeft.js for how the
+// geometry and colours work.
+
+const BULB_RADIUS = 6;
+const BULB_SPACING = 24;
+
 class WiresRight {
     constructor(element) {
         this.element = element;
+        this.activeId = null;
+        this.signals = {};
+        this.bulbs = {};
 
-        this.canvas = document.createElement('canvas');
-        this.bulbVert = true;
-        this.bulbSmall = false;
-
-        this.bulbGreen = this.element.querySelector('.wire--right-bulb-green-glow');
-        this.bulbPurple = this.element.querySelector('.wire--right-bulb-purple-glow');
-        this.bulbOrange = this.element.querySelector('.wire--right-bulb-orange-glow');
-        this.bulbYellow = this.element.querySelector('.wire--right-bulb-yellow-glow');
-
-        this.element.appendChild(this.canvas);
-        this.context = this.canvas.getContext('2d');
-
-        this.offsetY = 0;
-        this.animator = {};
-
-        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
-
-            let bulbElement = document.createElement('div');
-
-            bulbElement.classList.add('wires__bulb');
-            bulbElement.classList.add('wires__bulb-' + GLOBALS.classNames[index]);
-            this.size();
-
-            this.element.appendChild(bulbElement);
-
-            this.animator[index] = {
-                highlight: false,
-                bulb: bulbElement
-            };
+        this.svg = element.querySelector('.wires-svg');
+        if (!this.svg) {
+            this.svg = WiresLeft.createSvgElement('svg', {
+                'class': 'wires-svg',
+                'aria-hidden': 'true',
+                'focusable': 'false'
+            });
+            element.appendChild(this.svg);
         }
 
-        window.addEventListener('resize', () => {
-            if (window.innerWidth <= 900) {
-                this.canvas.style.display = 'none';
-            }else {
-                this.canvas.style.display = 'block';
+        let targets = [
+            element,
+            document.querySelector('.machine__sections'),
+            document.querySelector('#output-section')
+        ];
+        this.observer = WiresLeft.observeLayout(targets.concat(WiresLeft.getClassCards()), this.render.bind(this));
+        this.render();
+    }
+
+    outputAnchor(origin) {
+        let output = document.querySelector('#output-section');
+
+        if (!output) {
+            return null;
+        }
+
+        let selectors = [
+            '.output__player',
+            '.section__container'
+        ];
+
+        return WiresLeft.anchorPoint(output, selectors, origin);
+    }
+
+    render() {
+        let origin = this.element.getBoundingClientRect();
+        let width = origin.width;
+        let height = origin.height;
+
+        if (!width || !height) {
+            return;
+        }
+
+        let cards = WiresLeft.getClassCards();
+        let meterSelectors = ['.machine__meter'];
+        let sources = cards.map((card) => WiresLeft.anchorPoint(card, meterSelectors, origin));
+        let visible = sources.filter(Boolean);
+        let output = this.outputAnchor(origin);
+        let horizontal = height > width;
+        let stackedX = horizontal ? [] : WiresLeft.stackedPositions(visible, width);
+        let center = {
+            x: output ? output.x : width / 2,
+            y: output ? output.y : height / 2
+        };
+
+        this.svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        while (this.svg.firstChild) {
+            this.svg.removeChild(this.svg.firstChild);
+        }
+        this.signals = {};
+        this.bulbs = {};
+
+        let visibleIndex = 0;
+        sources.forEach((source, index) => {
+            if (!source) {
+                return;
             }
+            let offset = (visibleIndex - ((visible.length - 1) / 2)) * BULB_SPACING;
+            let path = '';
+            let bulb = {};
+
+            if (horizontal) {
+                bulb.x = width - BULB_RADIUS - 2;
+                bulb.y = center.y + offset;
+                path = `M0 ${source.y} C${width / 2} ${source.y} ${width / 2} ${bulb.y} ${bulb.x} ${bulb.y}`;
+            }else {
+                let startX = stackedX[visibleIndex];
+                bulb.x = center.x + offset;
+                bulb.y = height - BULB_RADIUS - 2;
+                path = `M${startX} 0 C${startX} ${height / 2} ${bulb.x} ${height / 2} ${bulb.x} ${bulb.y}`;
+            }
+            visibleIndex += 1;
+            this.addWire(GLOBALS.classNames[index] || 'neutral', path, bulb);
         });
 
-        window.addEventListener('orientationchange', () => {
-            this.size();
+        this.updateLit();
+    }
+
+    addWire(id, path, bulb) {
+        this.svg.appendChild(WiresLeft.createSvgElement('path', {
+            'class': 'wire',
+            'd': path
+        }));
+
+        this.signals[id] = WiresLeft.createSvgElement('path', {
+            'class': `wire-signal wire-signal--draw wire-signal--${id}`,
+            'd': path
         });
-
-        this.altOffset = 340;
-        this.size();
-        this.loops = 10;
-        this.current = 0;
-        this.running = false;
-        this.renderOnce = true;
-        this.bulbVert ? this.render() : this.renderAlt();
-
-        if (this.bulbVert) {
-            this.offsetY = -90;
-            this.startY = 190 + this.offsetY;
-
-            this.renderOnce = true;
-            this.render();
-        }else {
-            this.altOffset = 300;
-            this.size();
-            this.renderAlt();
+        this.svg.appendChild(this.signals[id]);
+        // Lets CSS draw the wire from end to end (see .wire-signal--draw).
+        if (this.signals[id].getTotalLength) {
+            this.signals[id].style.setProperty('--wire-length', Math.ceil(this.signals[id].getTotalLength()));
         }
+
+        let group = WiresLeft.createSvgElement('g', {'class': `wire-bulb wire-bulb--${id}`});
+        group.appendChild(WiresLeft.createSvgElement('circle', {
+            'class': 'wire-bulb__glow',
+            'cx': bulb.x,
+            'cy': bulb.y,
+            'r': BULB_RADIUS * 2
+        }));
+        group.appendChild(WiresLeft.createSvgElement('circle', {
+            'class': 'wire-bulb__light',
+            'cx': bulb.x,
+            'cy': bulb.y,
+            'r': BULB_RADIUS
+        }));
+        this.bulbs[id] = group;
+        this.svg.appendChild(group);
     }
 
-    render(once) {
-        this.context.clearRect(0, 0, this.width, this.height);
-        this.context.lineWidth = 3;
-
-        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
-            let startY = this.startY + (this.startSpace * index);
-
-            let start = {
-                x: this.startX,
-                y: this.startY + (this.startSpace * index)
-            };
-
-            let end = {
-                x: this.endX,
-                y: this.endY + (this.endSpace * index)
-            };
-
-            let cp1 = {
-                x: 5,
-                y: start.y
-            };
-
-            let cp2 = {
-                x: 25,
-                y: end.y
-            };
-            this.context.strokeStyle = '#cfd1d2';
-            this.context.beginPath();
-            this.context.moveTo(start.x, start.y);
-            this.context.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-            this.context.stroke();
-        }
-
-        if (this.renderOnce) {
-            this.renderOnce = false;
-        }else {
-            if (this.current < this.loops) {
-                this.current += 1;
-            }else {
-                this.dehighlight();
-            }
-            this.running = true;
-            this.timer = requestAnimationFrame(this.render.bind(this));
-        }
+    updateLit() {
+        Object.keys(this.signals).forEach((id) => {
+            let lit = id === this.activeId;
+            this.signals[id].classList.toggle('is-lit', lit);
+            this.bulbs[id].classList.toggle('is-lit', lit);
+        });
     }
 
-    renderAlt(once) {
-
-        this.context.clearRect(0, 0, this.width, this.height);
-        this.context.lineWidth = 3;
-
-        for (let index = 0; index < GLOBALS.classNames.length; index += 1) {
-            let startY = this.startY + (this.startSpace * index);
-
-            let start = {
-                x: this.startX,
-                y: this.startY + (this.startSpace * index)
-            };
-
-            let end = {
-                x: this.endX,
-                y: this.endY + (this.endSpace * index)
-            };
-
-
-            this.context.strokeStyle = '#cfd1d2';
-            this.context.beginPath();
-            this.context.moveTo(start.x, start.y);
-            this.context.lineTo(end.x, start.y);
-            this.context.stroke();
-        }
-
-        if (this.renderOnce) {
-            this.renderOnce = false;
-        }else {
-            if (this.current < this.loops) {
-                this.current += 1;
-            }else {
-                this.dehighlight();
-            }
-            this.timer = requestAnimationFrame(this.renderAlt.bind(this));
-        }
-    }
-
+    // Lights the detected class's wire and bulb. Called every prediction
+    // frame, so it only touches the DOM when the class changes.
     highlight(id) {
-        let index = GLOBALS.classNames.indexOf(id);
-        
-        switch (index) {
-            case 0:
-            this.bulbGreen.classList.add('bulb--selected');
-            break;
-            case 1:
-            this.bulbPurple.classList.add('bulb--selected');
-            break;
-            case 2:
-            this.bulbOrange.classList.add('bulb--selected');
-            break;
-            case 3:
-            if (this.bulbYellow) {
-                this.bulbYellow.classList.add('bulb--selected');
-            }
-            break;
-            default:
+        if (id === this.activeId) {
+            return;
         }
+        this.activeId = id;
+        this.updateLit();
     }
 
     dehighlight() {
-        this.bulbGreen.classList.remove('bulb--selected');
-        this.bulbPurple.classList.remove('bulb--selected');
-        this.bulbOrange.classList.remove('bulb--selected');
-        if (this.bulbYellow) {
-            this.bulbYellow.classList.remove('bulb--selected');
+        if (this.activeId === null) {
+            return;
         }
+        this.activeId = null;
+        this.updateLit();
     }
 
+    // Kept for callers; drawing is event driven now.
     start() {
-        if (!this.running) {
-            this.timer = requestAnimationFrame(this.bulbVert ? this.render.bind(this) : this.renderAlt.bind(this));
-        }
+        return this;
     }
 
     stop() {
-        cancelAnimationFrame(this.timer);
-        this.running = false;
+        return this;
+    }
+
+    renderAlt() {
+        this.render();
     }
 
     size() {
-        const BREAKPOINT_DESKTOP = 900;
-        const BREAKPOINT_MED = 428;
+        this.render();
+    }
 
-        this.width = this.element.offsetWidth;
-        let bulbs = Array.from(document.getElementsByClassName('wires__bulb'));
-        this.startSpace = (this.height - 80) / Math.max(GLOBALS.classNames.length - 1, 1);
-        // console.log(this.startSpace);
-        this.startSpace = 130;
-        this.endSpace = (this.height + 45) / 5;
-        this.canvas.width = 70;
-        this.canvas.height = this.height;
-
-        // this element rotated in css and using height as width
-        // if (window.innerWidth >= BREAKPOINT_DESKTOP) {
-        this.height = 450;
-
-        // remove offset on desktop
-        this.element.setAttribute('style', '');
-
-        bulbs.forEach((bulb, index) => {
-            bulb.style.top = this.endY + (index * this.endSpace) + 'px';
-        });
-
-        this.bulbVert = true;
-
-        this.startX = 0;
-        this.startY = 190 + this.offsetY;
-
-        // this.endSpace = this.height / 5;
-        this.endX = this.width;
-        // this.endY = (this.height / 2) - (2 * this.endSpace) + 25;
-        this.endY = 145;
-
-        if (window.innerWidth <= BREAKPOINT_DESKTOP) {
-            this.canvas.style.display = 'none';
-
-            bulbs.forEach((bulb, index) => {
-                bulb.style.top = 'none';
+    updateForNewClass() {
+        if (this.observer) {
+            WiresLeft.getClassCards().forEach((card) => {
+                this.observer.observe(card);
             });
         }
+        this.render();
     }
-
-    // Method to update wires when new classes are added
-    updateForNewClass() {
-        // Check if we need to add new bulb elements for new classes
-        const currentClassCount = Object.keys(this.animator).length;
-        const totalClassCount = GLOBALS.classNames.length;
-        
-        if (totalClassCount > currentClassCount) {
-            // Add new bulb elements for new classes
-            for (let index = currentClassCount; index < totalClassCount; index += 1) {
-                let bulbElement = document.createElement('div');
-                bulbElement.classList.add('wires__bulb');
-                bulbElement.classList.add('wires__bulb-' + GLOBALS.classNames[index]);
-                this.element.appendChild(bulbElement);
-
-                this.animator[index] = {
-                    highlight: false,
-                    bulb: bulbElement
-                };
-            }
-            
-            // Update bulb positioning and force re-render
-            this.size();
-            this.renderOnce = true;
-            this.bulbVert ? this.render() : this.renderAlt();
-        }
-    }
-
 }
 
 import GLOBALS from './../../config.js';
+import WiresLeft from './WiresLeft.js';
 
 export default WiresRight;

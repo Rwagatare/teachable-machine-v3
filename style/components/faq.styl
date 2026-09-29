@@ -1,81 +1,126 @@
-.faq {
-	max-width: 1060px
-	margin: 0 auto
-	color: $color__text--light
-	position: relative
-	user-select: initial
-	@extend .font__size--normal
-}
-
-.faq__inner {
-	width: 40%
-}
-
-.faq__question {
-	margin-top: space(4)
-	margin-bottom: 8px
-	@extend .font__size--normal
-	@extend .font__weight--bold
-}
-
-.faq__answer {
-	margin-top: 0
-}
-
-.faq__video {
-	width: 100%
-	margin-top: space(2.5)
-}
+// FAQ: a single readable column, plus the "Record Video" entry point.
 
 .faq-record-container {
 	position: relative
+	padding-left: calc(var(--space-4) + env(safe-area-inset-left))
+	padding-right: calc(var(--space-4) + env(safe-area-inset-right))
 }
 
+.faq {
+	max-width: 65ch
+	margin: var(--space-8) auto 0
+	color: var(--color-label)
+	user-select: text
+	text-style(body)
+}
+
+.faq__title {
+	margin: 0 0 var(--space-2)
+	text-style(title-2)
+}
+
+.faq__question {
+	margin: var(--space-7) 0 var(--space-2)
+	color: var(--color-label)
+	text-style(headline)
+}
+
+.faq__answer {
+	margin: 0 0 var(--space-3)
+	color: var(--color-label)
+	text-style(body)
+	overflow-wrap: break-word
+}
+
+// Responsive 16:9 video
+.faq__video-frame {
+	width: 100%
+	margin: var(--space-3) 0 var(--space-4)
+	border-radius: var(--radius-m)
+	overflow: hidden
+	background: var(--color-fill)
+	// @stylint off
+	aspect-ratio: 16 / 9
+	// @stylint on
+}
+
+.faq__video {
+	display: block
+	width: 100%
+	height: 100%
+	border: 0
+}
+
+@supports not (aspect-ratio: 16 / 9) {
+	.faq__video-frame {
+		position: relative
+		height: 0
+		padding-top: 56.25%
+	}
+
+	.faq__video {
+		position: absolute
+		top: 0
+		left: 0
+	}
+}
+
+// Record Video entry point (desktop Chrome only, see RecordOpener.js)
 .record {
-	position: absolute
-	right: 0
-	top: 0
-	width: 20%
-	text-align: right
+	display: flex
+	flex-wrap: wrap
+	align-items: center
+	gap: var(--space-3) var(--space-4)
+	margin-bottom: var(--space-7)
+	padding: var(--space-5)
+	background: var(--color-surface)
+	border-radius: var(--radius-l)
+	box-shadow: var(--shadow-card)
+
+	&[hidden] {
+		display: none
+	}
 }
 
 .record-text {
-	color: $color__blue--primary
-	width: 100%
-	text-align: center
-	margin: 0 auto
+	flex: 1 1 16ch
+	margin: 0
+	color: var(--color-label-secondary)
+	text-style(subheadline)
 }
 
-@media screen and (max-width: 1200px) {
+// Secondary button: accent outline, accent label
+.record__button {
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	gap: var(--space-2)
+	min-height: 44px
+	padding: var(--space-2) var(--space-5)
+	background: transparent
+	color: var(--color-accent)
+	border: 1.5px solid var(--color-accent)
+	border-radius: var(--radius-pill)
+	font-family: inherit
+	text-style(headline)
+	cursor: pointer
+	press-feedback()
 
-	.faq-record-container {
-		margin-left: space(2)
-		margin-right: space(2)
+	&:disabled {
+		color: var(--color-label-tertiary)
+		border-color: var(--color-label-tertiary)
+		cursor: default
 	}
 
-	.record {
-		text-align: center
-		width: 25%
-	}
-}
-
-@media screen and (max-width: 900px) {
-	.faq {
+	// The icon file is white; use it as a mask so it takes the label colour
+	.icon {
+		top: 0
+		width: 20px
+		height: 20px
 		margin: 0
-		margin-bottom: space(8)
-		padding: 0 15px
-	}
-
-	.faq__inner {
-		width: 90%
-	}
-	
-	.record {
-		display: none
-	}
-
-	.faq-record-container {
-		margin-left: 0
-		margin-right: 0
+		background-image: none
+		background-color: currentColor
+		-webkit-mask: url(assets/outputs/recorder-icon.svg) center / contain no-repeat
+		mask: url(assets/outputs/recorder-icon.svg) center / contain no-repeat
 	}
 }

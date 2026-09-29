@@ -1,3 +1,22 @@
+// ---------------------------------------------------------------------------
+// The machine: Input -> Learning -> Output, joined by wires.
+//
+// Layout is keyed to available width only:
+//   compact (< 700px)   one column in task order: camera, classes, output
+//   medium  (700-1099)  same order; class cards sit side by side
+//   wide    (>= 1100px) three columns with the wires between them
+// The wires are SVG drawn by WiresLeft.js / WiresRight.js from the live
+// layout, so they follow whichever arrangement is active.
+// ---------------------------------------------------------------------------
+
+$machine-medium = 700px
+$machine-wide = 1100px
+$machine-classes = 'green' 'purple' 'orange' 'red' 'blue' 'yellow' 'teal' 'neutral'
+
+// var(--class-<name><suffix>) as a literal (Stylus can't build var() itself)
+class-var(hue, suffix = '') {
+	return unquote('var(--class-' + hue + suffix + ')')
+}
 
 .disabled {
 	pointer-events: none
@@ -5,894 +24,746 @@
 
 .dimmed {
 	-webkit-filter: grayscale(25%)
+	filter: grayscale(25%)
 	opacity: 0.3
 }
 
 .machine {
+	// @stylint off (custom property)
+	--wire-neutral: var(--color-separator)
+	// @stylint on
 	position: relative
-	background: $color__background
-	padding-top: space(8)
-	padding-bottom: space(10)
-	text-align: center
-
-	@extend .font__size--small
-	letter-spacing: 0.3px
+	overflow-x: hidden
+	overflow-x: clip
+	padding-top: var(--space-7)
+	padding-right: unquote('max(var(--space-4), env(safe-area-inset-right))')
+	padding-bottom: var(--space-8)
+	padding-left: unquote('max(var(--space-4), env(safe-area-inset-left))')
+	background: var(--color-bg)
+	color: var(--color-label)
+	text-align: left
+	text-style(subheadline)
 }
 
 .machine__sections {
 	display: flex
-	align-items: flex-start
-	// align-items: center
-	justify-content: center
-	text-align: center
+	flex-direction: column
+	align-items: center
 	max-width: 1360px
-	margin-left: auto
 	margin-right: auto
+	margin-left: auto
 }
 
+// ---------------------------------------------------------------------------
+// Sections and cards
+// ---------------------------------------------------------------------------
+
 .section {
-	width: 360px
+	position: relative
+	width: 100%
+	min-width: 0
+	max-width: 560px
 }
 
 .section--disabled {
-	@extend .disabled
+	pointer-events: none
+}
+
+.section__header {
+	display: flex
+	align-items: center
+	justify-content: space-between
+	gap: var(--space-2)
+	min-height: 44px
+	margin-bottom: var(--space-2)
+	padding: 0 var(--space-1)
 }
 
 .section__title {
-	height: 30px
-	line-height: 30px
-	@extend .uppercase
-	@extend .font__size--small
+	display: flex
+	align-items: center
+	min-height: 44px
+	margin: 0 0 var(--space-2)
+	padding: 0 var(--space-1)
+	color: var(--color-label-secondary)
+	text-align: left
+	text-transform: none
+	text-style(headline)
+}
+
+.section__header .section__title {
+	margin: 0
+	padding: 0
 }
 
 .section__container {
-	background: $color__white
-	border-radius: 5px
-	padding: space(1.5)
+	position: relative
+	padding: var(--space-4)
+	background: var(--color-surface)
+	border-radius: var(--radius-l)
+	box-shadow: var(--shadow-card)
 }
 
-.section--input {
-	position: relative
-	margin-top: 70px
-	width: 300px
-}
+// ---------------------------------------------------------------------------
+// Input
+// ---------------------------------------------------------------------------
 
 .section--input .section__container {
-	padding: 0
-	background: transparent
-	border-radius: 0
+	padding: var(--space-2)
 }
 
 .input__media {
-	display: flex
-	justify-content: center
-	align-items: center
-	background: $color__white
-	border-radius: 12px
-	overflow: hidden
 	position: relative
-	height: 270px
+	display: flex
+	align-items: center
+	justify-content: center
 	width: 100%
+	// @stylint off (property unknown to the linter)
+	aspect-ratio: 1 / 1
+	// @stylint on
+	max-height: 60vh
+	max-height: 60svh
 	margin: 0
-	box-sizing: border-box
-}
+	overflow: hidden
+	background: var(--color-fill)
+	// concentric with the card: outer radius minus the card's padding
+	border-radius: calc(var(--radius-l) - var(--space-2))
 
-.input__media__activate {
-	display: none
-	position: fixed
-	top: -20px
-	right: 0
-	width: 325px
-	background: white
-	padding: 20px
-	z-index: 999
-
-	.camera-icon {
-		display: inline-block
-		height: auto
-		max-width: 25px
-		vertical-align: middle
+	@supports not (aspect-ratio: 1 / 1) {
+		height: 280px
 	}
-}
-
-.input__media__activate--mobile {
-	display: none
 }
 
 .input__camera {
 	width: 100%
 	height: 100%
 	display: flex
-	justify-content: center
 	align-items: center
-	border-radius: 12px
-	overflow: hidden
+	justify-content: center
 }
 
-.input__media__flip {
-	display: none
-}
-
-// Style for video, canvas, and img elements in camera container
 .input__media video,
 .input__media canvas,
 .input__media img,
-.input__camera video,
-.input__camera canvas,
-.input__camera img {
-	width: 100% !important
-	height: 100% !important
-	object-fit: contain !important
-	border-radius: 12px
-	display: block
-}
-
 .input__camera-video {
-	width: 100% !important
-	height: 100% !important
-	object-fit: contain !important
-	border-radius: 12px
 	display: block
+	width: 100%
+	height: 100%
+	object-fit: contain
 }
 
-// Additional high-specificity rules to ensure object-fit: contain takes precedence
-.input__media .input__camera video,
-.input__media .input__camera canvas {
-	object-fit: contain !important
+// Switch Camera: floating control over the video, so it gets glass.
+.input__media__flip {
+	position: absolute
+	right: calc(var(--space-2) + var(--space-3))
+	bottom: calc(var(--space-2) + var(--space-3))
+	z-index: 2
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	width: 44px
+	height: 44px
+	margin: 0
+	padding: 0
+	color: var(--color-label)
+	border-radius: 50%
+	cursor: pointer
+	-webkit-appearance: none
+	appearance: none
+	-webkit-tap-highlight-color: transparent
+	glass(clear)
+	press-feedback()
+
+	svg {
+		width: 24px
+		height: 24px
+	}
+
+	&[hidden] {
+		display: none
+	}
 }
+
+// Camera permission panel (shown by WebcamClassifier.js when access is
+// blocked; text written by index.js). A floating notice, but it's text people
+// must read, so it's a solid card rather than glass.
+.input-permission {
+	display: none
+	position: fixed
+	top: unquote('max(var(--space-4), env(safe-area-inset-top))')
+	right: unquote('max(var(--space-4), env(safe-area-inset-right))')
+	left: unquote('max(var(--space-4), env(safe-area-inset-left))')
+	z-index: 999
+	max-width: 440px
+	margin: 0 auto
+	padding: var(--space-5)
+	color: var(--color-label)
+	background: var(--color-surface-elevated)
+	border-radius: var(--radius-l)
+	box-shadow: var(--shadow-floating)
+	cursor: pointer
+}
+
+.input__media__activate {
+	margin: 0 0 var(--space-4)
+	text-style(callout)
+
+	.camera-icon {
+		display: inline-block
+		max-width: 1.5em
+		height: auto
+		vertical-align: middle
+	}
+}
+
+.input-permission__reload {
+	width: 100%
+}
+
+// ---------------------------------------------------------------------------
+// Learning
+// ---------------------------------------------------------------------------
 
 .section--learning {
-	position: relative
-	width: 360px
-	top: -10px
+	max-width: 960px
 }
 
-.learning-condensed {
-	display: none
+.section--learning .section__container {
+	display: grid
+	grid-template-columns: minmax(0, 1fr)
+	gap: var(--space-3)
+	padding: 0
+	background: none
+	border-radius: 0
+	box-shadow: none
 }
 
+.learning__hint {
+	margin: calc(var(--space-1) * -1) var(--space-1) var(--space-3)
+	color: var(--color-label-secondary)
+	text-style(footnote)
+}
+
+.learning-condensed-button {
+	display: inline-flex
+	align-items: center
+	gap: var(--space-1)
+	min-height: 44px
+	margin: 0
+	padding: 0 var(--space-3)
+	color: var(--color-label)
+	font: inherit
+	text-style(subheadline)
+	font-weight: 500
+	background: var(--color-fill-secondary)
+	border: 0
+	border-radius: var(--radius-pill)
+	cursor: pointer
+	-webkit-appearance: none
+	appearance: none
+	press-feedback()
+
+	&[aria-pressed='true'] {
+		color: var(--color-on-accent)
+		background: unquote('var(--color-accent-fill, var(--color-accent))')
+	}
+}
+
+.learning-condensed-button__icon {
+	width: 16px
+	height: 16px
+	transition: transform var(--duration) var(--ease-standard)
+
+	path {
+		fill: none
+		stroke: currentColor
+		stroke-width: 2
+		// @stylint off (SVG properties unknown to the linter)
+		stroke-linecap: round
+		stroke-linejoin: round
+		// @stylint on
+	}
+}
+
+.learning-condensed-button[aria-pressed='true'] .learning-condensed-button__icon {
+	transform: rotate(180deg)
+}
+
+// Class card
 .learning__class {
 	position: relative
-	margin-bottom: space(2)
 	display: flex
+	flex-direction: column
+	gap: var(--space-3)
+	min-width: 0
+	padding: var(--space-4)
+	color: var(--color-label)
 	text-align: left
+	background: var(--color-surface)
+	border-radius: var(--radius-l)
+	box-shadow: var(--shadow-card)
+	outline: 2px solid transparent
+	outline-offset: 0
+	transition: outline-color var(--duration) var(--ease-standard)
 }
 
 .learning__class--disabled {
-	@extend .disabled
+	pointer-events: none
 }
 
-.learning__class--neutral {
-	color: $color__class-neutral--primary
+.learning__class-header {
+	display: flex
+	flex-wrap: wrap
+	align-items: center
+	gap: var(--space-1) var(--space-2)
+	min-height: 44px
+	margin: calc(var(--space-2) * -1) 0
 }
 
-.learning__class--green {
-	color: $color__class-green--primary
+.learning__class-name {
+	display: flex
+	align-items: center
+	gap: var(--space-2)
+	margin: 0
+	color: var(--color-label)
+	text-style(headline)
+	font-weight: 500
+
+	&:before {
+		content: ''
+		flex: none
+		width: 10px
+		height: 10px
+		border-radius: 50%
+	}
 }
 
-.learning__class--purple {
-	color: $color__class-purple--primary
+.learning__class--detected .learning__class-name {
+	font-weight: 700
 }
 
-.learning__class--orange {
-	color: $color__class-orange--primary
+.learning__class-badge {
+	display: inline-flex
+	align-items: center
+	// @stylint off
+	gap: 2px
+	// @stylint on
+	padding: 2px var(--space-2) 2px 6px
+	border-radius: var(--radius-pill)
+	text-style(caption)
+	font-weight: 600
+
+	&[hidden] {
+		display: none
+	}
 }
 
-.learning__class--yellow {
-	color: $color__class-yellow--primary
+.icon-check {
+	flex: none
+	width: 1.1em
+	height: 1.1em
+
+	path {
+		fill: none
+		stroke: currentColor
+		stroke-width: 2
+		// @stylint off (SVG properties unknown to the linter)
+		stroke-linecap: round
+		stroke-linejoin: round
+		// @stylint on
+	}
 }
 
-.learning__class:last-of-type {
-	margin-bottom: 0
-}
+// Per-class Reset: tertiary text button, always reachable (no hover needed)
+.link--reset {
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	min-width: 44px
+	min-height: 44px
+	margin: 0 calc(var(--space-2) * -1) 0 auto
+	padding: 0 var(--space-2)
+	color: var(--color-accent)
+	font: inherit
+	text-style(subheadline)
+	text-decoration: none
+	background: none
+	border: 0
+	border-radius: var(--radius-s)
+	cursor: pointer
+	-webkit-appearance: none
+	appearance: none
+	press-feedback()
 
+	@media (hover: hover) {
+		&:hover {
+			background: var(--color-fill-secondary)
+		}
+	}
+
+	&[hidden] {
+		display: none
+	}
+}
 
 .examples {
-	margin-right: space(1.5)
+	display: flex
+	align-items: center
+	gap: var(--space-3)
 }
 
 .examples__wrapper {
+	flex: none
 	position: relative
-	width: 103px
-	height: 103px
+	width: 88px
+	height: 88px
 	overflow: hidden
-}
-
-.examples__close-icon {
-	position: absolute
-	z-index: 2
-	top: space(1)
-	right: space(1)
-	width: 15px
-	height: 15px
-}
-
-
-.link--reset {
-	position: absolute
-	z-index: 2
-	bottom: 0px
-	text-align: center
-	width: 100%
-	height: 100%
-	vertical-align: middle
-	justify-content: center
-	align-items: center
-	display: none
-	cursor: pointer
-	background: rgba($color__black, 0.5)
-	color: $color__white
-}
-
-.examples__wrapper:hover .examples__close-icon {
-	display: none
-}
-.examples__wrapper:hover .link--reset {
-	display: flex
+	background: var(--color-fill)
+	border-radius: var(--radius-s)
 }
 
 .examples__viewer {
-	width: 103px
-	height: 103px
-	background: $color__background
+	display: block
+	width: 100%
+	height: 100%
 	transform: scaleX(-1)
 }
 
-.learning__class-column {
-	width: 100%
+.examples__info {
 	display: flex
+	flex: 1
 	flex-direction: column
+	gap: var(--space-2)
+	min-width: 0
 }
-
-.button--record {
-	margin-top: space(1.5)
-	width: 100%
-	height: 50px
-	flex: none
-
-	@extend .font__size--small
-	@extend .uppercase
-}
-
 
 .machine__status {
-	// @extend .font__size--xsmall
-	@extend .uppercase
+	margin: 0
+	color: var(--color-label-secondary)
 	text-align: left
-	height: space(2.5)
-	min-width: 75px
+	text-transform: none
+	text-style(footnote)
 }
 
-.confidence {
-	flex: 1
+.examples__status {
+	display: flex
+	flex-wrap: wrap
+	align-items: center
+	gap: 0 var(--space-1)
+	font-variant-numeric: tabular-nums
 }
 
+.examples__counter {
+	color: var(--color-label)
+	font-weight: 600
+}
+
+.examples__ready {
+	display: inline-flex
+	align-items: center
+	// @stylint off
+	gap: 2px
+	// @stylint on
+	color: var(--color-label)
+	font-weight: 600
+
+	.icon-check {
+		color: var(--color-success)
+	}
+
+	&[hidden] {
+		display: none
+	}
+}
+
+.examples__progress,
 .machine__meter {
 	position: relative
 	width: 100%
-	height: 30px
-	background: $color__background
+	overflow: hidden
+	background: var(--color-fill)
+	border-radius: var(--radius-pill)
+}
+
+.examples__progress {
+	height: 4px
+}
+
+.machine__meter {
+	height: 8px
+}
+
+.examples__progress-fill,
+.machine__value {
+	width: 100%
+	height: 100%
+	transform: scaleX(0)
+	transform-origin: left center
+}
+
+.examples__progress-fill {
+	transition: transform var(--duration) var(--ease-standard)
 }
 
 .machine__value {
-	position: relative
-	z-index: 2
-	width: 0
-	height: 100%
-	background: $color__blue--primary
-	overflow: hidden
+	background: var(--color-accent)
+	transition: transform var(--duration) linear
 }
 
-.machine__value--color-neutral {
-	background: $color__class-neutral--primary
+.confidence {
+	display: flex
+	flex-direction: column
+	gap: var(--space-1)
 }
 
-.machine__value--color-green {
-	background: $color__class-green--primary
-}
-
-.machine__value--color-purple {
-	background: $color__class-purple--primary
-}
-
-.machine__value--color-orange {
-	background: $color__class-orange--primary
-}
-
-.machine__value--color-yellow {
-	background: $color__class-yellow--primary
-}
-
-
-.machine__meter--quality {
-	margin-top: space(1)
+.confidence__header {
+	display: flex
+	align-items: baseline
+	justify-content: space-between
+	gap: var(--space-2)
 }
 
 .machine__percentage {
-	position: absolute
-	top: 0
-	left: space(1)
+	color: var(--color-label)
+	font-variant-numeric: tabular-nums
+	text-style(footnote)
+	font-weight: 600
+}
+
+.button--record {
 	width: 100%
-	top: 50%
-	transform: translateY(-50%)
-	text-align: left
 }
 
-.machine__percentage--white {
-	color: $color__white
+// Compact View (toggle in the Learning header, below the wide layout): just
+// name, meter and Train
+@media screen and (max-width: ($machine-wide - 1px)) {
+	.section--learning.condensed {
+		.learning__hint,
+		.examples__wrapper,
+		.examples__status,
+		.examples__progress {
+			display: none
+		}
+	}
 }
 
-.machine__meter--quality {
+// Per-class colours
+for cls in $machine-classes {
+	.learning__class--{cls} .learning__class-name:before,
+	.learning__class--{cls} .examples__progress-fill,
+	.machine__value--color-{cls} {
+		background: class-var(cls)
+	}
 
+	.learning__class--{cls}.learning__class--detected {
+		outline-color: class-var(cls)
+	}
+
+	.learning__class--{cls} .learning__class-badge {
+		color: class-var(cls, '-on')
+		background: class-var(cls)
+	}
+
+	.wire-signal--{cls} {
+		stroke: class-var(cls)
+	}
+
+	.wire-bulb--{cls} circle {
+		fill: class-var(cls)
+	}
 }
 
-.quality {
+// ---------------------------------------------------------------------------
+// Wires
+// ---------------------------------------------------------------------------
+// @stylint off (SVG properties unknown to the linter)
 
-}
-
-.quality__status {
-	margin-top: space(1)
-}
-
-//
-//	Output
-//
-.section--output {
-	position: relative
-	// margin-top: $section__offset
-	margin-top: 20px
-	width: 300px
-}
-
-.output__player {
-	position: relative
-	background: $color__background
-	height: 300px
-}
-
-.output__container {
-	width: 100%
-	height: 100%
-}
-
-.output__canvas {
-	width: 100%
-	height: 100%
-}
-
-.divider {
-	height: 1px
-	background: $color__divider
-	margin-top: space(1)
-	margin-right: space(-1)
-	margin-bottom: space(1)
-	margin-left: space(-1)
-}
-
-.output__controls {
-	height: 40px
-	display: flex
-}
-
-.output__selector-wrapper {
-	width: 100%
-	// width: 150px
-	// flex: none
-	// margin-right: space(1)
-	position: relative
-	display: flex
-	justify-content: space-around
-	align-items: center
-
-	@extend .font__size--large
-}
-
-.output_selector__option {
-	// display: inline-block
-	flex: 1 1 1
-	cursor: pointer
-	margin: 0
-}
-
-.output_selector__option--selected {
-	color: $color__blue--primary
-	text-decoration: underline
-}
-
-.output_selector__option:hover {
-	@extend .output_selector__option--selected
-}
-
-// .output__selector-title-wrapper {
-// 	position: absolute
-// 	width: 100%
-// 	height: 100%
-// 	top: 0
-// 	background: $color__white
-
-// }
-
-
-// .output__selector {
-// 	position: absolute
-// 	z-index: 2
-// 	top: 0
-// 	left: space(1)
-// 	width: 100%
-// 	height: 100%
-// 	outline: none
-// 	opacity: 0
-// }
-
-// .output__selector-title {
-// 	position: absolute
-// 	display: inline-block
-// 	width: 100%
-// 	left: 0
-// 	top: 50%
-// 	color: $color__blue--primary
-// 	transform: translateY(-50%)
-// 	@extend .font__size--large
-// }
-
-// .output__selector-title:after {
-// 	content: ' '
-// 	display: inline-block
-// 	width: 14px
-// 	height: 14px
-// 	margin-left: space(1)
-// 	background-repeat: no-repeat
-// 	background-size: 100%
-// 	background-position: center center
-// 	background-image: url(assets/select-arrow.svg)
-// }
-
-
-//
-//	Wires
-//
 .wires {
 	position: relative
-	width: 50px
-	height: 400px
-	// margin-top: 30px + $section__offset
-	margin-top: 30px
-}
-
-.wires--disabled {
-	@extend .disabled
-}
-
-.wires-svg {
-	display: none
-}
-
-.wires--left {
-
+	flex: none
+	width: 100%
+	max-width: 960px
+	height: 56px
 }
 
 .wires--right {
-
+	height: 72px
 }
 
-.wires__bulb {
+.wires--disabled {
+	pointer-events: none
+}
+
+.wires-svg {
 	position: absolute
-	right: 0
 	top: 0
-	width: 18px
-	height: 34px
-	margin-top: -13px
-	background-image: url(assets/leds.png)
-	background-size: 60px
-	background-repeat: no-repeat
-	background-position-x: 0
-	background-position-y: 0
+	left: 0
+	display: block
+	width: 100%
+	height: 100%
+	overflow: visible
+	pointer-events: none
 }
 
-.wires__bulb-green {
-	background-position-x: 0px
-
+.wire,
+.wire-signal {
+	fill: none
+	stroke-width: 3
+	stroke-linecap: round
 }
 
-.wires__bulb-purple {
-	background-position-x: -22px
-
+.wire {
+	stroke: var(--wire-neutral)
 }
 
-.wires__bulb-orange {
-	background-position-x: -42px
+.wire-signal {
+	opacity: 0
+	transition: opacity var(--duration-fast) var(--ease-standard)
 
+	&.is-lit {
+		opacity: 1
+	}
 }
 
-.wires__bulb--selected {
-	background-position-y: -34px
+// Training: signal flows from the camera into the class
+.wire-signal--flow.is-lit {
+	stroke-dasharray: 8 10
+	animation: wire-flow 0.8s linear infinite
 }
 
+// Detection: the wire draws itself to the bulb once (--wire-length is set
+// by WiresRight.js)
+.wire-signal--draw {
+	stroke-dasharray: var(--wire-length, 2000)
+	stroke-dashoffset: var(--wire-length, 2000)
 
+	&.is-lit {
+		stroke-dashoffset: 0
+		transition: stroke-dashoffset var(--duration-slow) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard)
+	}
+}
 
-//
-//	Share button
-//
+.wire-bulb__light {
+	opacity: 0.35
+	transition: opacity var(--duration) var(--ease-standard)
+}
+
+.wire-bulb__glow {
+	opacity: 0
+	transform: scale(0.5)
+	transform-box: fill-box
+	transform-origin: center
+	transition: opacity var(--duration-slow) var(--ease-standard), transform var(--duration-slow) var(--ease-spring)
+}
+
+.wire-bulb.is-lit {
+	.wire-bulb__light {
+		opacity: 1
+	}
+
+	.wire-bulb__glow {
+		opacity: 0.3
+		transform: scale(1)
+	}
+}
+
+@keyframes wire-flow {
+	to {
+		stroke-dashoffset: -18
+	}
+}
+
+// Reduced motion: a steady lit wire instead of the flowing dashes
+@media (prefers-reduced-motion: reduce) {
+	.wire-signal--flow.is-lit {
+		stroke-dasharray: none
+		animation: none
+	}
+
+	.wire-bulb__glow {
+		transform: none
+	}
+}
+
+// @stylint on
+
+// ---------------------------------------------------------------------------
+// Recording helpers that still live here
+// ---------------------------------------------------------------------------
+
 .button--share {
 	height: 60px
-	margin-top: space(2)
+	margin-top: var(--space-4)
 }
 
 .recording-download-container {
-	color: $color__white
-	display: none
 	position: relative
-	margin-left: 15px
 	top: 29px
+	display: none
+	margin-left: 15px
+	color: $color__white
 
 	a {
 		color: $color__white
 	}
 }
 
-@media screen and (max-width: 1200px) {
+// ---------------------------------------------------------------------------
+// Medium: class cards side by side
+// ---------------------------------------------------------------------------
 
-	.machine__sections {
-		margin-left: space(2)
-		margin-right: space(2)
+@media screen and (min-width: $machine-medium) {
+	.section--learning .section__container {
+		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr))
 	}
 }
 
-@media screen and (max-width: 900px) {
+// ---------------------------------------------------------------------------
+// Wide: three columns joined by wires
+// ---------------------------------------------------------------------------
 
-	.examples {
-		margin-right: space(1)
-	}
-
-	.wires {
-		margin-top: 51px
-	}
-
-	.wires__bulb {
-		display: none
-	}
-
+@media screen and (min-width: $machine-wide) {
 	.machine {
-		padding: 0 15px
-		padding-bottom: space(4)
-		padding-top: space(6)
+		padding-top: var(--space-8)
 	}
 
 	.machine__sections {
-		display: flex
-		flex-wrap: wrap
-		justify-content: space-between
-		margin-left: 0
-		margin-right: 0
+		flex-direction: row
+		align-items: center
+		justify-content: center
 	}
 
 	.section {
-		flex: 0 0 48%
-		max-width: 48%
-		margin-bottom: 20px
-
-		&.learning {
-
-			&.condensed {
-
-				.examples,
-				.confidence__status {
-					display: none
-				}
-
-				.machine__meter {
-					height: 15px
-				}
-			}
-		}
+		max-width: none
 	}
 
-	.input {
-		.section__container {
-			display: flex
-			flex-direction: column
-			padding: space(1.5)
-		}
-
-		.input__media {
-			height: 270px
-			order: 2
-			margin-bottom: 0
-		}
-
-		.button-set {
-			order: 1
-			margin-bottom: space(1)
-		}
-	}
-
-	.section--output {
-		top: -10px
-
-		.section__container {
-			display: block
-		}
+	.section--input {
+		flex: 0 1 300px
 	}
 
 	.section--learning {
-		height: auto
-
-		.section__container {
-			justify-content: center
-			width: 100%
-		}
-
-		.button__label {
-			font-size: 12px
-		}
-
-		.learning-condensed-button {
-			display: block
-			border-top-left-radius: 0.4em
-			border-top-right-radius: 0.4em
-			display: block
-			position: absolute
-			top: -38px
-			right: 0
-			background: $color__white
-			width: 40px
-			height: 40px
-			z-index: 1
-
-			.arrow-line {
-				background-color: $color__grey--primary
-				width: 10px
-				height: 2px
-				position: absolute
-
-				&:first-child {
-					transform: rotate(-45deg)
-					top: 10px
-				}
-
-				&:nth-child(2) {
-					transform: rotate(45deg)
-					top: 25px
-				}
-
-
-				&:nth-child(3) {
-					transform: rotate(-45deg)
-					top: 25px
-				}
-
-				&:nth-child(4) {
-					transform: rotate(45deg)
-					top: 10px
-				}
-
-				&:first-child,
-				&:nth-child(2) {
-					left: 19px
-				}
-
-				&:nth-child(3),
-				&:nth-child(4) {
-					left: 12px
-				}
-			}
-		}
-
-		&.condensed {
-
-			.examples,
-			.confidence__status,
-			.button--record {
-				display: none
-			}
-
-			.arrow-line {
-
-				&:first-child,
-				&:nth-child(3) {
-					transform: rotate(45deg)
-				}
-
-				&:nth-child(2),
-				&:nth-child(4) {
-					transform: rotate(-45deg)
-				}
-			}
-		}
+		flex: 0 1 400px
 	}
 
-	.wires-svg {
-		display: block
+	.section--output {
+		flex: 0 1 320px
 	}
 
-	.wires--left,
+	.section--learning .section__container {
+		grid-template-columns: minmax(0, 1fr)
+	}
+
+	.wires,
 	.wires--right {
+		flex: 0 0 unquote('clamp(40px, 5vw, 80px)')
+		align-self: stretch
+		width: auto
+		max-width: none
 		height: auto
-		width: 65vw
-		max-width: 400px
-		margin: 0 auto
 	}
 
-	.wire-base-green,
-	.wire-base-purple,
-	.wire-base-orange,
-	.wire-base-yellow {
-		stroke: #CED1D2
-		stroke-width: 3px
-	}
-
-	// @stylint off
-
-	.wire-green,
-	.wire-purple,
-	.wire-orange,
-	.wire-yellow {
-
-		&.animate {
-			stroke: $color__text--dark
-			stroke-width: 4px
-			stroke-dashoffset: 3
-			stroke-dasharray: 3
-			animation: dash 0.5s linear infinite
-		}
-	}
-
-	.wire--right-bulb-green-glow {
-
-		&.bulb--selected {
-			//stroke: $color__class-green--primary
-			stroke: #33ec5e
-			filter: url(#blur-filter)
-	   	}
-	}
-
-	.wire--right-bulb-purple-glow {
-
-		&.bulb--selected {
-			//stroke: $color__class-purple--primary
-			stroke: #ff88ff
-			filter: url(#blur-filter)
-		}
-	}
-
-	.wire--right-bulb-orange-glow {
-
-		&.bulb--selected {
-			stroke: $color__class-orange--primary
-			filter: url(#blur-filter)
-		}
-	}
-
-	.wire--right-bulb-yellow-glow {
-
-		&.bulb--selected {
-			stroke: $color__class-yellow--primary
-			filter: url(#blur-filter)
-		}
-	}
-
-
-
-	@keyframes dash {
-		from {
-			stroke-dashoffset: 30
-		}
-		to {
-			stroke-dashoffset: 0
-		}
-	}
-
-	// @stylint on
-
-	.wires--right {
-		top: -10px
-	}
-
-	.learning-section {
-		@include clearfix()
-	}
-
-	.section__title {
-		position: absolute
-		top: -35px
-		width: 100%
-		margin: 0 auto
-
-		&.section__title--learning {
-			top: -30px
-		}
-
-		span {
-			background-color: #ededee
-		}
-	}
-
-	.section__container {
-		display: flex
-		padding: 10px
-		flex-wrap: nowrap
-		justify-content: space-between
-		align-items: flex-start
-	}
-
-	.examples__wrapper {
-		width: 100%
-	}
-
-	.learning__class {
-		display: flex
-		justify-content: flex-end
-		flex-direction: column
-		flex: 0 0 32%
-		margin-bottom: 0
-	}
-
-	.button--record {
-		order: 3
-	}
-
-	.machine__status {
-		height: auto
-		text-align: center
-	}
-
-	.examples__viewer {
-		width: 100%
-		height: 90px
-	}
-
-	.confidence {
-		margin-right: 10px
-	}
-
-	.machine__meter {
-		height: 40px
-	}
-
-	.machine__percentage {
-		height: 40px
-		line-height: 40px
-	}
-
-	.divider {
-		display: flex
-		flex-direction: column
-		float: left
-		margin: 10px 0
-		width: 100%
-	}
-
-	.quality__status {
-		text-align: center
-	}
-
-	.output__controls {
-		width: 100%
-	}
-
-	.input__media__activate--mobile {
-		display: block
-	}
-
-	.input__media__activate--desktop {
+	// Compact View is for small screens; the full cards fit here
+	.learning-condensed-button {
 		display: none
-	}
-
-	.input__media__flip {
-		background: transparent url(assets/camera-flip.svg) no-repeat center center
-		width: 70px
-		height: 62px
-		position: absolute
-		bottom: 20px
-		right: 20px
-		display: block
-	}
-}
-
-/* Small Mobile (≤ 600px) → one per row */
-@media screen and (max-width: 600px) {
-	.machine__sections .section {
-		flex: 0 0 100%
-		max-width: 100%
 	}
 }
