@@ -697,10 +697,21 @@ class EmojiOutput {
 		}
 	}
 
+	// What this output shows for a class, for the now-playing bar.
+	nowPlaying(index) {
+		let emoji = this.emojis[index] || null;
+
+		return {
+			kind: 'emoji',
+			value: emoji,
+			label: emoji || 'None'
+		};
+	}
+
 	describe(index) {
 		let id = this.classNames[index];
 
-		return `${OutputUI.classLabel(id)}: ${this.emojis[index]}`;
+		return `${OutputUI.classLabel(id)}: ${this.nowPlaying(index).label}`;
 	}
 
 	trigger(index) {

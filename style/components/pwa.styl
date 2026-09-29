@@ -27,7 +27,7 @@
 	touch-action: manipulation
 	color: var(--color-label)
 	opacity: 0
-	transition: opacity var(--duration) var(--ease-standard), transform var(--duration) var(--ease-standard)
+	transition: opacity var(--duration) var(--ease-standard), transform var(--duration) var(--ease-standard), bottom var(--duration) var(--ease-standard)
 
 	&[hidden] {
 		display: none
@@ -91,6 +91,14 @@ body:has(.wizard--fixed) .pwa-install-button {
 	opacity: 0
 }
 // @stylint on
+
+// Stack above the now-playing bar (now-playing.styl) while it's up
+body.has-now-playing {
+	.pwa-install-button,
+	.ios-install-banner {
+		bottom: calc(env(safe-area-inset-bottom) + var(--space-3) + var(--now-playing-height, 56px) + var(--space-2))
+	}
+}
 
 // iOS install hint: glass sheet along the bottom edge
 .ios-install-banner {

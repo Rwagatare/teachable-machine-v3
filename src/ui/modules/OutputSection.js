@@ -51,6 +51,17 @@ class OutputSection {
         this.currentOutput = null;
         this.currentLink.click();
 
+        // Edits to an emoji, sound or phrase all happen inside this panel;
+        // let the now-playing bar re-read its value (it ignores no-ops).
+        let refreshNowPlaying = this.refreshNowPlaying.bind(this);
+        [
+            'input',
+            'click',
+            'focusout'
+        ].forEach((type) => {
+            element.addEventListener(type, refreshNowPlaying);
+        });
+
         this.arrow = new HighlightArrow(1);
         this.arrow.element.alt = '';
         this.arrow.element.setAttribute('aria-hidden', 'true');
@@ -127,6 +138,7 @@ class OutputSection {
         // Describe the next settled class with the newly selected output.
         this.pendingIndex = null;
         this.announcedKey = null;
+        this.refreshNowPlaying();
 
         gtag('event', 'select_output', {'id': outputId});
     }
@@ -185,11 +197,21 @@ class OutputSection {
 
         if (!GLOBALS.clearing) {
             this.scheduleAnnouncement(index);
+            if (GLOBALS.nowPlaying) {
+                GLOBALS.nowPlaying.update(index);
+            }
         }
 
         if (this.broadcastEvents) {
             let event = new CustomEvent('class-triggered', {detail: {id: id}});
             window.dispatchEvent(event);
+        }
+    }
+
+    // The compact-layout now-playing bar (NowPlaying.js), once it exists.
+    refreshNowPlaying() {
+        if (GLOBALS.nowPlaying) {
+            GLOBALS.nowPlaying.refresh();
         }
     }
 

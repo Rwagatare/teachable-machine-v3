@@ -25,8 +25,8 @@ for name in $output-classes {
 	min-width: 0
 }
 
-@media (prefers-color-scheme: dark) {
-	.section--output {
+.section--output {
+	+when-dark() {
 		--output-field-border: #7C7C80
 		--output-segment-selected: #636366
 	}

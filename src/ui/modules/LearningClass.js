@@ -250,6 +250,9 @@ class LearningClass {
 	clear() {
 		this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 		this.setSamples(0);
+		if (GLOBALS.nowPlaying) {
+			GLOBALS.nowPlaying.classCleared(this.id);
+		}
 	}
 
 	resetClass(event) {

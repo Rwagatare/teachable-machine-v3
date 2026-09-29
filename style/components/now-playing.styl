@@ -1,0 +1,206 @@
+// ---------------------------------------------------------------------------
+// Now-playing bar (NowPlaying.js)
+//
+// Compact layouts only (< 700px, see machine.styl): a floating glass bar,
+// like a music mini player, that shows the detected class and its output
+// while the Output panel is scrolled out of view. The whole bar is a button
+// that scrolls to the panel. NowPlaying.js adds .now-playing--visible, sets
+// body.has-now-playing and writes the bar's height to --now-playing-height
+// so other bottom-pinned chrome (pwa.styl) and the page can clear it.
+// ---------------------------------------------------------------------------
+
+$now-playing-classes = 'green' 'purple' 'orange' 'red' 'blue' 'yellow' 'teal'
+$now-playing-emoji-font = 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', sans-serif
+
+.now-playing {
+	// @stylint off (custom properties)
+	--now-playing-class: var(--class-neutral)
+	--now-playing-tint: var(--class-neutral-tint)
+	// @stylint on
+	position: fixed
+	right: unquote('max(var(--space-3), env(safe-area-inset-right))')
+	bottom: calc(env(safe-area-inset-bottom) + var(--space-3))
+	left: unquote('max(var(--space-3), env(safe-area-inset-left))')
+	z-index: 800
+	display: flex
+	align-items: center
+	gap: var(--space-3)
+	max-width: 480px
+	min-height: 56px
+	margin: 0 auto
+	padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2)
+	border-radius: var(--radius-l)
+	color: var(--color-label)
+	font-family: inherit
+	text-align: left
+	cursor: pointer
+	-webkit-tap-highlight-color: transparent
+	touch-action: manipulation
+	glass()
+
+	// Hidden (and out of the tab order) until shown; slides up as it fades in
+	visibility: hidden
+	opacity: 0
+	transform: translateY(16px)
+	transition: opacity var(--duration) var(--ease-standard), transform var(--duration) var(--ease-standard), visibility 0s linear var(--duration)
+
+	&[hidden] {
+		display: none
+	}
+
+	&:focus-visible {
+		focus-ring()
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transform: none
+	}
+
+	// Wide layouts show the Output panel beside the classes
+	@media screen and (min-width: 700px) {
+		display: none
+	}
+}
+
+.now-playing--visible {
+	visibility: visible
+	opacity: 1
+	transform: none
+	transition-delay: 0s
+
+	// Press state (press-feedback() would replace the entrance transition)
+	&:active {
+		transform: scale(0.98)
+		opacity: 0.85
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		&:active {
+			transform: none
+		}
+	}
+}
+
+for name in $now-playing-classes {
+	.now-playing[data-class={name}] {
+		// @stylint off (custom properties)
+		--now-playing-class: unquote('var(--class-' + name + ')')
+		--now-playing-tint: unquote('var(--class-' + name + '-tint)')
+		// @stylint on
+	}
+}
+
+// Artwork tile: the emoji itself, or a speaker / speech glyph
+.now-playing__art {
+	flex: none
+	display: flex
+	align-items: center
+	justify-content: center
+	width: 40px
+	height: 40px
+	border-radius: var(--radius-s)
+	background: var(--now-playing-tint)
+	color: var(--now-playing-class)
+	font-family: $now-playing-emoji-font
+	font-size: 28px
+	line-height: 1
+	overflow: hidden
+
+	svg {
+		display: block
+		width: 24px
+		height: 24px
+		fill: currentColor
+	}
+
+	.sound-on {
+		display: inline
+	}
+}
+
+// Nothing detected (or no value set): quiet, neutral artwork
+.now-playing[data-kind='none'] .now-playing__art {
+	color: var(--color-label-secondary)
+}
+
+.now-playing__text {
+	flex: 1 1 auto
+	display: flex
+	flex-direction: column
+	min-width: 0
+}
+
+.now-playing__class {
+	display: flex
+	align-items: center
+	gap: var(--space-2)
+	min-width: 0
+	color: var(--color-label)
+	text-style(headline)
+}
+
+.now-playing__swatch {
+	flex: none
+	width: 10px
+	height: 10px
+	border-radius: 50%
+	background: var(--now-playing-class)
+}
+
+.now-playing[data-class='none'] {
+	.now-playing__swatch {
+		display: none
+	}
+
+	.now-playing__class {
+		color: var(--color-label-secondary)
+		font-weight: 400
+	}
+}
+
+.now-playing__name,
+.now-playing__detail {
+	min-width: 0
+	overflow: hidden
+	text-overflow: ellipsis
+	white-space: nowrap
+}
+
+.now-playing__detail {
+	color: var(--color-label-secondary)
+	text-style(subheadline)
+
+	&:empty {
+		display: none
+	}
+}
+
+// Trailing affordance: "Show" + chevron-up
+.now-playing__action {
+	flex: none
+	display: inline-flex
+	align-items: center
+	gap: var(--space-1)
+	color: var(--color-accent)
+	text-style(footnote)
+	font-weight: 600
+}
+
+.now-playing__chevron {
+	flex: none
+	display: block
+	width: 18px
+	height: 18px
+}
+
+// The narrowest phones keep just the chevron
+@media screen and (max-width: 359px) {
+	.now-playing__action-label {
+		display: none
+	}
+}
+
+// Keep the end of the page reachable above the bar
+body.has-now-playing .footer {
+	padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-3) + var(--now-playing-height, 56px) + var(--space-5))
+}
