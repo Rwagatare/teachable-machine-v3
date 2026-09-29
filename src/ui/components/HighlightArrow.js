@@ -15,9 +15,12 @@
 class HighlightArrow {
 	constructor(type) {
 		this.element = new Image();
-        this.element.classList.add('wizard__arrow');
-        this.element.width = 200;
-        this.element.src = `assets/arrows/arrow-${type}.svg`;
+		this.element.classList.add('wizard__arrow');
+		// Decorative pointer: the tutorial captions say what to look at.
+		this.element.alt = '';
+		this.element.setAttribute('aria-hidden', 'true');
+		this.element.width = 200;
+		this.element.src = `assets/arrows/arrow-${type}.svg`;
 	}
 
 	hide() {

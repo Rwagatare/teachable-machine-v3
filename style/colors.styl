@@ -1,50 +1,60 @@
+// Legacy palette variables, kept by name because many component files use
+// them. Where safe they now point at the semantic tokens in tokens.styl so they
+// adapt to dark mode / increased contrast. Variables that some component still
+// passes to a Stylus colour function (darken/rgba) MUST stay literal hex
+// (var() cannot be processed at compile time); they use the new light-mode hex
+// until the owning component migrates to a token.
+
 $color__black = #000000
 $color__white = #ffffff
-$color__background = #EDEDEE
-$color__text--dark = #A4A6A8
-$color__text--light = #6D6E71
-$color__divider = #e4e5e6
+$color__background = var(--color-bg)
+$color__text--dark = var(--color-label-secondary)
+$color__text--light = var(--color-label-secondary)
+$color__divider = var(--color-separator)
 
-$color__blue--primary = #3E80F6
+$color__blue--primary = #0066CC // literal: darken() in components/train-button.styl
+// *--shadow-left / *--shadow-bottom: legacy 3D button extrusion, literal until
+// the button restyle removes them.
 $color__blue--shadow-left = #2874E2
 $color__blue--shadow-bottom = #2068D1
 
-$color__grey--primary = #CFD1D2
+$color__grey--primary = var(--color-fill)
 $color__grey--shadow-left = #BABCBE
 $color__grey--shadow-bottom = #A5A7AA
 
-$color__class-neutral--primary = #A4A6A9
+$color__class-neutral--primary = var(--class-neutral)
 $color__class-neutral--shadow-left = #909295
 $color__class-neutral--shadow-bottom = #808082
 
-$color__class-green--primary = #2baa5e
+$color__class-green--primary = #248A3D // literal: rgba() in output__emoji/output__gif
 $color__class-green--shadow-left = #249b54
 $color__class-green--shadow-bottom = #1a8741
 
-$color__class-purple--primary = #c95ac5
+$color__class-purple--primary = #8944AB // literal: rgba() in output__emoji/output__gif
 $color__class-purple--shadow-left = #b74eb7
 $color__class-purple--shadow-bottom = #a53fa5
 
-$color__class-orange--primary = #dd4d31
+$color__class-orange--primary = #C93400 // literal: rgba() in output__emoji/output__gif
 $color__class-orange--shadow-left = #cc402e
 $color__class-orange--shadow-bottom = #bf3025
 
-$color__class-red--primary = #e8453c
+$color__class-red--primary = var(--class-red)
 $color__class-red--shadow-left = #d43a32
 $color__class-red--shadow-bottom = #c53029
 
-$color__class-blue--primary = #4285f4
+$color__class-blue--primary = var(--class-blue)
 $color__class-blue--shadow-left = #3367d6
 $color__class-blue--shadow-bottom = #2a56c6
 
-$color__class-yellow--primary = #fbbc04
+$color__class-yellow--primary = #A05A00 // literal: rgba() in output__emoji
 $color__class-yellow--shadow-left = #ea8600
 $color__class-yellow--shadow-bottom = #ea8600
 
-$color__class-teal--primary = #26c6da
+$color__class-teal--primary = var(--class-teal)
 $color__class-teal--shadow-left = #00acc1
 $color__class-teal--shadow-bottom = #00a0b2
 
+// Third-party brand colours: intentionally literal
 $color__facebook--primary = #0066a8
 $color__facebook--shadow-left = #0080c4
 $color__facebook--shadow-bottom = #004a75

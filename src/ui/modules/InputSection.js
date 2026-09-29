@@ -25,6 +25,10 @@ class InputSection {
         // this.micInputToggle.element.addEventListener('touchend', this.selectMicInput.bind(this));
         this.mediaFlipButton = element.querySelector('.input__media__flip');
         this.mediaFlipButton.addEventListener('click', this.flipCamera.bind(this));
+        this.updateFlipAvailability();
+        if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+            navigator.mediaDevices.addEventListener('devicechange', this.updateFlipAvailability.bind(this));
+        }
 
         this.inputContainer = element.querySelector('.input__media');
 
@@ -153,7 +157,9 @@ class InputSection {
 
     highlight() {
         this.arrow.show();
-        TweenMax.from(this.arrow.element, 0.3, {opacity: 0});
+        if (!Theme.prefersReducedMotion()) {
+            TweenMax.from(this.arrow.element, 0.3, {opacity: 0});
+        }
     }
 
     dehighlight() {
@@ -189,8 +195,30 @@ class InputSection {
             this.camInput = new CamInput();
             this.inputContainer.appendChild(this.camInput.element);
             GLOBALS.camInput = this.camInput;
+            // Device labels/counts are only complete once the camera is allowed.
+            this.camInput.webcamClassifier.video.addEventListener('loadeddata', this.updateFlipAvailability.bind(this));
             // GLOBALS.camInput.start();
         }
+    }
+
+    // Offer Switch Camera only when there is more than one camera to switch
+    // to (capability, not screen size or user agent).
+    updateFlipAvailability() {
+        let button = this.mediaFlipButton;
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            button.hidden = false;
+
+            return;
+        }
+        let request = navigator.mediaDevices.enumerateDevices();
+
+        request.then((devices) => {
+            let cameras = devices.filter((device) => device.kind === 'videoinput');
+            button.hidden = cameras.length < 2;
+        }, () => {
+            button.hidden = false;
+        });
     }
 
     selectCamInput() {
@@ -224,9 +252,9 @@ class InputSection {
 
 import TweenMax from 'gsap';
 import GLOBALS from './../../config.js';
-import Button from './../components/Button.js';
 import CamInput from './../components/CamInput.js';
 import HighlightArrow from './../components/HighlightArrow.js';
 import WizardEmojiExample from './WizardEmojiExample.js';
+import Theme from './../components/Theme.js';
 
 export default InputSection;

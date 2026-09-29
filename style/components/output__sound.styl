@@ -1,431 +1,86 @@
-.output__sound {
-	position: absolute
-	width: 100%
-	height: 100%
-	background: $color__white
-}
-
-.output__sound-on {
-	position: absolute
-	width: 100%
-	height: 100%
-	background: red
-	z-index: 4
-}
-
-.output__sound-search {
-	position: absolute
-	width: 100%
-	height: 100%
-	background: $color__white
-	display: none
-	z-index: 3
-}
-
-.output__sound-search-bar {
-	background: $color__white
-	width: 100%
-	padding-bottom: space(1)
-}
-
-.output__sound-back {
-	position: absolute
-	width: 45px
-	height: 50px
-	background-color: rgba(0,0,0,0)
-	z-index: 2
-	top: 0px
-	cursor: pointer
-	
-	svg {
-		position: absolute
-		width: 20px
-		top: 15px
-		left: 10px
-	}
-}
-
-
-.output__sound-back--green svg {
-	fill: $color__class-green--primary
-}
-
-
-.output__sound-back--purple svg {
-	fill: $color__class-purple--primary
-}
-
-
-.output__sound-back--orange svg {
-	fill: $color__class-orange--primary
-}
-
-.output__sound-back--yellow svg {
-	fill: $color__class-yellow--primary
-}
-
-.output__sound-search-input {
-	display: block
-	width: 100%
-	height: 50px
-	border: 4px solid $color__background
-	padding-left: 40px
-	outline: none
-	@extend .font__size--small
-}
-
-.output__sound-search-input--green {
-	border-color: $color__class-green--primary
-	color: $color__class-green--primary
-}
-
-.output__sound-search-input--purple {
-	border-color: $color__class-purple--primary
-	color: $color__class-purple--primary
-}
-
-.output__sound-search-input--orange {
-	border-color: $color__class-ornage--primary
-	color: $color__class-ornage--primary
-}
-
-.output__sound-search-input--yellow {
-	border-color: $color__class-yellow--primary
-	color: $color__class-yellow--primary
-}
-
+// Sound output: per-class rows use the shared .output__row styles in
+// outputs.styl. This file covers the sound picker sheet.
 
 .output__sound-search-results {
-	position: absolute
-	width: 100%
-	top: 60px
-	bottom: 0px
-	overflow: scroll
+	margin: 0
+	padding: 0
+	list-style: none
 }
 
-.output__sound-search-results--green {
-	input {
-		color: $color__class-green--primary
-	}
-	
-	div:hover {
-		input {
-			border-color: $color__class-green--primary
-		}
-	}
-	
-}
-
-.output__sound-search-results--purple {
-	input {
-		color: $color__class-purple--primary
-	}
-	
-	.output__sound-search-result-icon:after {
-		background-position-y: -26px
-	}
-	
-	div:hover {
-		input {
-			border-color: $color__class-purple--primary
-		}
-	}
-	
-}
-
-.output__sound-search-results--orange {
-	input {
-		color: $color__class-orange--primary
-	}
-
-	.output__sound-search-result-icon:after {
-		background-position-y: -52px
-	}
-	
-	div:hover {
-		input {
-			border-color: $color__class-orange--primary
-		}
-	}
-	
-}
-
-.output__sound-search-results--yellow {
-	input {
-		color: $color__class-yellow--primary
-	}
-
-	.output__sound-search-result-icon:after {
-		background-position-y: -78px
-	}
-	
-	div:hover {
-		input {
-			border-color: $color__class-yellow--primary
-		}
-	}
-	
-}
 .output__sound-search-result {
-	height: 50px
-	margin-bottom: space(1)
-	position: relative
-	cursor: pointer
-	
-	@extend .font__size--small
-}
-
-.output__sound-search-result-icon {
-	position absolute
-	width: 50px
-	height: 50px
-	background: transparent
-	
-	svg {
-		pointer-events: none
-		width: 24px
-		position: absolute
-		top: 12px
-		left: 12px
-	}
-}
-
-
-.output__sound-search-result-icon--green svg {
-	fill: $color__class-green--primary
-}
-
-
-.output__sound-search-result-icon--purple svg {
-	fill: $color__class-purple--primary
-}
-
-.output__sound-search-result-icon--orange svg {
-	fill: $color__class-orange--primary
-}
-
-
-
-.output__sound-search-result-input {
-	pointer-events: none
-	width: 100%
-	height: 50px
-	padding-left: 50px
-	color: inherit
-	border: 4px solid $color__background
-}
-
-.output__sound-class {
-	text-align: left
 	display: flex
 	align-items: center
-	height: 33%
-	padding-left: space(1)
+	gap: var(--space-1)
+	border-bottom: 1px solid var(--color-separator)
 }
 
-.output__sound-delete {
-	position: absolute
-	width: 40px
-	height: 42px
-	right: 4px
-	cursor: pointer
-	background: white
-	background-image: url(assets/outputs/delete-icon.svg)
-	background-size: 40%
-	background-repeat: no-repeat
-	background-position: center center
+.output__sound-search-result:last-child {
+	border-bottom: 0
 }
 
-.output__sound-speaker {
-	width: 52px
-	height: 50px
-	margin-right: space(0)
-	padding-right: 4px
-	// cursor: pointer
+.output__sound-search-result[hidden] {
+	display: none
+}
 
-	svg {
-		fill: $color__class-green--primary
-		width: 100%
-		height: 100%
-		pointer-events: none
+.output__sound-search-play {
+	color: var(--output-class, var(--color-accent))
 
-		.sound-on {
-			display: none
-		}
+	.output__icon {
+		width: 18px
+		height: 18px
 	}
 }
 
-.output__sound-speaker-class-icon {
-	width: 70px
-	height: 70px
-	margin-left: space(1)
-	margin-top: 5px
-	
-}
-
-.output__sound-speaker--green svg {
-	fill: $color__class-green--primary
-}
-
-
-.output__sound-speaker--purple svg {
-	fill: $color__class-purple--primary
-}
-
-.output__sound-speaker--orange svg {
-	fill: $color__class-orange--primary
-}
-
-.output__sound-speaker--yellow svg {
-	fill: $color__class-yellow--primary
-}
-
-
-.output__sound-speaker--active svg {
-
-	.sound-on {
-		display: block
-	}
-}
-
-.output__sound-edit {
-	position: absolute
-	z-index: 2
-	width: 16px
-	height: 50px
-	opacity: 0.2
-	background-image url(assets/outputs/edit-icon.svg)
-	background-position 0 center
-	background-repeat: no-repeat
-	margin-left: 51px
-	left: space(2.5)
-	pointer-events: none
-	
-	svg {
-		fill: $color__class-green--primary
-		width: 100%
-		height: 100%
-		pointer-events: none
-	}
-}
-
-.output__sound-edit:after {
-	content: "Play"
-	position: absolute
-	top: 0
-	left: 25px
-	line-height: 50px
-	color: $color__black
-}
-
-
-.output__sound-edit--green svg {
-	fill: $color__class-green--primary
-}
-
-
-.output__sound-edit--purple svg {
-	fill: $color__class-purple--primary
-}
-
-.output__sound-edit--orange svg {
-	fill: $color__class-orange--primary
-}
-
-
-
-.output__sound-input {
-	width: calc(100% - 50px)
-	padding-left: space(8)
-	padding-right: 40px
-	height: 50px
-	border: 4px solid $color__background
-	outline: none
-	position relative
-	cursor: pointer
-	
-	@extend .font__size--small
-}
-
-.output__sound-input--green {
-	color: $color__class-green--primary
-}
-
-.output__sound-input--purple {
-	color: $color__class-purple--primary	
-}
-
-.output__sound-input--orange {
-	color: $color__class-orange--primary	
-}
-
-.output__sound-input--yellow {
-	color: $color__class-yellow--primary	
-}
-
-.output__sound-input--green:hover, .output__sound-input--green-selected {
-	border-color: $color__class-green--primary
-}
-
-.output__sound-input--purple:hover, .output__sound-input--purple-selected {
-	border-color: $color__class-purple--primary	
-}
-
-.output__sound-input--orange:hover, .output__sound-input--orange-selected {
-	border-color: $color__class-orange--primary	
-}
-
-.output__sound-input--yellow:hover, .output__sound-input--yellow-selected {
-	border-color: $color__class-yellow--primary	
-}
-
-.output__sound-input--nothing {
-	color: rgba($color__black, 0.2);
-}
-
-.output__sound-on {
+.output__sound-search-select {
+	flex: 1 1 auto
 	display: flex
-	flex-wrap: wrap
+	align-items: center
+	gap: var(--space-2)
+	min-width: 0
+	min-height: 44px
+	margin: 0
+	padding: var(--space-2)
+	border: 0
+	border-radius: var(--radius-s)
+	background: transparent
+	color: var(--color-label)
+	font-family: inherit
+	text-align: left
+	text-style(body)
+	cursor: pointer
+	-webkit-tap-highlight-color: transparent
+
+	.output__icon {
+		flex: none
+		order: 2
+		width: 20px
+		height: 20px
+		color: var(--output-class, var(--color-accent))
+		visibility: hidden
+	}
+
+	&:active {
+		background: var(--color-fill-secondary)
+	}
 }
 
-.output__sound-speaker-class {
-	position: relative
-	flex: 1 1 1
-	width: 50%
-	height: 50%
-	background: $color__white
+@media (hover: hover) {
+	.output__sound-search-select:hover {
+		background: var(--output-class-tint, var(--color-fill-secondary))
+	}
 }
 
-.output__sound-speaker-class:nth-child(1) {
-	border-right: 1px solid $color__background
-	border-bottom: 1px solid $color__background
+.output__sound-search-name {
+	flex: 1 1 auto
+	min-width: 0
+	overflow-wrap: anywhere
 }
 
-.output__sound-speaker-class:nth-child(2) {
-	border-left: 1px solid $color__background
-	border-bottom: 1px solid $color__background
-}
+// The class's current sound: checkmark + weight, not colour alone
+.output__sound-search-result--current .output__sound-search-select {
+	font-weight: 600
 
-.output__sound-speaker-class:nth-child(3) {
-	border-right: 1px solid $color__background
-	border-top: 1px solid $color__background
-}
-
-.output__sound-speaker-class:nth-child(4) {
-	border-left: 1px solid $color__background
-	border-top: 1px solid $color__background
-}
-
-.output__sound-speaker-class-icon {
-	position: relative
-	top: 50%
-	left: 50%
-	transform: translate3d(-50%, -50%, 0)
-}
-
-.output__sound {
-	canvas {
-		z-index: 100
-		position: absolute
+	.output__icon {
+		visibility: visible
 	}
 }

@@ -12,6 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Examples per class we ask people to collect (shown as calibration progress).
+// Matches the tutorial's threshold in Wizard.js.
+const EXAMPLE_GOAL = 30;
+const DECAY_DELAY = 500;
+const CHECK_ICON = '<svg class="icon-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 8.5l3 3 6-7"/></svg>';
+
+function isHoldKey(event) {
+	return event.key === ' ' || event.key === 'Spacebar' || event.key === 'Enter';
+}
+
+function displayName(id) {
+	return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
 class LearningClass {
 	constructor(options) {
 		this.element = options.element;
@@ -22,27 +36,79 @@ class LearningClass {
 		this.context = this.canvas.getContext('2d');
 
 		this.id = this.element.getAttribute('id');
+		this.name = displayName(this.id);
 		this.index = options.index;
-		this.button = new Button(this.element.querySelector('a.button--record'));
-		this.button.element.addEventListener('mousedown', this.buttonDown.bind(this));
+		this.color = options.color;
+		this.rgbaColor = options.rgbaColor;
+		this.isTraining = false;
+		this.detected = false;
 
-		this.button.element.addEventListener('touchstart', this.buttonDown.bind(this));
-		this.button.element.addEventListener('touchend', this.buttonUp.bind(this));
+		this.button = new Button(this.element.querySelector('.button--record'));
+		this.button.element.setAttribute('aria-pressed', 'false');
+		this.bindHold(this.button.element);
 
 		this.resetLink = this.element.querySelector('.link--reset');
-		// this.button.element.addEventListener('mouseup', this.buttonUp.bind(this));
+		this.resetLink.addEventListener('click', this.resetClass.bind(this));
+
 		this.exampleCounterElement = this.element.querySelector('.examples__counter');
+		this.exampleGoalElement = this.element.querySelector('.examples__goal');
+		this.exampleReadyElement = this.element.querySelector('.examples__ready');
+		this.exampleProgressElement = this.element.querySelector('.examples__progress-fill');
 		this.exampleCounter = 0;
 
 		this.percentage = 0;
+		this.renderedPercentage = -1;
+		this.meterElement = this.element.querySelector('.machine__meter');
 		this.percentageElement = this.element.querySelector('.machine__value');
-		this.percentageGrey = this.element.querySelector('.machine__percentage--grey');
-		this.percentageWhite = this.element.querySelector('.machine__percentage--white');
-		this.color = options.color;
-		this.rgbaColor = options.rgbaColor;
+		this.percentageText = this.element.querySelector('.machine__percentage');
+		this.badgeElement = this.element.querySelector('.learning__class-badge');
 
+		this.createArrows();
+		this.syncDisabled();
+		this.renderExamples();
+		this.updatePercentage();
+	}
 
+	// Markup for a class card. The three default classes are in index.html
+	// with the same structure; keep both in sync.
+	static createElement(id) {
+		let name = displayName(id);
+		let element = document.createElement('div');
 
+		element.id = id;
+		element.className = `learning__class learning__class--${id}`;
+		element.setAttribute('role', 'group');
+		element.setAttribute('aria-labelledby', `${id}-name`);
+		element.innerHTML = `
+			<div class="learning__class-header">
+				<h3 class="learning__class-name" id="${id}-name">${name}</h3>
+				<span class="learning__class-badge" hidden>${CHECK_ICON}Detected</span>
+				<button type="button" class="link--reset" aria-label="Reset ${name}" hidden>Reset</button>
+			</div>
+			<div class="examples">
+				<div class="examples__wrapper">
+					<canvas class="examples__viewer" aria-hidden="true"></canvas>
+				</div>
+				<div class="examples__info">
+					<p class="machine__status examples__status"><span class="examples__counter">0</span><span class="examples__goal"> of ${EXAMPLE_GOAL} examples</span><span class="examples__ready" hidden>${CHECK_ICON}Ready</span></p>
+					<div class="examples__progress" aria-hidden="true"><div class="examples__progress-fill"></div></div>
+					<div class="confidence">
+						<div class="confidence__header" aria-hidden="true">
+							<span class="machine__status confidence__status">Confidence</span>
+							<span class="machine__percentage">0%</span>
+						</div>
+						<div class="machine__meter" role="meter" aria-label="${name} confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0%">
+							<div class="machine__value machine__value--color-${id}"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<button type="button" class="button button--record button--color-${id}" aria-pressed="false" aria-describedby="learning-hold-hint"><span class="button__content">Train ${name}</span></button>`;
+
+		return element;
+	}
+
+	createArrows() {
 		this.arrow = new HighlightArrow(3);
 		this.arrow.element.style.left = 100 + '%';
 		this.arrow.element.style.top = 100 + '%';
@@ -67,10 +133,83 @@ class LearningClass {
 			y: -30
 		});
 		this.element.appendChild(this.arrowX.element);
+	}
 
-		this.resetLink.addEventListener('click', this.resetClass.bind(this));
-		this.size();
-		window.addEventListener('resize', this.size.bind(this));
+	// Hold-to-train with any input: pointer (mouse, touch, pen) with pointer
+	// capture, or holding Space/Enter while the button has focus.
+	bindHold(button) {
+		let release = this.buttonUp.bind(this);
+
+		if (window.PointerEvent) {
+			button.addEventListener('pointerdown', this.pointerDown.bind(this));
+			button.addEventListener('pointerup', release);
+			button.addEventListener('pointercancel', release);
+			button.addEventListener('pointerleave', release);
+			button.addEventListener('lostpointercapture', release);
+		}else {
+			button.addEventListener('mousedown', this.buttonDown.bind(this));
+			button.addEventListener('touchstart', this.buttonDown.bind(this));
+			button.addEventListener('touchend', release);
+			button.addEventListener('touchcancel', release);
+			window.addEventListener('mouseup', release);
+		}
+
+		button.addEventListener('keydown', this.keyDown.bind(this));
+		button.addEventListener('keyup', this.keyUp.bind(this));
+		button.addEventListener('blur', release);
+		button.addEventListener('contextmenu', (event) => {
+			event.preventDefault();
+		});
+		window.addEventListener('blur', release);
+		document.addEventListener('visibilitychange', () => {
+			if (document.hidden) {
+				release();
+			}
+		});
+	}
+
+	pointerDown(event) {
+		if (event.button > 0) {
+			return;
+		}
+		event.preventDefault();
+		if (event.currentTarget.setPointerCapture) {
+			try {
+				event.currentTarget.setPointerCapture(event.pointerId);
+			}catch (error) {
+				this.captureError = error;
+			}
+		}
+		this.buttonDown();
+	}
+
+	keyDown(event) {
+		if (!isHoldKey(event)) {
+			return;
+		}
+		// Stops Enter from clicking and Space from scrolling.
+		event.preventDefault();
+		if (event.repeat) {
+			return;
+		}
+		this.buttonDown();
+	}
+
+	keyUp(event) {
+		if (isHoldKey(event)) {
+			event.preventDefault();
+			this.buttonUp();
+		}
+	}
+
+	isInteractive() {
+		return !this.element.classList.contains('learning__class--disabled') &&
+			!this.section.element.classList.contains('section--disabled');
+	}
+
+	// Keeps keyboard users out of classes the tutorial hasn't unlocked yet.
+	syncDisabled() {
+		this.button.element.disabled = !this.isInteractive();
 	}
 
 	hide() {
@@ -78,15 +217,17 @@ class LearningClass {
 	}
 
 	show() {
-		this.element.style.display = 'flex';
+		this.element.style.display = '';
 	}
 
 	highlight() {
 		this.arrow.show();
-		TweenMax.from(this.arrow.element, 0.3, {
-			opacity: 0,
-			x: 40
-		});
+		if (!Theme.prefersReducedMotion()) {
+			TweenMax.from(this.arrow.element, 0.3, {
+				opacity: 0,
+				x: 40
+			});
+		}
 	}
 
 	dehighlight() {
@@ -96,7 +237,9 @@ class LearningClass {
 
 	highlightX() {
 		this.arrowX.show();
-		TweenMax.from(this.arrowX.element, 0.3, {opacity: 0});
+		if (!Theme.prefersReducedMotion()) {
+			TweenMax.from(this.arrowX.element, 0.3, {opacity: 0});
+		}
 	}
 
 	dehighlightX() {
@@ -113,57 +256,97 @@ class LearningClass {
 		event.preventDefault();
 		GLOBALS.inputSection.resetClass(this.index);
 		this.clear();
+		// The Reset button hides itself; keep focus in the card.
+		this.button.element.focus();
+		this.section.announce(`${this.name} examples cleared.`);
 	}
 
 	setSamples(length) {
 		this.exampleCounter = length;
-		let text = this.exampleCounter;	
 
 		let recommendedNumSamples = (GLOBALS.inputType === 'cam') ? 30 : 10;
-
-		this.exampleCounterElement.textContent = text;
 
 		if (this.exampleCounter >= recommendedNumSamples && GLOBALS.classesTrained[this.id] === false) {
 			GLOBALS.classesTrained[this.id] = true;
 		}
+
+		this.renderExamples();
+	}
+
+	renderExamples() {
+		let count = this.exampleCounter;
+		let ready = count >= EXAMPLE_GOAL;
+		let progress = Math.min(count / EXAMPLE_GOAL, 1);
+
+		this.exampleCounterElement.textContent = count;
+		this.exampleGoalElement.textContent = ready ? ' examples' : ` of ${EXAMPLE_GOAL} examples`;
+		this.exampleReadyElement.hidden = !ready;
+		this.exampleProgressElement.style.transform = `scaleX(${progress})`;
+		this.element.classList.toggle('learning__class--ready', ready);
+		this.resetLink.hidden = count === 0;
+	}
+
+	examplesSummary() {
+		if (this.exampleCounter >= EXAMPLE_GOAL) {
+			return `${this.name}: ${this.exampleCounter} examples. Ready.`;
+		}
+
+		return `${this.name}: ${this.exampleCounter} of ${EXAMPLE_GOAL} examples.`;
 	}
 
 	setConfidence(percentage) {
-		if (!GLOBALS.clearing) {
-            // this.percentage = percentage;
-            // this.updatePercentage();
-            let that = this;
-            GLOBALS.recordSection.setMeters(this.id, percentage);
-            TweenMax.to(this, 0.5, {
-                percentage: percentage,
-                onUpdate: () => {
-                    that.updatePercentage();
-                }
-            });
-        }
+		if (GLOBALS.clearing) {
+			return;
+		}
+		if (GLOBALS.recordSection && GLOBALS.recordSection.setMeters) {
+			GLOBALS.recordSection.setMeters(this.id, percentage);
+		}
+		this.percentage = percentage;
+		this.updatePercentage();
+
+		// Fall back to 0 if predictions stop arriving (e.g. while training).
+		clearTimeout(this.decayTimer);
+		if (percentage > 0) {
+			this.decayTimer = setTimeout(() => {
+				this.setConfidence(0);
+			}, DECAY_DELAY);
+		}
 	}
 
 	highlightConfidence() {
-		this.percentageElement.style.background = this.color;
+		if (this.detected) {
+			return;
+		}
+		this.detected = true;
+		this.element.classList.add('learning__class--detected');
+		this.badgeElement.hidden = false;
 	}
 
 	dehighlightConfidence() {
-		this.percentageElement.style.background = '#cfd1d2';
+		if (!this.detected) {
+			return;
+		}
+		this.detected = false;
+		this.element.classList.remove('learning__class--detected');
+		this.badgeElement.hidden = true;
 	}
 
 	buttonDown() {
-		let that = this;
-		this.button.setText('Training');
+		if (this.isTraining || !this.isInteractive()) {
+			return;
+		}
+		this.isTraining = true;
+		this.button.down();
+		this.button.setText('Training…');
+		this.button.element.setAttribute('aria-pressed', 'true');
+		this.element.classList.add('learning__class--training');
 		this.section.startRecording(this.index);
-
-		this.buttonUpEvent = this.buttonUp.bind(this);
-		window.addEventListener('mouseup', this.buttonUpEvent);
 
 		GLOBALS.recording = true;
 		GLOBALS.classId = this.id;
 
-        GLOBALS.outputSection.toggleSoundOutput(false);
-        clearTimeout(this.buttonClickTimeout);
+		GLOBALS.outputSection.toggleSoundOutput(false);
+		clearTimeout(this.buttonClickTimeout);
 		this.buttonClickTimeout = setTimeout(() => {
 			GLOBALS.webcamClassifier.buttonDown(this.id, this.canvas, this);
 		}, 100);
@@ -172,19 +355,27 @@ class LearningClass {
 	}
 
 	buttonUp() {
-		this.button.setText(`Train <br>${this.id}`);
+		if (!this.isTraining) {
+			return;
+		}
+		this.isTraining = false;
+		this.button.setText(`Train ${this.name}`);
+		this.button.element.setAttribute('aria-pressed', 'false');
+		this.element.classList.remove('learning__class--training');
 		this.section.stopRecording();
-        clearTimeout(this.buttonClickTimeout);
+		clearTimeout(this.buttonClickTimeout);
 		this.button.up();
 
 		GLOBALS.classId = null;
 		GLOBALS.recording = false;
 
-        GLOBALS.outputSection.toggleSoundOutput(true);
+		GLOBALS.outputSection.toggleSoundOutput(true);
 
 		GLOBALS.webcamClassifier.buttonUp(this.id, this.canvas);
 
 		if (this.exampleCounter > 0) {
+			this.section.announce(this.examplesSummary());
+
 			let event = new CustomEvent('class-trained', {
 				detail: {
 					id: this.id,
@@ -193,28 +384,24 @@ class LearningClass {
 			});
 			window.dispatchEvent(event);
 		}
-
-		window.removeEventListener('mouseup', this.buttonUpEvent);
 	}
 
 	updatePercentage() {
-		let rounded = Math.floor(this.percentage);
-		this.percentageElement.style.width = this.percentage + '%';
-		this.percentageWhite.textContent = rounded + '%';
+		let rounded = Math.max(0, Math.min(100, Math.floor(this.percentage)));
 
-		if (this.timer) {
-			clearInterval(this.timer);
+		if (rounded === this.renderedPercentage) {
+			return;
 		}
-		this.timer = setInterval(() => {
-			this.setConfidence(0);
-		}, 500);
+		this.renderedPercentage = rounded;
+		this.percentageElement.style.transform = `scaleX(${rounded / 100})`;
+		this.percentageText.textContent = rounded + '%';
+		this.meterElement.setAttribute('aria-valuenow', rounded);
+		this.meterElement.setAttribute('aria-valuetext', rounded + '%');
 	}
 
+	// Layout is pure CSS now; kept for callers.
 	size() {
-		this.percentageElement.style.width = 100 + '%';
-		let width = this.percentageElement.offsetWidth;
-		this.percentageWhite.style.width = width + 'px';
-		this.percentageElement.style.width = 0 + '%';
+		return this;
 	}
 
 	start() {
@@ -226,5 +413,6 @@ import GLOBALS from './../../config.js';
 import TweenMax from 'gsap';
 import Button from './../components/Button.js';
 import HighlightArrow from './../components/HighlightArrow.js';
+import Theme from './../components/Theme.js';
 
 export default LearningClass;

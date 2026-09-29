@@ -1,6 +1,11 @@
 .link {
-	color: $color__blue--primary
-	text-decoration: underline	
+	color: var(--color-accent)
+	text-decoration: underline
+	// @stylint off (linter misreads these properties as selectors)
+	text-decoration-thickness: 1px
+	text-underline-offset: 0.2em
+	// @stylint on
+	transition: opacity var(--duration-fast) var(--ease-standard)
 }
 
 .link__icon {
@@ -10,19 +15,23 @@
 }
 
 .link__text {
-	color: $color__blue--primary
+	color: var(--color-accent)
 	display: inline-block
-	text-decoration: underline	
+	text-decoration: underline
+	// @stylint off (linter misreads these properties as selectors)
+	text-decoration-thickness: 1px
+	text-underline-offset: 0.2em
+	// @stylint on
 }
 
 .link--grey {
-	color: rgba($color__black, 0.20)
-}
-
-.link:hover .link__text {
-	text-decoration: none
+	color: var(--color-label-secondary)
 }
 
 .link:hover {
-	text-decoration: none
+	opacity: 0.7
+}
+
+.link:active {
+	opacity: 0.5
 }

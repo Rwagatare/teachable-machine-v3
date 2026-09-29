@@ -12,225 +12,164 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import TweenMax from 'gsap';
-import GLOBALS from './../../config.js';
+// Flat, CSS-drawn button. The markup is wrapped once in a .button__label span
+// (callers query `.button__label` for their icons/text) and is never rebuilt,
+// so nothing is lost on resize. Visual press state is the .button--pressed
+// class; everything else (colour, size, radius) lives in style/buttons.styl.
+//
+// Public API kept from the old 3D button: element, label, content, selected,
+// select(), deselect(), down(), up(), mousedown(), mouseup(), click(),
+// setText(), size(), html().
+
+const PRESSED_CLASS = 'button--pressed';
+const SELECTED_CLASS = 'button__toggle--selected';
+const DISABLED_CLASSES = [
+	'button--disabled',
+	'disabled',
+	'recording-start__button--disabled'
+];
 
 class Button {
 
 	constructor(element) {
-		this.initialElement = element.innerHTML;
-
 		this.element = element;
+		this.selected = false;
+		this.isToggle = element.classList.contains('button__toggle');
+		this.isNativeButton = element.tagName === 'BUTTON';
+
+		this.wrapLabel();
+
+		if (!this.isNativeButton && !element.hasAttribute('role')) {
+			element.setAttribute('role', 'button');
+		}
 
 		element.addEventListener('mousedown', this.mousedown.bind(this));
 		element.addEventListener('mouseup', this.mouseup.bind(this));
-		element.addEventListener('touchstart', this.mousedown.bind(this));
+		element.addEventListener('mouseleave', this.mouseup.bind(this));
+		// Touch: keep the old contract (no synthetic click after a touch;
+		// callers that care listen to touchend as well as click).
+		element.addEventListener('touchstart', this.mousedown.bind(this), {passive: false});
 		element.addEventListener('touchend', this.mouseup.bind(this));
+		element.addEventListener('touchcancel', this.mouseup.bind(this));
 		element.addEventListener('click', this.click.bind(this));
+		element.addEventListener('keydown', this.keydown.bind(this));
+		element.addEventListener('keyup', this.keyup.bind(this));
+		element.addEventListener('blur', this.up.bind(this));
 
-		window.addEventListener('resize', () => {
-            clearTimeout(this.sizeTimeout);
-            this.sizeTimeout = setTimeout(() => {
-				this.size();
-            }, 300);
-        });
-        this.size();
-		this.selected = false;
+		this.syncDisabled();
+		if (window.MutationObserver) {
+			this.observer = new MutationObserver(this.syncDisabled.bind(this));
+			this.observer.observe(element, {
+				attributes: true,
+				attributeFilter: ['class']
+			});
+		}
+	}
+
+	wrapLabel() {
+		let label = this.element.querySelector('.button__label');
+
+		if (!label) {
+			label = document.createElement('span');
+			label.classList.add('button__label');
+			while (this.element.firstChild) {
+				label.appendChild(this.element.firstChild);
+			}
+			this.element.appendChild(label);
+		}
+
+		this.label = label;
+		this.content = label;
+	}
+
+	syncDisabled() {
+		let isDisabled = DISABLED_CLASSES.some((className) => this.element.classList.contains(className));
+
+		if (isDisabled) {
+			this.element.setAttribute('aria-disabled', 'true');
+		}else {
+			this.element.removeAttribute('aria-disabled');
+		}
 	}
 
 	click(event) {
 		event.preventDefault();
 	}
 
+	keydown(event) {
+		if (event.key === ' ' || event.key === 'Spacebar' || event.key === 'Enter') {
+			this.down();
+		}
+		// Space on an <a role="button"> doesn't activate it natively.
+		if (!this.isNativeButton && (event.key === ' ' || event.key === 'Spacebar')) {
+			event.preventDefault();
+		}
+	}
+
+	keyup(event) {
+		let isSpace = event.key === ' ' || event.key === 'Spacebar';
+
+		if (isSpace || event.key === 'Enter') {
+			this.up();
+		}
+		if (!this.isNativeButton && isSpace) {
+			event.preventDefault();
+			this.element.click();
+		}
+	}
+
 	select() {
-		this.element.classList.add('button__toggle--selected');
+		this.element.classList.add(SELECTED_CLASS);
+		this.element.setAttribute('aria-pressed', 'true');
 		this.selected = true;
 		this.down();
 	}
 
 	deselect() {
-		this.element.classList.remove('button__toggle--selected');
+		this.element.classList.remove(SELECTED_CLASS);
+		this.element.setAttribute('aria-pressed', 'false');
 		this.selected = false;
 		this.up();
 	}
 
 	mousedown(event) {
-		event.preventDefault();
+		if (event && event.type === 'touchstart') {
+			event.preventDefault();
+		}
 		this.down();
 	}
 
-	mouseup(event) {
+	mouseup() {
 		if (this.selected) {
 			return;
 		}
-		event.preventDefault();
 		this.up();
 	}
 
 	down() {
-		TweenMax.to(this.content, 0.12, {
-			x: -(this.depthX - this.depthXPressed),
-			y: (this.depthY - this.depthYPressed)
-		});
+		this.element.classList.add(PRESSED_CLASS);
 	}
 
 	up() {
-		TweenMax.to(this.content, 0.12, {
-			x: 0,
-			y: 0
-		});
+		if (this.selected) {
+			return;
+		}
+		this.element.classList.remove(PRESSED_CLASS);
 	}
 
 	html() {
-		return this.el;
+		return this.element;
 	}
 
 	setText(text) {
-		this.label.children[0].innerHTML = text;
+		let target = this.label.children[0] || this.label;
+		target.innerHTML = text;
 	}
 
+	// Layout is pure CSS now; kept so existing callers don't break.
 	size() {
-        let element = this.element;
-        element.innerHTML = this.initialElement;
-        element.style.height = 'auto';
-        element.style.width = 'auto';
-        let textWidth = element.offsetWidth;
-        let textHeight = element.offsetHeight;
-        let depthX = GLOBALS.button.states.normal.x;
-        let depthY = GLOBALS.button.states.normal.y;
-
-        let depthXPressed = GLOBALS.button.states.pressed.x;
-        let depthYPressed = GLOBALS.button.states.pressed.y;
-
-
-        if (element.classList.contains('button__toggle')) {
-            textWidth += 3.5;
-            this.isToggle = true;
-        }
-
-        if (element.classList.contains('button--large')) {
-            textHeight += 20;
-            textWidth += 20;
-        }
-
-        let frontWidth = textWidth + GLOBALS.button.padding;
-        let frontHeight = textHeight < GLOBALS.button.frontHeight ? GLOBALS.button.frontHeight : textHeight;
-
-        if (element.classList.contains('button--small')) {
-            textWidth = 36;
-            textHeight = 30;
-
-            frontWidth = textWidth;
-            frontHeight = textHeight;
-        }
-
-        frontWidth = textWidth - GLOBALS.button.states.normal.x;
-
-        let buttonWidth = frontWidth + GLOBALS.button.states.normal.x;
-        let buttonHeight = frontHeight + GLOBALS.button.states.normal.y;
-
-        var colorClass = 'grey';
-        element.classList.forEach(function(className) {
-            if (className.indexOf('button--color-') > -1) {
-                let index = className.indexOf('button--color-') + 'button--color-'.length;
-                colorClass = className.slice(index);
-            }
-        });
-
-        let buttonContent = element.children[0];
-        buttonContent.classList.remove('button__content');
-        let htmlContent = element.innerHTML;
-        element.innerHTML = '';
-
-        element.style.width = buttonWidth + 'px';
-        element.style.height = buttonHeight + 'px';
-
-
-        let mask = document.createElement('div');
-        mask.classList.add('button__mask');
-
-        let content = document.createElement('div');
-        content.classList.add('button__inner');
-
-
-        let label = document.createElement('div');
-        label.classList.add('button__label');
-        label.innerHTML = htmlContent;
-        label.style.width = frontWidth + 'px';
-        label.style.height = frontHeight + 'px';
-        // label.style.lineHeight = frontHeight + 'px';
-        label.style.left = depthX + 'px';
-        content.appendChild(label);
-        label.style.top = '10px';
-
-        this.label = label;
-
-        let svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('width', buttonWidth);
-        svg.setAttribute('height', buttonHeight);
-        this.svg = svg;
-
-        let frontFace = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        frontFace.classList.add('front-face');
-        frontFace.classList.add('front-face--' + colorClass);
-        frontFace.setAttribute('d', `M${depthX} 0 ${frontWidth + depthX} 0 ${frontWidth + depthX} ${frontHeight} ${depthX} ${frontHeight}z`);
-        svg.appendChild(frontFace);
-        this.frontFace = frontFace;
-
-        let bottomFace = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        bottomFace.classList.add('bottom-face');
-        bottomFace.classList.add('bottom-face--' + colorClass);
-        bottomFace.setAttribute('d', `M${depthX} ${frontHeight} ${frontWidth + depthX} ${frontHeight} ${frontWidth} ${frontHeight + depthY} 0 ${frontHeight + depthY}z`);
-        svg.appendChild(bottomFace);
-        this.bottomFace = bottomFace;
-
-        let leftFace = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        leftFace.classList.add('left-face');
-        leftFace.classList.add('left-face--' + colorClass);
-        leftFace.setAttribute('d', `M0 ${depthY} ${depthX} 0 ${depthX} ${frontHeight} 0 ${frontHeight + depthY}z`);
-        svg.appendChild(leftFace);
-        this.leftFace = leftFace;
-
-        content.appendChild(svg);
-        mask.appendChild(content);
-        element.appendChild(mask);
-
-
-        // Editable for reszing
-        this.label = label;
-        this.svg = svg;
-        this.frontFace = frontFace;
-        this.bottomFace = bottomFace;
-        this.leftFace = leftFace;
-
-        this.parentWidth = element.parentNode.offsetWidth;
-        this.buttonWidth = buttonWidth;
-        this.buttonHeight = buttonHeight;
-        this.textWidth = textWidth;
-        this.textHeight = textHeight;
-        this.frontWidth = frontWidth;
-        this.frontHeight = frontHeight;
-        this.depthX = depthX;
-        this.depthY = depthY;
-        this.depthXPressed = depthXPressed;
-        this.depthYPressed = depthYPressed;
-
-        this.buttonWidth = buttonWidth;
-        this.buttonHeight = buttonHeight;
-
-        this.content = content;
-        this.depthX = depthX;
-        this.depthY = depthY;
-        this.depthXPressed = depthXPressed;
-        this.depthYPressed = depthYPressed;
-
-        this.element = element;
-
-
-        this.selected = false;
-
-    }
+		return this;
+	}
 }
-
 
 export default Button;

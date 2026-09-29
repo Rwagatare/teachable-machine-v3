@@ -1,122 +1,73 @@
+// Add Class: a dashed "slot" below the class cards, available at every width.
+// Disabled at the maximum (4 classes) with a short note underneath.
+// Per-class colours for added classes live in components/machine.styl.
+
 .add-class-container {
-  display: flex
-  justify-content: center
-  margin-top: 20px
-  margin-bottom: 20px
+	display: flex
+	flex-direction: column
+	align-items: stretch
+	gap: var(--space-2)
+	margin-top: var(--space-3)
 }
 
-#add-class-button {
-  display: inline-flex
-  align-items: center
-  justify-content: center
-  border: 2px dashed #ccc
-  background: none
-  padding: 15px 25px
-  border-radius: 8px
-  cursor: pointer
-  width: 80%
-  max-width: 400px
-  transition: all 0.3s ease
-  color: #666
-  
-  &:hover {
-    border-color: #999
-    background-color: rgba(0,0,0,0.02)
-  }
-  
-  svg {
-    margin-right: 10px
-  }
+.add-class-button {
+	display: flex
+	align-items: center
+	justify-content: center
+	gap: var(--space-2)
+	width: 100%
+	min-height: 56px
+	margin: 0
+	padding: var(--space-3) var(--space-4)
+	color: var(--color-accent)
+	font: inherit
+	text-style(headline)
+	background: transparent
+	border: 2px dashed var(--color-label-tertiary)
+	border-radius: var(--radius-l)
+	cursor: pointer
+	-webkit-appearance: none
+	appearance: none
+	-webkit-tap-highlight-color: transparent
+	press-feedback()
+
+	@media (hover: hover) {
+		&:hover {
+			background: var(--color-fill-secondary)
+		}
+	}
+
+	&:disabled {
+		color: var(--color-label-tertiary)
+		border-color: var(--color-fill)
+		cursor: default
+		transform: none
+		opacity: 1
+	}
 }
 
-/* Hide add class button on mobile devices */
-@media screen and (max-width: 768px) {
-  .add-class-container {
-    display: none
-  }
-  
-  #add-class-button {
-    display: none
-  }
+.add-class-button__icon {
+	flex: none
+	width: 20px
+	height: 20px
+
+	path {
+		fill: none
+		stroke: currentColor
+		stroke-width: 2.2
+		// @stylint off (SVG property unknown to the linter)
+		stroke-linecap: round
+		// @stylint on
+	}
 }
 
-/* Classes for dynamically created classes */
-.learning__class--red {
-  .machine__value--color-red {
-    background-color: $red
-  }
-  
-  .button--record.button--color-red {
-    .button__box--front {
-      background-color: $red
-    }
-  }
-}
+.add-class-note {
+	margin: 0
+	color: var(--color-label-secondary)
+	text-align: center
+	text-style(footnote)
 
-.learning__class--blue {
-  .machine__value--color-blue {
-    background-color: $blue
-  }
-  
-  .button--record.button--color-blue {
-    .button__box--front {
-      background-color: $blue
-    }
-  }
-}
-
-.learning__class--yellow {
-  .machine__value--color-yellow {
-    background-color: $yellow
-  }
-  
-  .button--record.button--color-yellow {
-    .button__box--front {
-      background-color: $yellow
-    }
-  }
-}
-
-.learning__class--teal {
-  .machine__value--color-teal {
-    background-color: $teal
-  }
-  
-  .button--record.button--color-teal {
-    .button__box--front {
-      background-color: $teal
-    }
-  }
-}
-
-.wire--right-red {
-  stroke: $red
-}
-
-.wire--right-bulb-red {
-  fill: $red
-}
-
-.wire--right-blue {
-  stroke: $blue
-}
-
-.wire--right-bulb-blue {
-  fill: $blue
-}
-
-.wire--right-yellow {
-  stroke: $yellow
-}
-
-.wire--right-bulb-yellow {
-  fill: $yellow
-}
-
-.wire--right-teal {
-  stroke: $teal
-}
-
-.wire--right-bulb-teal {
-  fill: $teal
+	&[hidden] {
+		display: none
+	}
 }

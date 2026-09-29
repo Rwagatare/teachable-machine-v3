@@ -1,244 +1,155 @@
+// Emoji output: live viewer, one thumbnail per class, emoji search sheet.
+// Class colours come from --output-class* (see outputs.styl).
+
 .emoji__edit {
 	position: relative
-	width: 100%
-	height: 100%
-}
-
-.emoji__edit-bar {
-	width: 100%
-	height: 80px
-	bottom: 0px
-	position: absolute
-	background: $color__white
 	display: flex
-	justify-content: center
+	flex-direction: column
+	gap: var(--space-3)
 }
 
-.emoji__thumb {
-	position: relative
-	width: 70px
-	height: 70px
-	cursor: pointer
-	margin: space(1) space(1) 0 space(1)
-}
-
-.emoji__thumb-emoji-wrapper {
-	position: relative
-	overflow: hidden
-	width: 80%
-	height: 80%
-	background: $color__white
-	top: 50%
-	left: 50%
-	transform: translate3d(-50%, -50%, 0)
+.emoji__viewer {
 	display: flex
+	flex-direction: column
 	align-items: center
 	justify-content: center
-	font-size: 30px
-	border-radius: 4px
+	gap: var(--space-2)
+	min-height: 180px
+	max-height: 280px
+	aspect-ratio: 4 / 3 // @stylint ignore
+	padding: var(--space-4)
+	border-radius: var(--radius-m)
+	background: var(--output-class-tint, var(--color-fill-secondary))
+	box-shadow: inset 0 0 0 2px var(--output-class, transparent)
+	transition: background-color var(--duration) var(--ease-standard), box-shadow var(--duration) var(--ease-standard)
 }
 
-.emoji__thumb-emoji-wrapper:after {
-	content: " "
-	position: absolute
-	top: 0
-	left: 0
-	width: 100%
-	height: 100%
-	background-color: rgba($color__black, 0.6)
-	background-image: url(assets/edit-icon.svg)
-	background-repeat: no-repeat
-	background-size: 40%
-	background-position: center center
-	display: none
+.emoji__viewer--rest {
+	background: var(--color-fill-secondary)
+	box-shadow: none
 }
 
-.emoji__thumb-border {
-	position: absolute
-	width: 100%
-	height: 100%
-	border-width: 4px
-	border-style: solid
-	opacity: 1
+.emoji__viewer-glyph {
+	min-height: 1.15em
+	font-family: $output-emoji-font
+	font-size: unquote('clamp(64px, 22vw, 112px)')
+	line-height: 1.15
 }
 
-.emoji__thumb:hover .emoji__thumb-emoji-wrapper:after {
-	display: block
-}
-
-.emoji__thumb-border--green {
-	border-color: rgba($color__class-green--primary, 0.2)
-}
-
-.emoji__thumb-border--purple {
-	border-color: rgba($color__class-purple--primary, 0.2)
-}
-
-.emoji__thumb-border--orange {
-	border-color: rgba($color__class-orange--primary, 0.2)
-}
-
-.emoji__thumb-border--yellow {
-	border-color: rgba($color__class-yellow--primary, 0.2)
-}
-
-.emoji__thumb:hover .emoji__thumb-border--green, .emoji__thumb-border--green-selected {
-	border-color: $color__class-green--primary
-}
-
-.emoji__thumb:hover .emoji__thumb-border--purple, .emoji__thumb-border--purple-selected {
-	border-color: $color__class-purple--primary
-}
-
-.emoji__thumb:hover .emoji__thumb-border--orange, .emoji__thumb-border--orange-selected {
-	border-color: $color__class-orange--primary
-}
-
-.emoji__thumb:hover .emoji__thumb-border--yellow, .emoji__thumb-border--yellow-selected {
-	border-color: $color__class-yellow--primary
-}
-
-.emoji__edit-viewer {
-	width: 100%
-	position: absolute
-	bottom: 80px
-	top: 0px
-	background-color: $color__background
-	background-position: center center
-	background-size: cover
-	background-repeat: no-repeat
-}
-
-.emoji__canvas {
-	width: 100%
-	height: 100%
-	
-	canvas {
-		width: 340px
-		height: 260px
+@supports (font-size: 1cqi) {
+	.emoji__viewer-glyph {
+		font-size: unquote('clamp(56px, 30cqi, 120px)')
 	}
 }
 
-.emoji__search {
-	position: absolute
-	top: 0
-	left: 0
-	width: 100%
-	height: 100%
+.emoji__viewer-caption {
+	color: var(--color-label-secondary)
+	text-align: center
+	text-style(subheadline)
+
+	.output__class-tag {
+		color: var(--color-label)
+		text-style(headline)
+	}
 }
 
-.emoji__search-bar {
-	position: absolute
-	width: 100%
-	height: 80px
-	background-color: $color__white
-}
-
-.emoji__search-input {
-	width: 100%
-	height: 70px
-	border: 4px solid $color__grey--primary
-	padding-left: 60px
-	outline: none
-	
-	@extend .font__size--small
-}
-
-.emoji__search-input--green {
-	color: $color__class-green--primary
-}
-
-.emoji__search-input--purple {
-	color: $color__class-purple--primary
-}
-
-.emoji__search-input--orange {
-	color: $color__class-orange--primary
-}
-
-.emoji__search-input--yellow {
-	color: $color__class-yellow--primary
-}
-
-.emoji__search-back-button {
-	left: 0
-	top: 0
-	width: 60px
-	height: 70px
-	position: absolute
-	background-color: transparent
-	cursor: pointer
-}
-
-.emoji__search-back-button:after {
-	content: " "
-	position: absolute
-	left: 50%
-	top: 50%
-	transform: translate3d(-50%, -50%, 0)
-	width: 30px
-	height: 30px
-	background-image: url(assets/back-arrow.svg)
-	background-size: 30px
-	background-position: 0 0
-	background-repeat: no-repeat
-}
-
-.emoji__search-back-button--green:after {
-	background-position-y: 0px
-}
-
-.emoji__search-back-button--purple:after {
-	background-position-y: -30px
-}
-
-.emoji__search-back-button--orange:after {
-	background-position-y: -60px
-}
-
-.emoji__search-back-button--yellow:after {
-	background-position-y: -90px
-}
-
-.emoji__search-scroll {
-	position: absolute
-	overflow: hidden
-	overflow-y: scroll
-	width: 100%
-	top: 80px
-	bottom: 0px
-	background-color: rgba($color__black, 0.9)
-}
-
-.emoji__search-results {
+// Thumbnails: one button per class
+// Thumbnails share the width; at large text sizes they wrap
+.emoji__edit-bar {
 	display: flex
-	justify-content: space-around
+	flex-wrap: wrap
+	justify-content: center
+	gap: var(--space-2)
 }
 
-.emoji__search-column {
-	width: 50%
+.emoji__thumb {
+	flex: 1 1 0
+	display: flex
+	flex-direction: column
+	align-items: center
+	gap: var(--space-1)
+	min-width: unquote('min(max-content, 100%)')
+	max-width: 96px
+	min-height: 44px
+	margin: 0
+	padding: var(--space-2) var(--space-1)
+	border: 0
+	border-radius: var(--radius-s)
+	background: var(--color-bg)
+	color: var(--color-label)
+	font-family: inherit
+	cursor: pointer
+	-webkit-tap-highlight-color: transparent
+	press-feedback()
+
+	.output__class-tag {
+		gap: var(--space-1)
+		max-width: 100%
+		text-style(caption)
+		font-weight: 600
+	}
+
+	// The thumbnail already shows the class by name; no room for a swatch
+	.output__swatch {
+		display: none
+	}
 }
 
-.emoji__search-column:first-of-type {
-	padding-left: space(1)
-	padding-right: space(0.5)
+.emoji__thumb-emoji {
+	font-family: $output-emoji-font
+	font-size: 28px
+	line-height: 1.2
 }
 
-.emoji__search-column:last-of-type {
-	padding-left: space(0.5)
-	padding-right: space(1)
+@media (hover: hover) {
+	.emoji__thumb:hover {
+		box-shadow: inset 0 0 0 1px var(--output-class)
+	}
+}
+
+// The class currently detected
+.emoji__thumb--active {
+	background: var(--output-class-tint)
+	box-shadow: inset 0 0 0 2px var(--output-class)
+
+	.output__class-tag {
+		color: var(--color-label)
+		font-weight: 700
+	}
+}
+
+@media (hover: hover) {
+	.emoji__thumb--active:hover {
+		box-shadow: inset 0 0 0 2px var(--output-class)
+	}
+}
+
+// Search sheet results
+.emoji__search-results {
+	display: grid
+	grid-template-columns: repeat(auto-fill, minmax(48px, 1fr))
+	gap: var(--space-1)
+	padding-bottom: var(--space-2)
 }
 
 .emoji__search-item {
-	width: 100%
-	display: block
-	margin-bottom: space(1)
+	min-width: 44px
+	min-height: 48px
+	margin: 0
+	padding: 0
+	border: 0
+	border-radius: var(--radius-s)
+	background: var(--color-bg)
+	font-family: $output-emoji-font
+	font-size: 28px
+	line-height: 1
 	cursor: pointer
-	background: rgba($color__white, 0.9)
-	border-radius: 4px
+	-webkit-tap-highlight-color: transparent
+	press-feedback()
 }
 
-.emoji__search-item:hover {
-	background: $color__white
-	transform: scale(1.1)
+@media (hover: hover) {
+	.emoji__search-item:hover {
+		background: var(--output-class-tint, var(--color-fill-secondary))
+	}
 }

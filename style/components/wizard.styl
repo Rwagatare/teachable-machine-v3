@@ -1,106 +1,181 @@
-.wizard {
-	width: 100vw
-	background: $color__black
+// ---------------------------------------------------------------------------
+// Tutorial bar
+//
+// A floating glass bar with the caption, narration controls and Skip. While
+// its place in the page (.wizard__wrapper, which reserves the bar's height)
+// is below the fold, Wizard.js adds .wizard--fixed and the bar floats pinned
+// to the bottom of the screen, above the safe area.
+// ---------------------------------------------------------------------------
+
+.wizard__wrapper {
 	position: relative
+	z-index: 100
+	width: 100%
+	overflow: hidden
+}
+
+// Transparent positioning box; only the bar itself takes taps.
+.wizard {
+	position: relative
+	width: 100%
+	pointer-events: none
+	padding-top: var(--space-3)
+	padding-right: calc(env(safe-area-inset-right) + var(--space-3))
+	padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-3))
+	padding-left: calc(env(safe-area-inset-left) + var(--space-3))
 }
 
 .wizard--fixed {
 	position: fixed
-	bottom: 0px
+	right: 0
+	bottom: 0
+	left: 0
 }
 
-.wizard__wrapper {
-	position: relative
-	overflow: hidden
-	width: 100vw
-	z-index: 100
+.wizard [hidden] {
+	display: none !important
 }
 
 .wizard__inner {
-	width: 100vw
-	max-width: 1180px
-	padding: space(2) space(2)
+	display: grid
+	grid-template-columns: auto auto minmax(0, 1fr) auto
+	grid-template-areas: 'sound pause text skip'
+	align-items: center
+	gap: var(--space-2) var(--space-3)
+	max-width: 960px
 	margin: 0 auto
-	display: flex
-	vertical-align: middle
-	justify-content: space-between
+	padding: var(--space-2) var(--space-3)
+	border-radius: var(--radius-l)
+	color: var(--color-label)
+	pointer-events: auto
+	glass()
+}
+
+// Round icon buttons: sound and pause
+.wizard__icon-button {
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	width: 44px
+	height: 44px
+	margin: 0
+	padding: 0
+	appearance: none
+	border: 0
+	border-radius: var(--radius-pill)
+	background: var(--color-fill-secondary)
+	color: var(--color-label)
+	cursor: pointer
+	press-feedback()
+
+	&:hover {
+		background: var(--color-fill)
+	}
+}
+
+.wizard__icon {
+	width: 22px
+	height: 22px
+	fill: currentColor
 }
 
 .wizard__sound-button {
-	display: inline-block
-	width: 40px
-	height: 40px
-	margin: auto space(2) auto 0
-	background: $color__black
+	grid-area: sound
+}
+
+.wizard__pause-button {
+	grid-area: pause
+}
+
+// Icon swaps follow the button state
+.wizard__icon--sound-off,
+.wizard__sound-button[aria-pressed="true"] .wizard__icon--sound-on,
+.wizard__icon--play,
+.wizard__pause-button--paused .wizard__icon--pause {
 	display: none
 }
 
-.wizard__sound-icon {
-	width: 30px
-	height: 30px
-	background-image: url(assets/speaker-icon.svg)
-	background-repeat: no-repeat
-	background-size: 100%
-	background-position-y: 0px
-	margin: 5px
+.wizard__sound-button[aria-pressed="true"] .wizard__icon--sound-off,
+.wizard__pause-button--paused .wizard__icon--play {
+	display: block
 }
 
-.wizard__sound-icon.wizard__sound-icon--on {
-	background-position-y: -30px
-}
-
+// Caption and its progress
 .wizard__text {
-	flex: 1
-	flex-direction: column;
-	justify-content: center;
-	margin: auto 0 auto 0
-	height: 52px
-	text-align: left
+	grid-area: text
 	display: flex
-	
-	@extend .font__size--normal
+	flex-direction: column
+	justify-content: center
+	gap: var(--space-2)
+	min-width: 0
+	min-height: 44px
+	text-align: left
+}
+
+.wizard__text-inner {
+	margin: 0
+	text-style(body)
+	color: var(--color-label)
 }
 
 .wizard__timer {
 	position: relative
-	margin-top: space(0.5)
-	width: 80px
-	height: 2px
-	background: rgba($color__white, 0.27)
+	width: 100%
+	max-width: 160px
+	height: 3px
+	border-radius: var(--radius-pill)
+	background: var(--color-fill)
 	overflow: hidden
 }
 
 .wizard__timer-fill {
-	width: 0px
-	height: 2px
-	background: $color__white
+	width: 0
+	height: 100%
+	border-radius: inherit
+	background: var(--color-accent)
 }
 
 .wizard__skip-button {
-	
-}
-
-.wizard__text-inner {
-	width: 80%
-	vertical-align: middle
-	align-items: center
-}
-
-
-.wizard__skip-button {
-	display: inline-block
-	flex: none
-	padding: 0 space(1)
-	height: 40px
-	line-height: 40px
-	text-transform: uppercase
-	background: black
-	margin: auto 0 auto space(2)
+	grid-area: skip
+	min-height: 44px
+	margin: 0
+	padding: 0 var(--space-4)
+	appearance: none
+	border: 0
+	border-radius: var(--radius-pill)
+	background: var(--color-fill-secondary)
+	color: var(--color-label)
+	text-style(subheadline)
+	font-weight: 600
+	white-space: nowrap
 	cursor: pointer
-	color: $color__white
-	text-decoration: none
+	press-feedback()
+
+	&:hover {
+		background: var(--color-fill)
+	}
 }
 
+// Narrow screens: caption on top, controls in a row underneath
+@media (max-width: 599px) {
+	.wizard__inner {
+		grid-template-columns: auto auto minmax(0, 1fr)
+		grid-template-areas: 'text text text' 'sound pause skip'
+		padding: var(--space-3)
+	}
+
+	.wizard__text-inner {
+		text-style(callout)
+	}
+
+	.wizard__skip-button {
+		justify-self: end
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Pointers and examples shown by the tutorial (decorative, aria-hidden)
+// ---------------------------------------------------------------------------
 
 .wizard__arrow {
 	position: absolute
@@ -146,6 +221,7 @@
 	background-position: 0 0
 	background-repeat: no-repeat
 	display: none
+	pointer-events: none
 }
 
 .wizard__emoji-mask {
@@ -161,33 +237,23 @@
 }
 
 .wizard__emoji-element {
+	width: 80px
+	height: 80px
+	border-radius: var(--radius-m)
+	background: var(--color-surface)
+	box-shadow: var(--shadow-card)
 	font-size: 60px
+	line-height: 80px
+	text-align: center
 }
-	
-@media screen and (max-width: 900px) {
 
+@media (max-width: 900px) {
 	.wizard__arrow {
 		opacity: 0
 	}
-
-	.wizard__sound-button {
-		margin-right: 5px
-	}
-
-	.wizard__text-inner {
-		font-size: 11px
-		width: 100%
-	}
-	
-	.wizard__skip-button {
-		
-		span {
-			display: none
-		}
-	}
 }
-@media screen and (max-height: 680px) {
 
+@media (max-height: 680px) {
 	.wizard__gif {
 		top: -130px
 		left: -100px

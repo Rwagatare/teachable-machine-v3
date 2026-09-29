@@ -22,6 +22,7 @@ class CamInput {
     this.element.appendChild(this.webcamClassifier.video);
     this.webcamClassifier.video.setAttribute('muted', 'true');
     this.webcamClassifier.video.classList.add('input__camera-video');
+    this.webcamClassifier.video.setAttribute('aria-label', 'Camera preview');
     this.webcamClassifier.video.addEventListener(
         'loadeddata', this.videoLoaded.bind(this));
     window.addEventListener('resize', this.size.bind(this));
@@ -72,7 +73,7 @@ class CamInput {
     this.width = this.element.offsetWidth;
     this.height = this.width;
     this.webcamClassifier.video.width = 227;
-		this.webcamClassifier.video.height = 227;
+    this.webcamClassifier.video.height = 227;
 
     /*
     if (this.videoRatio > 1) {

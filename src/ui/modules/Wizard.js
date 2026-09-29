@@ -15,6 +15,9 @@
 /* eslint-disable consistent-return, callback-return, no-case-declarations */
 import GLOBALS from './../../config.js';
 import TweenLite from 'gsap';
+// Registers the scrollTo tween property used by the (mobile) steps below.
+import ScrollToPlugin from 'gsap/ScrollToPlugin';
+import Theme from './../components/Theme.js';
 
 class Wizard {
     constructor() {
@@ -276,7 +279,7 @@ this.steps.push({
         startTime: 83.39999999999999,
         stopTime: 92.8,
         event: () => {
-            this.setText('Now, move your hand up and down. You should see the cat GIF when your hand’s up, and dog the GIF when it’s down. Try it.');
+            this.setText('Now, move your hand up and down. You should see the cat GIF when your hand’s up, and the dog GIF when it’s down. Try it.');
             GLOBALS.inputSection.hideGif(2);
         }
     },
@@ -431,11 +434,14 @@ this.bar = document.querySelector('#wizard');
 this.machine = document.querySelector('.machine');
 this.textContainer = this.bar.querySelector('.wizard__text-inner');
 this.soundButton = this.bar.querySelector('.wizard__sound-button');
-this.soundIcon = this.soundButton.querySelector('.wizard__sound-icon');
+this.pauseButton = this.bar.querySelector('.wizard__pause-button');
 this.skipButton = this.bar.querySelector('.wizard__skip-button');
+this.progressValue = 0;
+this.paused = false;
 
 this.skipButton.addEventListener('click', this.skip.bind(this));
 this.soundButton.addEventListener('click', this.toggleSound.bind(this));
+this.pauseButton.addEventListener('click', this.togglePause.bind(this));
 
 this.classTrainedEvent = this.classTrained.bind(this);
 
@@ -471,10 +477,17 @@ unstickBar() {
     this.stickyBar = false;
 }
 
+// The wrapper reserves the bar's height in the page flow. While that slot is
+// below the bottom of the viewport, the bar floats pinned to the bottom
+// instead; once the user scrolls to the slot, it settles into place.
+slotIsBelowViewport() {
+    return this.wizardWrapper.getBoundingClientRect().bottom > window.innerHeight;
+}
+
 size() {
     this.wizardWrapper.style.height = this.bar.offsetHeight + 'px';
 
-    if (this.machine.offsetHeight + this.bar.offsetHeight - window.pageYOffset > window.innerHeight) {
+    if (this.slotIsBelowViewport()) {
         this.stickBar();
     }else if (this.stickyBar) {
         this.unstickBar();
@@ -482,10 +495,10 @@ size() {
 }
 
 scroll() {
-    if (this.machine.offsetHeight + this.bar.offsetHeight - window.pageYOffset <= window.innerHeight) {
-        this.unstickBar();
-    }else {
+    if (this.slotIsBelowViewport()) {
         this.stickBar();
+    }else {
+        this.unstickBar();
     }
 }
 
@@ -536,6 +549,33 @@ toggleSound(event) {
         this.unmute();
     }else {
         this.mute();
+    }
+}
+
+togglePause(event) {
+    event.preventDefault();
+    if (this.paused) {
+        this.resume();
+    }else {
+        this.pause();
+    }
+}
+
+// Pausing stops the voice-over; captions follow the audio clock, so they
+// pause with it. Steps that start while paused wait for resume().
+pause() {
+    this.paused = true;
+    this.audio.pause();
+    this.pauseButton.classList.add('wizard__pause-button--paused');
+    this.pauseButton.setAttribute('aria-label', 'Resume Tutorial');
+}
+
+resume() {
+    this.paused = false;
+    this.pauseButton.classList.remove('wizard__pause-button--paused');
+    this.pauseButton.setAttribute('aria-label', 'Pause Tutorial');
+    if (this.playing) {
+        this.audio.play();
     }
 }
 
@@ -591,11 +631,23 @@ timeUpdate() {
         this.timer.style.opacity = 0;
     }else {
         this.timer.style.opacity = 1;
-        this.timerFill.style.width = 80 * percentage + 'px';
+        this.setProgress(percentage);
     }
 
     this.audioTimer = requestAnimationFrame(this.timeUpdate.bind(this));
 
+}
+
+setProgress(fraction) {
+    let clamped = Math.min(Math.max(fraction, 0), 1);
+    let value = Math.round(clamped * 100);
+    this.timerFill.style.width = (clamped * 100) + '%';
+
+    // Only touch the attribute when the rounded value changes.
+    if (value !== this.progressValue) {
+        this.progressValue = value;
+        this.timer.setAttribute('aria-valuenow', value);
+    }
 }
 
 play(index) {
@@ -603,7 +655,9 @@ play(index) {
     this.currentStep = this.steps[index];
     this.audio.currentTime = this.currentStep.startTime;
     this.playing = true;
-    this.audio.play();
+    if (!this.paused) {
+        this.audio.play();
+    }
 }
 
 touchPlay() {
@@ -626,28 +680,33 @@ stopAudioTimer() {
     }
 }
 
+// Muting keeps the voice-over running silently so captions keep going.
 mute() {
     this.audio.muted = true;
     this.muted = true;
-    this.soundIcon.classList.remove('wizard__sound-icon--on');
+    this.soundButton.setAttribute('aria-pressed', 'true');
 }
 
 unmute() {
     this.audio.muted = false;
     this.muted = false;
-    this.soundIcon.classList.add('wizard__sound-icon--on');
+    this.soundButton.setAttribute('aria-pressed', 'false');
 }
 
 setText(message, isTip) {
-    let text = message;
     this.textContainer.textContent = message;
 
     if (message.length > 0) {
-        this.timerFill.style.width = 0 + 'px';
+        this.setProgress(0);
         if (this.currentTrigger) {
             this.baseTime = this.currentTrigger.startTime;
             this.duration = this.currentTrigger.stopTime - this.baseTime;
         }
+    }
+
+    // Captions can wrap onto more lines, so re-measure the bar.
+    if (this.wizardRunning) {
+        this.size();
     }
 }
 
@@ -669,9 +728,7 @@ webcamStatus(event) {
 }
 
 start() {
-    let that = this;
     this.wizardRunning = true;
-    this.soundButton.style.display = 'block';
     this.play(0);
     this.startAudioTimer();
     GLOBALS.launchScreen.destroy();
@@ -682,13 +739,35 @@ startCamera() {
     GLOBALS.camInput.start();
 }
 
+// Moves focus to the tutorial's controls, so keyboard users can pause or
+// skip straight away.
+focusControls() {
+    this.pauseButton.focus();
+}
+
+// Moves focus to the machine, e.g. after the launch screen or the tutorial
+// bar goes away. The machine isn't interactive itself, so it gets
+// tabindex="-1" (focusable by script only).
+focusMachine() {
+    let machine = document.querySelector('#machine');
+    if (!machine) {
+        return;
+    }
+    if (!machine.hasAttribute('tabindex')) {
+        machine.setAttribute('tabindex', '-1');
+    }
+    machine.focus({preventScroll: true});
+}
+
 skip(event) {
     if (event) {
         event.preventDefault();
         gtag('event', 'wizard_skip_mid');        
     }
 
-    if (this.wizardRunning) {
+    let barHadFocus = this.bar.contains(document.activeElement);
+
+    if (this.wizardRunning && !Theme.prefersReducedMotion()) {
         TweenLite.to(this.wizardWrapper, 0.3, {
             height: 0,
             onComplete: () => {
@@ -702,8 +781,12 @@ skip(event) {
     this.stopAudioTimer();
     this.audio.pause();
     this.clear();
-    this.skipButton.style.display = 'none';
-    this.soundButton.style.display = 'none';
+    this.skipButton.hidden = true;
+    this.soundButton.hidden = true;
+    this.pauseButton.hidden = true;
+    if (barHadFocus) {
+        this.focusMachine();
+    }
     window.removeEventListener('class-trained', this.classTrainedEvent);
     setTimeout(() => {
         GLOBALS.camInput.start();

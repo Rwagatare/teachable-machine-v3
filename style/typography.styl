@@ -1,4 +1,6 @@
-$font = 'Poppins', sans-serif
+// System UI font stack. SF Pro is never bundled (licensed for Apple platforms
+// only); -apple-system / system-ui resolve to it on Apple devices.
+$font = -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif
 
 .font__weight--regular {
 	font-weight: 400
@@ -16,41 +18,66 @@ $font = 'Poppins', sans-serif
 	font-weight: 700
 }
 
+// Size utilities, remapped to the nearest HIG type role (rem, so they scale
+// with the user's text size). Size only; weight/line-height come from context.
 .font__size--xsmall {
-	font-size: 11px
+	font-size: var(--text-caption-size)
 }
 
 .font__size--small {
-	font-size: 14px
+	font-size: var(--text-subheadline-size)
 }
 
 .font__size--normal {
-	font-size: 16px
+	font-size: var(--text-body-size)
 }
 
 .font__size--large {
-	font-size: 18px
+	font-size: var(--text-headline-size)
 }
 
 .font__size--xlarge {
-	font-size: 24px
+	font-size: var(--text-title-2-size)
 }
 
 .font__size--xxlarge {
-	font-size: 30px
+	font-size: var(--text-title-1-size)
 }
 
+// Deprecated: HIG avoids all-caps labels. Kept until components stop using it.
 .uppercase {
 	text-transform: uppercase
 }
 
-html, body, input {
-	font-family: $font	
-	@extend .font__weight--regular
-	@extend .font__size--normal
+html {
+	font-family: $font
+}
+
+// iOS/iPadOS Safari: make rem follow the user's Dynamic Type setting. The
+// font shorthand resets the family, so it is set again afterwards.
+// -webkit-touch-callout limits this to iOS: macOS Safari also understands
+// -apple-system-body but resolves it to 13px, which would shrink every rem.
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+	html {
+		font: -apple-system-body
+		font-family: $font
+	}
+}
+
+body {
+	text-style(body)
+}
+
+html, body, input, button, select, textarea {
+	font-family: $font
+}
+
+// Form fields inherit body size (>= 16px also stops iOS zooming on focus)
+input, select, textarea {
+	font-size: inherit
 }
 
 h1, h2, h3, h4 {
 	margin: 0
-	@extend .font__weight--medium
+	@extend .font__weight--semi-bold
 }

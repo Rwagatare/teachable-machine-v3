@@ -1,227 +1,134 @@
+// ---------------------------------------------------------------------------
+// Buttons (flat, HIG style). Markup: .button > .button__label (added by
+// src/ui/components/Button.js) > .button__content. Works on <button> and on
+// legacy <a class="button">.
+//
+//   .button            filled accent (Start Tutorial, Record a Video, Start
+//                      Recording...)
+//   .button--large     bigger call to action
+//   .button--record    per-class Train button: tinted at rest, solid class
+//                      colour while training (aria-pressed="true")
+// ---------------------------------------------------------------------------
+
+$button-classes = 'green' 'purple' 'orange' 'red' 'blue' 'yellow' 'teal' 'neutral'
+
 .button {
-	display: inline-block
-	text-decoration: none
-	text-align: center
-	color: $color__white
+	position: relative
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	gap: var(--space-2)
+	min-width: 44px
+	min-height: 44px
 	margin: 0
-	@extend .font__size--large
+	padding: var(--space-2) var(--space-5)
+	color: var(--color-on-accent)
+	font: inherit
+	text-style(headline)
+	text-align: center
+	text-decoration: none
+	text-transform: none
+	background: unquote('var(--color-accent-fill, var(--color-accent))')
+	border: 0
+	border-radius: var(--radius-pill)
+	cursor: pointer
+	-webkit-appearance: none
+	appearance: none
+	-webkit-tap-highlight-color: transparent
+	touch-action: manipulation
+	press-feedback()
+
+	// Pressed by touch or keyboard (Button.js), where :active isn't reliable
+	&.button--pressed {
+		transform: scale(0.97)
+		opacity: 0.8
+	}
+
+	@media (hover: hover) {
+		&:hover {
+			filter: brightness(1.08)
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		&.button--pressed {
+			transform: none
+		}
+	}
 }
 
-.button--disabled {
+.button:disabled,
+.button[aria-disabled='true'],
+.button--disabled,
+.button.disabled,
+.button.recording-start__button--disabled {
+	opacity: 0.4
+	filter: none
+	cursor: default
 	pointer-events: none
-	-webkit-filter: grayscale(100%)
-	opacity: 0.3
 }
 
+.button--large {
+	min-height: 52px
+	padding: var(--space-3) var(--space-6)
+	text-style(title-3)
+}
 
+.button__label,
+.button__content {
+	display: inline-flex
+	align-items: center
+	justify-content: center
+	gap: var(--space-2)
+	min-width: 0
+}
+
+.button__label br {
+	display: none
+}
+
+.button .icon {
+	top: 0
+	margin-right: 0
+}
+
+// Legacy toggle pair (input selector, currently unused)
 .button-set {
-	height: 48px
+	display: flex
+	gap: var(--space-2)
 	width: 100%
-	text-align: left
 }
 
 .button__toggle {
-	position: relative
-	width: 50%
-}
-
-.button__toggle:first-of-type {
-	z-index: 2
-}
-
-.button__toggle:last-of-type {
-	margin-left: -12px
-}
-
-.button__content {
-	padding-left: space(2)
-	padding-right: space(2)
-}
-
-.button__content--large {
-	@extend .font__size--xlarge
-}
-
-.button__content--small {
-	width: 36px
-	height: 36px
-	@extend .font__size--small
-}
-
-.button__mask {
-	position: relative
-	overflow: hidden
-	width: 100%
-	height: 100%
-}
-
-.button__label {
-	position: absolute
-
-	br {
-		display: none
-	}
-}
-
-// Colors
-.front-face {
-	transition: fill 0.1s ease-out
-	fill: $color__grey--primary
-}
-
-.left-face {
-	transition: fill 0.1s ease-out
-	fill: $color__grey--shadow-left
-}
-
-.bottom-face {
-	transition: fill 0.1s ease-out
-	fill: $color__grey--shadow-bottom
-}
-
-
-.front-face--blue {
-	fill: $color__blue--primary
-}
-
-.left-face--blue {
-	fill: $color__blue--shadow-left
-}
-
-.bottom-face--blue {
-	fill: $color__blue--shadow-bottom
-}
-
-.front-face--grey {
-	fill: $color__grey--primary
-}
-
-.left-face--grey {
-	fill: $color__grey--shadow-left
-}
-
-.bottom-face--grey {
-	fill: $color__grey--shadow-bottom
-}
-
-.front-face--neutral {
-	fill: $color__class-neutral--primary
-}
-
-.left-face--neutral {
-	fill: $color__class-neutral--shadow-left
-}
-
-.bottom-face--neutral {
-	fill: $color__class-neutral--shadow-bottom
-}
-
-.front-face--green {
-	fill: $color__class-green--primary
-}
-
-.left-face--green {
-	fill: $color__class-green--shadow-left
-}
-
-.bottom-face--green {
-	fill: $color__class-green--shadow-bottom
-}
-
-.front-face--purple {
-	fill: $color__class-purple--primary
-}
-
-.left-face--purple {
-	fill: $color__class-purple--shadow-left
-}
-
-.bottom-face--purple {
-	fill: $color__class-purple--shadow-bottom
-}
-
-.front-face--orange {
-	fill: $color__class-orange--primary
-}
-
-.left-face--orange {
-	fill: $color__class-orange--shadow-left
-}
-
-.bottom-face--orange {
-	fill: $color__class-orange--shadow-bottom
-}
-
-.front-face--yellow {
-	fill: $color__class-yellow--primary
-}
-
-.left-face--yellow {
-	fill: $color__class-yellow--shadow-left
-}
-
-.bottom-face--yellow {
-	fill: $color__class-yellow--shadow-bottom
+	flex: 1
+	color: var(--color-label)
+	background: var(--color-fill)
 }
 
 .button__toggle--selected {
-	.front-face {
-		@extend .front-face--blue
-	}
-
-	.left-face {
-		@extend .left-face--blue
-	}
-
-	.bottom-face {
-		@extend .bottom-face--blue
-	}
+	color: var(--color-on-accent)
+	background: unquote('var(--color-accent-fill, var(--color-accent))')
 }
 
-.front-face--facebook {
-	fill: $color__facebook--primary
+// Per-class Train buttons
+.button--record {
+	width: 100%
+	min-height: 48px
+	padding: var(--space-2) var(--space-4)
+	font-weight: 600
+	border-radius: var(--radius-m)
+	// Hold-to-train: don't let the browser turn the hold into a scroll/zoom
+	touch-action: none
 }
 
-.left-face--facebook {
-	fill: $color__facebook--shadow-left
-}
+for cls in $button-classes {
+	.button--record.button--color-{cls} {
+		color: unquote('var(--class-' + cls + ')')
+		background: unquote('var(--class-' + cls + '-tint)')
 
-.bottom-face--facebook {
-	fill: $color__facebook--shadow-bottom
-}
-
-.front-face--twitter {
-	fill: $color__twitter--primary
-}
-
-.left-face--twitter {
-	fill: $color__twitter--shadow-left
-}
-
-.bottom-face--twitter {
-	fill: $color__twitter--shadow-bottom
-}
-
-.recording-share__button .button__label,
-.recording-start__button .button__label {
-	top: 8px !important
-}
-
-@media screen and (max-width: 900px) {
-	.button__label {
-
-		br {
-			display: block
+		&[aria-pressed='true'] {
+			color: unquote('var(--class-' + cls + '-on)')
+			background: unquote('var(--class-' + cls + ')')
 		}
-	}
-	.button__content--small {
-		position: relative
-		top: -6px
-	}
-	.button__color-title {
-		position: relative
-		top: -36px
-		display: block
-		pointer-events: none
 	}
 }

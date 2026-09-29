@@ -31,23 +31,25 @@ let GLOBALS = {
 	'purple',
 	'orange'
 	],
+	// Light-mode fallbacks only. Read live colors through ui/components/Theme.js
+	// so they follow the CSS tokens (dark mode, increased contrast).
 	colors: {
-		'green': '#2baa5e',
-		'purple': '#c95ac5',
-		'orange': '#dd4d31',
-		'red': '#e8453c',
-		'blue': '#4285f4',
-		'yellow': '#fbbc04',
-		'teal': '#26c6da'
+		'green': '#248A3D',
+		'purple': '#8944AB',
+		'orange': '#C93400',
+		'red': '#D70015',
+		'blue': '#0040DD',
+		'yellow': '#A05A00',
+		'teal': '#0071A4'
 	},
 	rgbaColors: {
-		'green': 'rgba(43, 170, 94, 0.25)',
-		'purple': 'rgba(201, 90, 197, 0.25)',
-		'orange': 'rgba(221, 77, 49, 0.25)',
-		'red': 'rgba(232, 69, 60, 0.25)',
-		'blue': 'rgba(66, 133, 244, 0.25)',
-		'yellow': 'rgba(251, 188, 4, 0.25)',
-		'teal': 'rgba(38, 198, 218, 0.25)'
+		'green': 'rgba(36, 138, 61, 0.25)',
+		'purple': 'rgba(137, 68, 171, 0.25)',
+		'orange': 'rgba(201, 52, 0, 0.25)',
+		'red': 'rgba(215, 0, 21, 0.25)',
+		'blue': 'rgba(0, 64, 221, 0.25)',
+		'yellow': 'rgba(160, 90, 0, 0.25)',
+		'teal': 'rgba(0, 113, 164, 0.25)'
 	},
 	classId: null,
 	predicting: false,
@@ -68,7 +70,8 @@ GLOBALS.getAudioContext = function() {
         let AudioContext = window.AudioContext || window.webkitAudioContext;
         GLOBALS.audioContext = new AudioContext();
     }
-    return GLOBALS.audioContext;
+    
+return GLOBALS.audioContext;
 };
 
 export default GLOBALS;
